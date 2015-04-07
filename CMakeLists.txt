@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   std_msgs
   tf
+  image_transport
 )
 
 find_package(PCL)
@@ -38,10 +39,14 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
   ${PCL_INCLUDE_DIRS}
 )
-include_directories(foveated_stereo/cpp/logpolar)
+include_directories(lib/foveated_stereo/cpp/logpolar)
+include_directories(lib/stereo_calib_lib/include)
 
 ## foveated stereo lib
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/foveated_stereo/cpp)
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/lib/foveated_stereo/cpp)
+
+## stereo calibration lib
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/lib/stereo_calib_lib)
 
 ## Declare a cpp executable
 add_executable(foveated_stereo_ros_node src/foveated_stereo_ros_node.cpp)
@@ -51,7 +56,8 @@ add_executable(foveated_stereo_ros_node src/foveated_stereo_ros_node.cpp)
 target_link_libraries(foveated_stereo_ros_node
    ${PCL_LIBRARIES}
    ${catkin_LIBRARIES}
-	 foveated_stereo_lib
+   foveated_stereo_lib
+   STEREO_CALIB_LIB
 )
 
 

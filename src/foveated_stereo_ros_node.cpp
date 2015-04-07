@@ -15,62 +15,10 @@
 #include <tf/transform_listener.h>
 #include <sensor_msgs/image_encodings.h>
 #include <logpolar.hpp>
+#include <stereo_calib_lib.h>
 
 
-
-
-
-
-
-
-struct stereo_calib_params
-{
-    double baseline;
-    double left_cam_resx;
-    double left_cam_resy;
-    double left_cam_fx;
-    double left_cam_fy;
-    double left_cam_cx;
-    double left_cam_cy;
-    double left_cam_k1;
-    double left_cam_k2;
-    double left_cam_k3;
-    double left_cam_k4;
-    double right_cam_resx;
-    double right_cam_resy;
-    double right_cam_fx;
-    double right_cam_fy;
-    double right_cam_cx;
-    double right_cam_cy;
-    double right_cam_k1;
-    double right_cam_k2;
-    double right_cam_k3;
-    double right_cam_k4;
-    double matching_threshold;
-    double min_number_of_features;
-    double max_number_of_features;
-    double number_fixed_state_params;
-    double number_measurements;
-    double encoders_state_noise;
-    double encoders_transition_noise;
-    double features_measurements_noise;
-    double encoders_measurements_noise;
-};
-
-struct stereo_calib_data
-{
-    cv::Mat transformation_left_cam_to_right_cam;
-    cv::Mat R_left_cam_to_right_cam;
-    cv::Mat t_left_cam_to_right_cam;
-
-    cv::Mat transformation_right_cam_to_left_cam;
-    cv::Mat R_right_cam_to_left_cam;
-    cv::Mat t_right_cam_to_left_cam;
-
-    cv::Mat transformation_left_cam_to_baseline_center;
-    cv::Mat transformation_right_cam_to_baseline_center;
-};
-
+#include <image_transport/image_transport.h>
 
 using namespace sensor_msgs;
 
@@ -82,6 +30,9 @@ class FoveatedStereoNode
     tf::StampedTransform l_eye_transform;
     tf::StampedTransform r_eye_transform;
 
+    image_transport::ImageTransport it_;
+    image_transport::Publisher image_pub_;
+
 public:
     typedef sync_policies::ApproximateTime<Image, Image> MySyncPolicy;
 
@@ -89,30 +40,65 @@ public:
     ros::Publisher point_cloud_publisher;
 
     boost::shared_ptr<message_filters::Subscriber<Image> > left_image_sub;
-    boost::shared_ptr<message_filters::Subscriber<Image> >  right_image_sub;
+    boost::shared_ptr<message_filters::Subscriber<Image> > right_image_sub;
 
     boost::shared_ptr<Synchronizer<MySyncPolicy> >sync;
+
+    boost::shared_ptr<stereo_calib> stereo_calibration;
     boost::shared_ptr<LogPolar> foveated_stereo;
 
     ~FoveatedStereoNode()
     {}
 
-    FoveatedStereoNode(ros::NodeHandle & nh_) : nh(nh_)
+    FoveatedStereoNode(ros::NodeHandle & nh_,
+                       int rings_,
+                       double min_radius_,
+                       int interp_,
+                       int full_,
+                       int sectors_,
+                       int sp_,
+                       std::vector<double> & disparities_,
+                       float sigma_,
+                       float occ_likelihood_,
+                       float pole_,
+                       bool high_pass_) : nh(nh_), it_(nh_)
     {
 
         left_image_sub=boost::shared_ptr<message_filters::Subscriber<Image> > (new message_filters::Subscriber<Image>(nh, "left_image", 10));
         right_image_sub=boost::shared_ptr<message_filters::Subscriber<Image> > (new message_filters::Subscriber<Image>(nh, "right_image", 10));
 
+        image_pub_ = it_.advertise("/vizzy/disparity", 3);
 
         sync=boost::shared_ptr<Synchronizer<MySyncPolicy> > (new Synchronizer<MySyncPolicy>(MySyncPolicy(10), *left_image_sub, *right_image_sub));
         sync->registerCallback(boost::bind(&FoveatedStereoNode::callback, this, _1, _2));
-        //foveated_stereo=boost::shared_ptr<LogPolar> (new LogPolar(fillParams()));
-        foveated_stereo=boost::shared_ptr<LogPolar> (new LogPolar());
+        stereo_calibration=boost::shared_ptr<stereo_calib> (new stereo_calib(fillStereoCalibParams()));
+
+        sensor_msgs::CameraInfoConstPtr left_camera_info=ros::topic::waitForMessage<sensor_msgs::CameraInfo>("/vizzy/l_camera/camera_info", ros::Duration(30));
+
+        foveated_stereo=boost::shared_ptr<LogPolar> (new LogPolar((int)left_camera_info->width,
+                                                                  (int)left_camera_info->height,
+                                                                  cv::Point2i(left_camera_info->width/2.0,
+                                                                              left_camera_info->height/2.0),
+                                                                  rings_,
+                                                                  min_radius_,
+                                                                  interp_,
+                                                                  full_,
+                                                                  sectors_,
+                                                                  sp_,
+                                                                  disparities_,
+                                                                  sigma_,
+                                                                  occ_likelihood_,
+                                                                  pole_,
+                                                                  high_pass_)
+                                                     );
 
         point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("stereo", 10);
+        return;
     }
 
-    stereo_calib_params fillParams()
+
+
+    stereo_calib_params fillStereoCalibParams()
     {
         ROS_INFO("Getting cameras' paremeters");
         sensor_msgs::CameraInfoConstPtr left_camera_info=ros::topic::waitForMessage<sensor_msgs::CameraInfo>("/vizzy/l_camera/camera_info", ros::Duration(30));
@@ -206,22 +192,26 @@ public:
         double r_eye_angle=-yaw;
         ROS_INFO_STREAM("l_eye_angle:"<<l_eye_angle <<"   r_eye_angle:"<<r_eye_angle);
 
-
         // Calibrate
-        /*foveated_stereo->calibrate(left_image_mat,
-                                   right_image_mat,
-                                   l_eye_angle,
-                                   r_eye_angle);*/
+        stereo_calibration->calibrate(left_image_mat,
+                                      right_image_mat,
+                                      l_eye_angle,
+                                      r_eye_angle);
 
-        // Get disparity map
-        /*stereo_disparity_data sdd = foveated_stereo->computeDisparityMap(left_image_mat,
-                                                                          right_image_mat,
-                                                                          l_eye_angle,
-                                                                          r_eye_angle);*/
+        stereo_calib_data scd=stereo_calibration->get_calibrated_transformations(l_eye_angle,r_eye_angle);
 
-        cv::Mat sdd = foveated_stereo->computeDisparityMap(left_image_mat,
-                                                           right_image_mat);
+        cv::Mat cortical_disparity_map=foveated_stereo->getDisparityMap(left_image_mat,
+                                                       right_image_mat,
+                                                       scd.R_left_cam_to_right_cam,
+                                                       scd.t_left_cam_to_right_cam,
+                                                       stereo_calibration->csc.LeftCalibMat,
+                                                       stereo_calibration->csc.RightCalibMat
+                                                       );
 
+        cv::Mat cartesian_disparity_map=foveated_stereo->to_cortical(cortical_disparity_map);
+
+        sensor_msgs::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", cartesian_disparity_map).toImageMsg();
+        image_pub_.publish(msg);
 
         //publishPointCloud2StupidROSConvention(sdd);
 
@@ -276,7 +266,68 @@ int main(int argc, char** argv)
 
     private_node_handle_.param("rate", rate, 100);
 
-    boost::shared_ptr<FoveatedStereoNode> foveated_stereo= boost::shared_ptr<FoveatedStereoNode>(new FoveatedStereoNode(nh));
+    int sectors;
+    int rings;
+    double min_radius;
+    int interp;
+    int full;
+    int sp;
+    bool high_pass;
+    double pole;
+    double occ_likelihood;
+    double sigma;
+    int disparities;
+    int min_disparity;
+
+
+    private_node_handle_.param("sectors", sectors, 100);
+    private_node_handle_.param("rings", rings, 100);
+    private_node_handle_.param("min_radius", min_radius, 1.0);
+    private_node_handle_.param("interp", interp, 1);
+    private_node_handle_.param("sp", sp, 0);
+    private_node_handle_.param("full", full, 1);
+    private_node_handle_.param("high_pass", high_pass, false);
+    private_node_handle_.param("pole", pole, 0.8);
+    private_node_handle_.param("occ_likelihood", occ_likelihood, 0.1);
+    private_node_handle_.param("sigma", sigma, 3.0);
+    private_node_handle_.param("disparities", disparities, 60);
+    private_node_handle_.param("min_disparity", min_disparity, 1);
+
+
+
+    std::vector<double> disparities_vec;
+
+    for(int i=min_disparity; i<disparities; ++i)
+    {
+        disparities_vec.push_back(i);
+    }
+
+    ROS_INFO_STREAM("sectors: "<<sectors);
+    ROS_INFO_STREAM("rings: "<<rings);
+    ROS_INFO_STREAM("min_radius: "<<min_radius);
+    ROS_INFO_STREAM("interp: "<<interp);
+    ROS_INFO_STREAM("sp: "<<sp);
+    ROS_INFO_STREAM("full: "<<full);
+    ROS_INFO_STREAM("high_pass: "<<high_pass);
+    ROS_INFO_STREAM("pole: "<<pole);
+    ROS_INFO_STREAM("occ_likelihood: "<<occ_likelihood);
+    ROS_INFO_STREAM("sigma: "<<sigma);
+    ROS_INFO_STREAM("disparities: "<<disparities);
+    ROS_INFO_STREAM("min_disparity: "<<min_disparity);
+
+    boost::shared_ptr<FoveatedStereoNode> foveated_stereo= boost::shared_ptr<FoveatedStereoNode>(new FoveatedStereoNode(nh,
+                                                                                                                        rings,
+                                                                                                                        min_radius,
+                                                                                                                        interp,
+                                                                                                                        full,
+                                                                                                                        sectors,
+                                                                                                                        sp,
+                                                                                                                        disparities_vec,
+                                                                                                                        sigma,
+                                                                                                                        occ_likelihood,
+                                                                                                                        pole,
+                                                                                                                        high_pass
+                                                                                                                        ));
 
     // Tell ROS how fast to run this node.
     ros::Rate r(rate);
