@@ -144,7 +144,7 @@ public:
         params.matching_threshold=0.35;
         params.max_number_of_features=250;
         params.min_number_of_features=2;
-        params.number_fixed_state_params=4;
+        params.number_fixed_state_params=5;
         params.number_measurements=6;
 
         return params;
@@ -154,8 +154,10 @@ public:
                   const ImageConstPtr& right_image)
     {
         // Solve all of perception here...
-        cv::Mat left_image_mat =cv_bridge::toCvCopy(left_image, left_image->encoding)->image;
-        cv::Mat right_image_mat =cv_bridge::toCvCopy(right_image, right_image->encoding)->image;
+        //cv::Mat left_image_mat =cv_bridge::toCvCopy(left_image, left_image->encoding)->image;
+        //cv::Mat right_image_mat =cv_bridge::toCvCopy(right_image, right_image->encoding)->image;
+        cv::Mat left_image_mat =cv_bridge::toCvCopy(left_image, "mono8")->image;
+        cv::Mat right_image_mat =cv_bridge::toCvCopy(right_image, "mono8")->image;
 
         // Get angle
         try
@@ -190,7 +192,7 @@ public:
                           r_eye_transform.getRotation().getW()
                           )).getRPY(roll, pitch, yaw);
         double r_eye_angle=-yaw;
-        ROS_INFO_STREAM("l_eye_angle:"<<l_eye_angle <<"   r_eye_angle:"<<r_eye_angle);
+        //ROS_INFO_STREAM("l_eye_angle:"<<l_eye_angle <<"   r_eye_angle:"<<r_eye_angle);
 
         // Calibrate
         stereo_calibration->calibrate(left_image_mat,
@@ -208,7 +210,10 @@ public:
                                                        stereo_calibration->csc.RightCalibMat
                                                        );
 
-        cv::Mat cartesian_disparity_map=foveated_stereo->to_cortical(cortical_disparity_map);
+        cv::Mat cartesian_disparity_map=foveated_stereo->to_cartesian(cortical_disparity_map);
+
+        std::cout << "cartesian disparity map:" << cartesian_disparity_map << std::endl;
+
 
         sensor_msgs::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", cartesian_disparity_map).toImageMsg();
         image_pub_.publish(msg);
