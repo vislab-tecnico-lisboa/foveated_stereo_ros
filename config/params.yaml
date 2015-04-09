@@ -1,12 +1,12 @@
-rings: 128
+rings: 64
 min_radius: 1
 interp: 1
 full: 1
-sectors: 256
+sectors: 128
 sp: 0
-min_disparity: 0
+min_disparity: -60
 disparities: 120
 sigma: 3.0
 occ_likelihood: 0.1
-pole: 0.8
-high_pass: false 
+pole: 0.6
+high_pass: true

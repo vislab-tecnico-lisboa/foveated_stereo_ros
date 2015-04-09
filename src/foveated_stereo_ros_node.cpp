@@ -156,9 +156,8 @@ public:
         // Solve all of perception here...
         //cv::Mat left_image_mat =cv_bridge::toCvCopy(left_image, left_image->encoding)->image;
         //cv::Mat right_image_mat =cv_bridge::toCvCopy(right_image, right_image->encoding)->image;
-        cv::Mat left_image_mat =cv_bridge::toCvCopy(left_image, "mono8")->image;
-        cv::Mat right_image_mat =cv_bridge::toCvCopy(right_image, "mono8")->image;
-
+        cv::Mat left_image_mat =cv_bridge::toCvCopy(left_image, "bgr8")->image;
+        cv::Mat right_image_mat =cv_bridge::toCvCopy(right_image, "bgr8")->image;
         // Get angle
         try
         {
@@ -202,27 +201,32 @@ public:
 
         stereo_calib_data scd=stereo_calibration->get_calibrated_transformations(l_eye_angle,r_eye_angle);
 
-        cv::Mat cortical_disparity_map=foveated_stereo->getDisparityMap(left_image_mat,
+        stereo_disparity_data stereo_data=foveated_stereo->getDisparityMap(left_image_mat,
                                                        right_image_mat,
                                                        scd.R_left_cam_to_right_cam,
                                                        scd.t_left_cam_to_right_cam,
                                                        stereo_calibration->csc.LeftCalibMat,
                                                        stereo_calibration->csc.RightCalibMat
-                                                       );
+                                                       );//*/
+        //std::cout << "stereo_data.disparity_values: " << stereo_data.disparity_values << std::endl;
 
-        cv::Mat cartesian_disparity_map=foveated_stereo->to_cartesian(cortical_disparity_map);
-
-        std::cout << "cartesian disparity map:" << cartesian_disparity_map << std::endl;
-
-
-        sensor_msgs::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", cartesian_disparity_map).toImageMsg();
+        /*stereo_data=foveated_stereo->getDisparityMapNormal(left_image_mat,
+                                                       right_image_mat,
+                                                       scd.R_left_cam_to_right_cam,
+                                                       scd.t_left_cam_to_right_cam,
+                                                       stereo_calibration->csc.LeftCalibMat,
+                                                       stereo_calibration->csc.RightCalibMat
+                                                       );//*/
+        //std::cout << "stereo_data.disparity_values: " << stereo_data.disparity_values << std::endl;
+//exit(-1);
+        sensor_msgs::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", stereo_data.disparity_image).toImageMsg();
         image_pub_.publish(msg);
 
-        //publishPointCloud2StupidROSConvention(sdd);
+        publishPointCloud2StupidROSConvention(stereo_data);
 
     }
 
-    /*void publishPointCloud2StupidROSConvention(stereo_disparity_data & sdd)
+    void publishPointCloud2StupidROSConvention(stereo_disparity_data & sdd)
     {
         pcl::PointCloud<pcl::PointXYZRGB> point_cloud;
         for(int r=0; r<sdd.point_cloud_xyz.rows; ++r)
@@ -250,7 +254,7 @@ public:
         point_cloud_msg.header.frame_id="eyes_center_link";
         point_cloud_publisher.publish(point_cloud_msg);
 
-    }*/
+    }
 
 
 };
