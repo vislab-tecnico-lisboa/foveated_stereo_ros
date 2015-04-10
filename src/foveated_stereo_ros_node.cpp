@@ -75,6 +75,9 @@ public:
 
         sensor_msgs::CameraInfoConstPtr left_camera_info=ros::topic::waitForMessage<sensor_msgs::CameraInfo>("/vizzy/l_camera/camera_info", ros::Duration(30));
 
+        float fx_=left_camera_info->K.at(0); // fx
+        float fy_=left_camera_info->K.at(4); // fy
+
         foveated_stereo=boost::shared_ptr<LogPolar> (new LogPolar((int)left_camera_info->width,
                                                                   (int)left_camera_info->height,
                                                                   cv::Point2i(left_camera_info->width/2.0,
@@ -89,6 +92,8 @@ public:
                                                                   sigma_,
                                                                   occ_likelihood_,
                                                                   pole_,
+                                                                  fx_,
+                                                                  fy_,
                                                                   high_pass_)
                                                      );
 

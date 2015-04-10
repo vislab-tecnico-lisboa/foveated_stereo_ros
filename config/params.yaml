@@ -1,11 +1,11 @@
-rings: 64
+rings: 128
 min_radius: 1
 interp: 1
 full: 1
 sectors: 128
 sp: 0
-min_disparity: -60
-disparities: 120
+min_disparity: -30
+disparities: 30
 sigma: 3.0
 occ_likelihood: 0.1
 pole: 0.6
