@@ -77,7 +77,8 @@ public:
 
         float fx_=left_camera_info->K.at(0); // fx
         float fy_=left_camera_info->K.at(4); // fy
-
+        //float focal_pixel = (image_width_in_pixels * 0.5) / tan(FOV * 0.5);
+        //float tan(FOV*0.5)=(left_camera_info->width * 0.5) /
         foveated_stereo=boost::shared_ptr<LogPolar> (new LogPolar((int)left_camera_info->width,
                                                                   (int)left_camera_info->height,
                                                                   cv::Point2i(left_camera_info->width/2.0,
@@ -207,12 +208,12 @@ public:
         stereo_calib_data scd=stereo_calibration->get_calibrated_transformations(l_eye_angle,r_eye_angle);
 
         stereo_disparity_data stereo_data=foveated_stereo->getDisparityMap(left_image_mat,
-                                                       right_image_mat,
-                                                       scd.R_left_cam_to_right_cam,
-                                                       scd.t_left_cam_to_right_cam,
-                                                       stereo_calibration->csc.LeftCalibMat,
-                                                       stereo_calibration->csc.RightCalibMat
-                                                       );//*/
+                                                                           right_image_mat,
+                                                                           scd.R_left_cam_to_right_cam,
+                                                                           scd.t_left_cam_to_right_cam,
+                                                                           stereo_calibration->csc.LeftCalibMat,
+                                                                           stereo_calibration->csc.RightCalibMat
+                                                                           );//*/
         //std::cout << "stereo_data.disparity_values: " << stereo_data.disparity_values << std::endl;
 
         /*stereo_data=foveated_stereo->getDisparityMapNormal(left_image_mat,
@@ -223,7 +224,7 @@ public:
                                                        stereo_calibration->csc.RightCalibMat
                                                        );//*/
         //std::cout << "stereo_data.disparity_values: " << stereo_data.disparity_values << std::endl;
-//exit(-1);
+        //exit(-1);
         sensor_msgs::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", stereo_data.disparity_image).toImageMsg();
         image_pub_.publish(msg);
 
@@ -233,23 +234,27 @@ public:
 
     void publishPointCloud2StupidROSConvention(stereo_disparity_data & sdd)
     {
+        float radius=    2.0;
         pcl::PointCloud<pcl::PointXYZRGB> point_cloud;
-        for(int r=0; r<sdd.point_cloud_xyz.rows; ++r)
+        for(int r=0; r<sdd.point_cloud_ego.rows; ++r)
         {
-            for (int c=0; c<sdd.point_cloud_xyz.cols; ++c)
-            {
-                if(sdd.point_cloud_xyz.at<cv::Vec3d>(r,c)[2]>0.1 && sdd.point_cloud_xyz.at<cv::Vec3d>(r,c)[2]<10.0)
-                {
-                    pcl::PointXYZRGB point;
+            float phi_=sdd.point_cloud_ego.at<cv::Vec3d>(r,0)[1];
+            float cos_phi_=cos(phi_);
+            float sin_phi_=sin(phi_);
+            //std::cout << "phi_index: "<<r<< " phi:" << phi_ << " sin_phi: " <<sin_phi_<< " cos_phi:" <<cos_phi_ << std::endl;
 
-                    point.data[0] = sdd.point_cloud_xyz.at<cv::Vec3d>(r,c)[2];
-                    point.data[1] = -sdd.point_cloud_xyz.at<cv::Vec3d>(r,c)[0];
-                    point.data[2] = -sdd.point_cloud_xyz.at<cv::Vec3d>(r,c)[1];
-                    point.r=sdd.point_cloud_rgb.at<cv::Vec3b>(r,c)[2];
-                    point.g=sdd.point_cloud_rgb.at<cv::Vec3b>(r,c)[1];
-                    point.b=sdd.point_cloud_rgb.at<cv::Vec3b>(r,c)[0];
-                    point_cloud.push_back(point);
-                }
+            for (int c=0; c<sdd.point_cloud_ego.cols; ++c)
+            {
+                pcl::PointXYZRGB point;
+
+                point.data[0] = sdd.point_cloud_xyz.at<cv::Vec3d>(r,c)[2];
+                point.data[1] = -sdd.point_cloud_xyz.at<cv::Vec3d>(r,c)[0];
+                point.data[2] = -sdd.point_cloud_xyz.at<cv::Vec3d>(r,c)[1];
+
+                point.r=sdd.point_cloud_rgb.at<cv::Vec3b>(r,c)[2];
+                point.g=sdd.point_cloud_rgb.at<cv::Vec3b>(r,c)[1];
+                point.b=sdd.point_cloud_rgb.at<cv::Vec3b>(r,c)[0];
+                point_cloud.push_back(point);
             }
         }
 
@@ -258,9 +263,7 @@ public:
 
         point_cloud_msg.header.frame_id="eyes_center_link";
         point_cloud_publisher.publish(point_cloud_msg);
-
     }
-
 
 };
 
