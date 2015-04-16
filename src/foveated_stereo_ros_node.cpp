@@ -61,8 +61,7 @@ public:
                        float sigma_,
                        float occ_likelihood_,
                        float pole_,
-                       unsigned int spherical_theta_bins_,
-                       unsigned int spherical_phi_bins_,
+                       unsigned int spherical_angle_bins_,
                        float shell_radius_,
                        bool high_pass_) : nh(nh_), it_(nh_)
     {
@@ -121,8 +120,7 @@ public:
                                                                pole_,
                                                                focal_distance,
                                                                baseline,
-                                                               spherical_theta_bins_,
-                                                               spherical_phi_bins_,
+                                                               spherical_angle_bins_,
                                                                shell_radius_,
                                                                high_pass_)
                                                  );
@@ -306,8 +304,7 @@ int main(int argc, char** argv)
     double sigma;
     int disparities;
     int min_disparity;
-    int spherical_theta_bins;
-    int spherical_phi_bins;
+    int spherical_angle_bins;
     double shell_radius;
 
     private_node_handle_.param("sectors", sectors, 100);
@@ -322,8 +319,7 @@ int main(int argc, char** argv)
     private_node_handle_.param("sigma", sigma, 3.0);
     private_node_handle_.param("disparities", disparities, 60);
     private_node_handle_.param("min_disparity", min_disparity, 1);
-    private_node_handle_.param("spherical_theta_bins", spherical_theta_bins, 50);
-    private_node_handle_.param("spherical_phi_bins", spherical_phi_bins, 100);
+    private_node_handle_.param("spherical_angle_bins", spherical_angle_bins, 50);
     private_node_handle_.param("shell_radius", shell_radius, 1.0);
 
     std::vector<double> disparities_vec;
@@ -345,6 +341,8 @@ int main(int argc, char** argv)
     ROS_INFO_STREAM("sigma: "<<sigma);
     ROS_INFO_STREAM("disparities: "<<disparities);
     ROS_INFO_STREAM("min_disparity: "<<min_disparity);
+    ROS_INFO_STREAM("spherical_angle_bins: "<<spherical_angle_bins);
+    ROS_INFO_STREAM("shell_radius: "<<shell_radius);
 
     FoveatedStereoNode ego_sphere(nh,
                                                                                                            rings,
@@ -357,8 +355,7 @@ int main(int argc, char** argv)
                                                                                                            sigma,
                                                                                                            occ_likelihood,
                                                                                                            pole,
-                                                                                                           spherical_theta_bins,
-                                                                                                           spherical_phi_bins,
+                                                                                                           spherical_angle_bins,
                                                                                                            shell_radius,
                                                                                                            high_pass
                                                                                                            );
