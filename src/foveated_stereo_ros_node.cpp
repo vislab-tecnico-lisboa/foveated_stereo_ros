@@ -14,7 +14,7 @@
 
 #include <tf/transform_listener.h>
 #include <sensor_msgs/image_encodings.h>
-#include <logpolar.hpp>
+#include <EgoSphere.h>
 #include <stereo_calib_lib.h>
 
 
@@ -45,7 +45,7 @@ public:
     boost::shared_ptr<Synchronizer<MySyncPolicy> >sync;
 
     boost::shared_ptr<stereo_calib> stereo_calibration;
-    boost::shared_ptr<LogPolar> foveated_stereo;
+    boost::shared_ptr<EgoSphere> ego_sphere;
 
     ~FoveatedStereoNode()
     {}
@@ -61,6 +61,9 @@ public:
                        float sigma_,
                        float occ_likelihood_,
                        float pole_,
+                       unsigned int spherical_theta_bins_,
+                       unsigned int spherical_phi_bins_,
+                       float shell_radius_,
                        bool high_pass_) : nh(nh_), it_(nh_)
     {
 
@@ -69,34 +72,61 @@ public:
 
         image_pub_ = it_.advertise("/vizzy/disparity", 3);
 
+
+        tf::StampedTransform transform;
+
+        try
+        {
+            listener.waitForTransform("/l_eye_vergence_link", "/r_eye_vergence_link", ros::Time(0), ros::Duration(10.0) );
+            listener.lookupTransform("/l_eye_vergence_link", "/r_eye_vergence_link",
+                                     ros::Time(0), transform);
+        }
+        catch (tf::TransformException &ex)
+        {
+            ROS_ERROR("%s",ex.what());
+            ros::Duration(1.0).sleep();
+            exit(-1);
+        }
+        tf::Vector3 origin=transform.getOrigin();
+
+        float baseline=origin.length(); // meters
+
+
         sync=boost::shared_ptr<Synchronizer<MySyncPolicy> > (new Synchronizer<MySyncPolicy>(MySyncPolicy(10), *left_image_sub, *right_image_sub));
         sync->registerCallback(boost::bind(&FoveatedStereoNode::callback, this, _1, _2));
-        stereo_calibration=boost::shared_ptr<stereo_calib> (new stereo_calib(fillStereoCalibParams()));
+        stereo_calibration=boost::shared_ptr<stereo_calib> (new stereo_calib(fillStereoCalibParams(baseline)));
 
         sensor_msgs::CameraInfoConstPtr left_camera_info=ros::topic::waitForMessage<sensor_msgs::CameraInfo>("/vizzy/l_camera/camera_info", ros::Duration(30));
 
-        float fx_=left_camera_info->K.at(0); // fx
-        float fy_=left_camera_info->K.at(4); // fy
+        //float fx_=left_camera_info->K.at(0); // fx
+        //float fy_=left_camera_info->K.at(4); // fy
+        float focal_distance=left_camera_info->K.at(4); // fy
+
+
         //float focal_pixel = (image_width_in_pixels * 0.5) / tan(FOV * 0.5);
         //float tan(FOV*0.5)=(left_camera_info->width * 0.5) /
-        foveated_stereo=boost::shared_ptr<LogPolar> (new LogPolar((int)left_camera_info->width,
-                                                                  (int)left_camera_info->height,
-                                                                  cv::Point2i(left_camera_info->width/2.0,
-                                                                              left_camera_info->height/2.0),
-                                                                  rings_,
-                                                                  min_radius_,
-                                                                  interp_,
-                                                                  full_,
-                                                                  sectors_,
-                                                                  sp_,
-                                                                  disparities_,
-                                                                  sigma_,
-                                                                  occ_likelihood_,
-                                                                  pole_,
-                                                                  fx_,
-                                                                  fy_,
-                                                                  high_pass_)
-                                                     );
+        ego_sphere=boost::shared_ptr<EgoSphere> (new EgoSphere((int)left_camera_info->width,
+                                                               (int)left_camera_info->height,
+                                                               cv::Point2i(left_camera_info->width/2.0,
+                                                                           left_camera_info->height/2.0),
+                                                               rings_,
+                                                               min_radius_,
+                                                               interp_,
+                                                               full_,
+                                                               sectors_,
+                                                               sp_,
+                                                               disparities_,
+                                                               sigma_,
+                                                               occ_likelihood_,
+                                                               pole_,
+                                                               focal_distance,
+                                                               baseline,
+                                                               spherical_theta_bins_,
+                                                               spherical_phi_bins_,
+                                                               shell_radius_,
+                                                               high_pass_)
+                                                 );
+
 
         point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("stereo", 10);
         return;
@@ -104,7 +134,7 @@ public:
 
 
 
-    stereo_calib_params fillStereoCalibParams()
+    stereo_calib_params fillStereoCalibParams(float & baseline)
     {
         ROS_INFO("Getting cameras' paremeters");
         sensor_msgs::CameraInfoConstPtr left_camera_info=ros::topic::waitForMessage<sensor_msgs::CameraInfo>("/vizzy/l_camera/camera_info", ros::Duration(30));
@@ -125,23 +155,7 @@ public:
         params.right_cam_resx=right_camera_info->width;
         params.right_cam_resy=right_camera_info->height;
 
-        tf::StampedTransform transform;
-
-        try
-        {
-            listener.waitForTransform("/l_eye_vergence_link", "/r_eye_vergence_link", ros::Time(0), ros::Duration(10.0) );
-            listener.lookupTransform("/l_eye_vergence_link", "/r_eye_vergence_link",
-                                     ros::Time(0), transform);
-        }
-        catch (tf::TransformException &ex)
-        {
-            ROS_ERROR("%s",ex.what());
-            ros::Duration(1.0).sleep();
-            exit(-1);
-        }
-        tf::Vector3 origin=transform.getOrigin();
-
-        params.baseline=origin.length(); // meters
+        params.baseline=baseline; // meters
         ROS_INFO_STREAM("baseline:"<<params.baseline);
         params.encoders_measurements_noise=0.0000000175;
         params.encoders_state_noise=1.0;
@@ -159,12 +173,12 @@ public:
     void callback(const ImageConstPtr& left_image,
                   const ImageConstPtr& right_image)
     {
-        // Solve all of perception here...
-        //cv::Mat left_image_mat =cv_bridge::toCvCopy(left_image, left_image->encoding)->image;
-        //cv::Mat right_image_mat =cv_bridge::toCvCopy(right_image, right_image->encoding)->image;
+
+        // 1. Get uncalibrated color images
         cv::Mat left_image_mat =cv_bridge::toCvCopy(left_image, "bgr8")->image;
         cv::Mat right_image_mat =cv_bridge::toCvCopy(right_image, "bgr8")->image;
-        // Get angle
+
+        // 2. Get eye angles with respect to eyes center
         try
         {
             listener.waitForTransform("/eyes_center_link", "/l_eye_vergence_link", ros::Time(0), ros::Duration(10.0) );
@@ -199,24 +213,27 @@ public:
         double r_eye_angle=-yaw;
         //ROS_INFO_STREAM("l_eye_angle:"<<l_eye_angle <<"   r_eye_angle:"<<r_eye_angle);
 
-        // Calibrate
+        // 3. calibrate given angles
         stereo_calibration->calibrate(left_image_mat,
                                       right_image_mat,
                                       l_eye_angle,
                                       r_eye_angle);
 
+
         stereo_calib_data scd=stereo_calibration->get_calibrated_transformations(l_eye_angle,r_eye_angle);
 
-        stereo_disparity_data stereo_data=foveated_stereo->getDisparityMap(left_image_mat,
-                                                                           right_image_mat,
-                                                                           scd.R_left_cam_to_right_cam,
-                                                                           scd.t_left_cam_to_right_cam,
-                                                                           stereo_calibration->csc.LeftCalibMat,
-                                                                           stereo_calibration->csc.RightCalibMat
-                                                                           );//*/
+        EgoSphereData stereo_data=ego_sphere->computeEgoSphere(left_image_mat,
+                                                                      right_image_mat,
+                                                                      scd.R_left_cam_to_right_cam,
+                                                                      scd.t_left_cam_to_right_cam,
+                                                                      stereo_calibration->csc.LeftCalibMat,
+                                                                      stereo_calibration->csc.RightCalibMat
+                                                                      );//*/
+
+
         //std::cout << "stereo_data.disparity_values: " << stereo_data.disparity_values << std::endl;
 
-        /*stereo_data=foveated_stereo->getDisparityMapNormal(left_image_mat,
+        /*stereo_data=ego_sphere->getDisparityMapNormal(left_image_mat,
                                                        right_image_mat,
                                                        scd.R_left_cam_to_right_cam,
                                                        scd.t_left_cam_to_right_cam,
@@ -228,28 +245,22 @@ public:
         sensor_msgs::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", stereo_data.disparity_image).toImageMsg();
         image_pub_.publish(msg);
 
-        publishPointCloud2StupidROSConvention(stereo_data);
+        publishPointCloud(stereo_data);
 
     }
 
-    void publishPointCloud2StupidROSConvention(stereo_disparity_data & sdd)
+    void publishPointCloud(EgoSphereData & sdd)
     {
-        float radius=    2.0;
         pcl::PointCloud<pcl::PointXYZRGB> point_cloud;
-        for(int r=0; r<sdd.point_cloud_ego.rows; ++r)
+        for(int r=0; r<sdd.point_cloud_cartesian.rows; ++r)
         {
-            float phi_=sdd.point_cloud_ego.at<cv::Vec3d>(r,0)[1];
-            float cos_phi_=cos(phi_);
-            float sin_phi_=sin(phi_);
-            //std::cout << "phi_index: "<<r<< " phi:" << phi_ << " sin_phi: " <<sin_phi_<< " cos_phi:" <<cos_phi_ << std::endl;
-
-            for (int c=0; c<sdd.point_cloud_ego.cols; ++c)
+            for (int c=0; c<sdd.point_cloud_cartesian.cols; ++c)
             {
                 pcl::PointXYZRGB point;
 
-                point.data[0] = sdd.point_cloud_xyz.at<cv::Vec3d>(r,c)[2];
-                point.data[1] = -sdd.point_cloud_xyz.at<cv::Vec3d>(r,c)[0];
-                point.data[2] = -sdd.point_cloud_xyz.at<cv::Vec3d>(r,c)[1];
+                point.data[0] = sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[2];
+                point.data[1] = -sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[0];
+                point.data[2] = -sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[1];
 
                 point.r=sdd.point_cloud_rgb.at<cv::Vec3b>(r,c)[2];
                 point.g=sdd.point_cloud_rgb.at<cv::Vec3b>(r,c)[1];
@@ -261,7 +272,7 @@ public:
         sensor_msgs::PointCloud2 point_cloud_msg;
         pcl::toROSMsg(point_cloud,point_cloud_msg);
 
-        point_cloud_msg.header.frame_id="eyes_center_link";
+        point_cloud_msg.header.frame_id="l_camera_link";
         point_cloud_publisher.publish(point_cloud_msg);
     }
 
@@ -295,7 +306,9 @@ int main(int argc, char** argv)
     double sigma;
     int disparities;
     int min_disparity;
-
+    int spherical_theta_bins;
+    int spherical_phi_bins;
+    double shell_radius;
 
     private_node_handle_.param("sectors", sectors, 100);
     private_node_handle_.param("rings", rings, 100);
@@ -309,8 +322,9 @@ int main(int argc, char** argv)
     private_node_handle_.param("sigma", sigma, 3.0);
     private_node_handle_.param("disparities", disparities, 60);
     private_node_handle_.param("min_disparity", min_disparity, 1);
-
-
+    private_node_handle_.param("spherical_theta_bins", spherical_theta_bins, 50);
+    private_node_handle_.param("spherical_phi_bins", spherical_phi_bins, 100);
+    private_node_handle_.param("shell_radius", shell_radius, 1.0);
 
     std::vector<double> disparities_vec;
 
@@ -332,19 +346,22 @@ int main(int argc, char** argv)
     ROS_INFO_STREAM("disparities: "<<disparities);
     ROS_INFO_STREAM("min_disparity: "<<min_disparity);
 
-    boost::shared_ptr<FoveatedStereoNode> foveated_stereo= boost::shared_ptr<FoveatedStereoNode>(new FoveatedStereoNode(nh,
-                                                                                                                        rings,
-                                                                                                                        min_radius,
-                                                                                                                        interp,
-                                                                                                                        full,
-                                                                                                                        sectors,
-                                                                                                                        sp,
-                                                                                                                        disparities_vec,
-                                                                                                                        sigma,
-                                                                                                                        occ_likelihood,
-                                                                                                                        pole,
-                                                                                                                        high_pass
-                                                                                                                        ));
+    FoveatedStereoNode ego_sphere(nh,
+                                                                                                           rings,
+                                                                                                           min_radius,
+                                                                                                           interp,
+                                                                                                           full,
+                                                                                                           sectors,
+                                                                                                           sp,
+                                                                                                           disparities_vec,
+                                                                                                           sigma,
+                                                                                                           occ_likelihood,
+                                                                                                           pole,
+                                                                                                           spherical_theta_bins,
+                                                                                                           spherical_phi_bins,
+                                                                                                           shell_radius,
+                                                                                                           high_pass
+                                                                                                           );
 
     // Tell ROS how fast to run this node.
     ros::Rate r(rate);
