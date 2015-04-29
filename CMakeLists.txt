@@ -39,7 +39,7 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
   ${PCL_INCLUDE_DIRS}
 )
-include_directories(lib/foveated_stereo/cpp/logpolar)
+include_directories(lib/foveated_stereo/cpp/cpp)
 include_directories(lib/stereo_calib_lib/include)
 
 ## foveated stereo lib

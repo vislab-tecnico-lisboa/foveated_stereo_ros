@@ -29,6 +29,7 @@ class FoveatedStereoNode
     tf::TransformListener listener;
     tf::StampedTransform l_eye_transform;
     tf::StampedTransform r_eye_transform;
+    tf::StampedTransform r_l_eye_transform;
 
     image_transport::ImageTransport it_;
     image_transport::Publisher image_pub_;
@@ -76,8 +77,8 @@ public:
 
         try
         {
-            listener.waitForTransform("/l_eye_vergence_link", "/r_eye_vergence_link", ros::Time(0), ros::Duration(10.0) );
-            listener.lookupTransform("/l_eye_vergence_link", "/r_eye_vergence_link",
+            listener.waitForTransform("/l_camera_vision_link", "/r_camera_vision_link", ros::Time(0), ros::Duration(10.0) );
+            listener.lookupTransform("/l_camera_vision_link", "/r_camera_vision_link",
                                      ros::Time(0), transform);
         }
         catch (tf::TransformException &ex)
@@ -179,12 +180,15 @@ public:
         // 2. Get eye angles with respect to eyes center
         try
         {
-            listener.waitForTransform("/eyes_center_link", "/l_eye_vergence_link", ros::Time(0), ros::Duration(10.0) );
-            listener.lookupTransform("/eyes_center_link", "/l_eye_vergence_link",
+            listener.waitForTransform("/l_camera_vision_link", "/eyes_center_vision_link", ros::Time(0), ros::Duration(10.0) );
+            listener.lookupTransform("/l_camera_vision_link", "/eyes_center_vision_link",
                                      ros::Time(0), l_eye_transform);
-            listener.waitForTransform("/eyes_center_link", "/r_eye_vergence_link", ros::Time(0), ros::Duration(10.0) );
-            listener.lookupTransform("/eyes_center_link", "/r_eye_vergence_link",
-                                     ros::Time(0), r_eye_transform);
+            /*listener.waitForTransform("/eyes_center_vision_link", "/r_camera_vision_link", ros::Time(0), ros::Duration(10.0) );
+            listener.lookupTransform("/eyes_center_vision_link", "/r_camera_vision_link",
+                                     ros::Time(0), r_eye_transform);*/
+            listener.waitForTransform("/r_camera_vision_link", "/l_camera_vision_link", ros::Time(0), ros::Duration(10.0) );
+            listener.lookupTransform("/r_camera_vision_link", "/l_camera_vision_link",
+                                     ros::Time(0), r_l_eye_transform);
         }
         catch (tf::TransformException &ex)
         {
@@ -193,7 +197,7 @@ public:
             exit(-1);
         }
 
-        double roll, pitch, yaw;
+        /*double roll, pitch, yaw;
         tf::Matrix3x3(tf::Quaternion(
                           l_eye_transform.getRotation().getX(),
                           l_eye_transform.getRotation().getY(),
@@ -216,17 +220,54 @@ public:
                                       right_image_mat,
                                       l_eye_angle,
                                       r_eye_angle);
+        */
 
+        cv::Mat left_to_center = Mat::eye(4,4,CV_64F);
+        left_to_center.at<double>(0,0) = l_eye_transform.getBasis().getColumn(0)[0];
+        left_to_center.at<double>(1,0) = l_eye_transform.getBasis().getColumn(0)[1];
+        left_to_center.at<double>(2,0) = l_eye_transform.getBasis().getColumn(0)[2];
+        left_to_center.at<double>(0,1) = l_eye_transform.getBasis().getColumn(1)[0];
+        left_to_center.at<double>(1,1) = l_eye_transform.getBasis().getColumn(1)[1];
+        left_to_center.at<double>(2,1) = l_eye_transform.getBasis().getColumn(1)[2];
+        left_to_center.at<double>(0,2) = l_eye_transform.getBasis().getColumn(2)[0];
+        left_to_center.at<double>(1,2) = l_eye_transform.getBasis().getColumn(2)[1];
+        left_to_center.at<double>(2,2) = l_eye_transform.getBasis().getColumn(2)[2];
+        left_to_center.at<double>(0,3) = l_eye_transform.getOrigin()[0];
+        left_to_center.at<double>(1,3) = l_eye_transform.getOrigin()[1];
+        left_to_center.at<double>(2,3) = l_eye_transform.getOrigin()[2];
 
-        stereo_calib_data scd=stereo_calibration->get_calibrated_transformations(l_eye_angle,r_eye_angle);
+        /*std::cout <<"left_to_center:"<< l_eye_transform.getOrigin()[0] << " "
+                 << l_eye_transform.getOrigin()[1] << " "
+                 << l_eye_transform.getOrigin()[2]<<std::endl;*/
+        //std::cout <<"left_to_center:"<< left_to_center<<std::endl;
+
+        stereo_calib_data scd;//=stereo_calibration->get_calibrated_transformations(l_eye_angle,r_eye_angle);
+        scd.R_left_cam_to_right_cam=Mat(3,3,CV_64F);
+        scd.t_left_cam_to_right_cam=Mat(3,1,CV_64F);
+
+        scd.R_left_cam_to_right_cam.at<double>(0,0)=r_l_eye_transform.getBasis().getColumn(0)[0];
+        scd.R_left_cam_to_right_cam.at<double>(1,0)=r_l_eye_transform.getBasis().getColumn(0)[1];
+        scd.R_left_cam_to_right_cam.at<double>(2,0)=r_l_eye_transform.getBasis().getColumn(0)[2];
+        scd.R_left_cam_to_right_cam.at<double>(0,1)=r_l_eye_transform.getBasis().getColumn(1)[0];
+        scd.R_left_cam_to_right_cam.at<double>(1,1)=r_l_eye_transform.getBasis().getColumn(1)[1];
+        scd.R_left_cam_to_right_cam.at<double>(2,1)=r_l_eye_transform.getBasis().getColumn(1)[2];
+        scd.R_left_cam_to_right_cam.at<double>(0,2)=r_l_eye_transform.getBasis().getColumn(2)[0];
+        scd.R_left_cam_to_right_cam.at<double>(1,2)=r_l_eye_transform.getBasis().getColumn(2)[1];
+        scd.R_left_cam_to_right_cam.at<double>(2,2)=r_l_eye_transform.getBasis().getColumn(2)[2];
+
+        scd.t_left_cam_to_right_cam.at<double>(0,0) = r_l_eye_transform.getOrigin()[0];
+        scd.t_left_cam_to_right_cam.at<double>(1,0) = r_l_eye_transform.getOrigin()[1];
+        scd.t_left_cam_to_right_cam.at<double>(2,0) = r_l_eye_transform.getOrigin()[2];
+        //std::cout <<"scd.t_left_cam_to_right_cam:"<< scd.t_left_cam_to_right_cam<<std::endl;
 
         EgoSphereData stereo_data=ego_sphere->computeEgoSphere(left_image_mat,
-                                                                      right_image_mat,
-                                                                      scd.R_left_cam_to_right_cam,
-                                                                      scd.t_left_cam_to_right_cam,
-                                                                      stereo_calibration->csc.LeftCalibMat,
-                                                                      stereo_calibration->csc.RightCalibMat
-                                                                      );//*/
+                                                               right_image_mat,
+                                                               scd.R_left_cam_to_right_cam,
+                                                               scd.t_left_cam_to_right_cam,
+                                                               stereo_calibration->csc.LeftCalibMat,
+                                                               stereo_calibration->csc.RightCalibMat,
+                                                               left_to_center
+                                                               );//*/
 
 
         //std::cout << "stereo_data.disparity_values: " << stereo_data.disparity_values << std::endl;
@@ -256,13 +297,14 @@ public:
             {
                 pcl::PointXYZRGB point;
 
-                point.data[0] = sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[2];
-                point.data[1] = -sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[0];
-                point.data[2] = -sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[1];
+                point.data[0] = sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[0];
+                point.data[1] = sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[1];
+                point.data[2] = sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[2];
 
                 point.r=sdd.point_cloud_rgb.at<cv::Vec3b>(r,c)[2];
                 point.g=sdd.point_cloud_rgb.at<cv::Vec3b>(r,c)[1];
                 point.b=sdd.point_cloud_rgb.at<cv::Vec3b>(r,c)[0];
+
                 point_cloud.push_back(point);
             }
         }
@@ -270,10 +312,11 @@ public:
         sensor_msgs::PointCloud2 point_cloud_msg;
         pcl::toROSMsg(point_cloud,point_cloud_msg);
 
-        point_cloud_msg.header.frame_id="l_camera_link";
+        //point_cloud_msg.header.frame_id="l_camera_vision_link";
+        point_cloud_msg.header.frame_id="eyes_center_vision_link";
+
         point_cloud_publisher.publish(point_cloud_msg);
     }
-
 };
 
 int main(int argc, char** argv)
