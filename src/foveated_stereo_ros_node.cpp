@@ -312,8 +312,8 @@ public:
         sensor_msgs::PointCloud2 point_cloud_msg;
         pcl::toROSMsg(point_cloud,point_cloud_msg);
 
-        //point_cloud_msg.header.frame_id="l_camera_vision_link";
-        point_cloud_msg.header.frame_id="eyes_center_vision_link";
+        point_cloud_msg.header.frame_id="l_camera_vision_link";
+        //point_cloud_msg.header.frame_id="eyes_center_vision_link";
 
         point_cloud_publisher.publish(point_cloud_msg);
     }
