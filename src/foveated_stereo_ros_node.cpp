@@ -180,14 +180,14 @@ public:
         // 2. Get eye angles with respect to eyes center
         try
         {
-            listener.waitForTransform("/l_camera_vision_link", "/eyes_center_vision_link", ros::Time(0), ros::Duration(10.0) );
-            listener.lookupTransform("/l_camera_vision_link", "/eyes_center_vision_link",
+            listener.waitForTransform("/eyes_center_vision_link", "/l_camera_vision_link", ros::Time(0), ros::Duration(10.0) );
+            listener.lookupTransform("/eyes_center_vision_link", "/l_camera_vision_link",
                                      ros::Time(0), l_eye_transform);
             /*listener.waitForTransform("/eyes_center_vision_link", "/r_camera_vision_link", ros::Time(0), ros::Duration(10.0) );
             listener.lookupTransform("/eyes_center_vision_link", "/r_camera_vision_link",
                                      ros::Time(0), r_eye_transform);*/
-            listener.waitForTransform("/r_camera_vision_link", "/l_camera_vision_link", ros::Time(0), ros::Duration(10.0) );
-            listener.lookupTransform("/r_camera_vision_link", "/l_camera_vision_link",
+            listener.waitForTransform("/l_camera_vision_link", "/r_camera_vision_link", ros::Time(0), ros::Duration(10.0) );
+            listener.lookupTransform("/l_camera_vision_link", "/r_camera_vision_link",
                                      ros::Time(0), r_l_eye_transform);
         }
         catch (tf::TransformException &ex)
@@ -290,7 +290,7 @@ public:
 
     void publishPointCloud(EgoSphereData & sdd)
     {
-        pcl::PointCloud<pcl::PointXYZRGB> point_cloud;
+        /*pcl::PointCloud<pcl::PointXYZRGB> point_cloud;
         for(int r=0; r<sdd.point_cloud_cartesian.rows; ++r)
         {
             for (int c=0; c<sdd.point_cloud_cartesian.cols; ++c)
@@ -312,8 +312,12 @@ public:
         sensor_msgs::PointCloud2 point_cloud_msg;
         pcl::toROSMsg(point_cloud,point_cloud_msg);
 
-        point_cloud_msg.header.frame_id="l_camera_vision_link";
+        point_cloud_msg.header.frame_id="eyes_center_vision_link";*/
         //point_cloud_msg.header.frame_id="eyes_center_vision_link";
+
+        sdd.point_cloud.header.frame_id="eyes_center_vision_link";
+        sensor_msgs::PointCloud2 point_cloud_msg;
+        pcl::toROSMsg(sdd.point_cloud,point_cloud_msg);
 
         point_cloud_publisher.publish(point_cloud_msg);
     }
