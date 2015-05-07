@@ -14,9 +14,10 @@
 
 #include <tf/transform_listener.h>
 #include <sensor_msgs/image_encodings.h>
-#include <EgoSphere.h>
+#include <Stereo.h>
 #include <stereo_calib_lib.h>
-
+#include <cv_bridge/cv_bridge.h>
+#include <sensor_msgs/image_encodings.h>
 
 #include <image_transport/image_transport.h>
 
@@ -46,7 +47,7 @@ public:
     boost::shared_ptr<Synchronizer<MySyncPolicy> >sync;
 
     boost::shared_ptr<stereo_calib> stereo_calibration;
-    boost::shared_ptr<EgoSphere> ego_sphere;
+    boost::shared_ptr<Stereo> ego_sphere;
 
     ~FoveatedStereoNode()
     {}
@@ -66,7 +67,6 @@ public:
                        float shell_radius_,
                        bool high_pass_) : nh(nh_), it_(nh_)
     {
-
         left_image_sub=boost::shared_ptr<message_filters::Subscriber<Image> > (new message_filters::Subscriber<Image>(nh, "left_image", 10));
         right_image_sub=boost::shared_ptr<message_filters::Subscriber<Image> > (new message_filters::Subscriber<Image>(nh, "right_image", 10));
 
@@ -87,10 +87,10 @@ public:
             ros::Duration(1.0).sleep();
             exit(-1);
         }
+
         tf::Vector3 origin=transform.getOrigin();
 
         float baseline=origin.length(); // meters
-
 
         sync=boost::shared_ptr<Synchronizer<MySyncPolicy> > (new Synchronizer<MySyncPolicy>(MySyncPolicy(10), *left_image_sub, *right_image_sub));
         sync->registerCallback(boost::bind(&FoveatedStereoNode::callback, this, _1, _2));
@@ -105,29 +105,29 @@ public:
 
         //float focal_pixel = (image_width_in_pixels * 0.5) / tan(FOV * 0.5);
         //float tan(FOV*0.5)=(left_camera_info->width * 0.5) /
-        ego_sphere=boost::shared_ptr<EgoSphere> (new EgoSphere((int)left_camera_info->width,
-                                                               (int)left_camera_info->height,
-                                                               cv::Point2i(left_camera_info->width/2.0,
-                                                                           left_camera_info->height/2.0),
-                                                               rings_,
-                                                               min_radius_,
-                                                               interp_,
-                                                               full_,
-                                                               sectors_,
-                                                               sp_,
-                                                               disparities_,
-                                                               sigma_,
-                                                               occ_likelihood_,
-                                                               pole_,
-                                                               focal_distance,
-                                                               baseline,
-                                                               spherical_angle_bins_,
-                                                               shell_radius_,
-                                                               high_pass_)
-                                                 );
+        ego_sphere=boost::shared_ptr<Stereo> (new Stereo((int)left_camera_info->width,
+                                                         (int)left_camera_info->height,
+                                                         cv::Point2i(left_camera_info->width/2.0,
+                                                                     left_camera_info->height/2.0),
+                                                         rings_,
+                                                         min_radius_,
+                                                         interp_,
+                                                         full_,
+                                                         sectors_,
+                                                         sp_,
+                                                         disparities_,
+                                                         sigma_,
+                                                         occ_likelihood_,
+                                                         pole_,
+                                                         focal_distance,
+                                                         baseline,
+                                                         spherical_angle_bins_,
+                                                         shell_radius_,
+                                                         high_pass_)
+                                              );
 
 
-        point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("stereo", 10);
+        point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("stereo", 1);
         return;
     }
 
@@ -155,7 +155,6 @@ public:
         params.right_cam_resy=right_camera_info->height;
 
         params.baseline=baseline; // meters
-        ROS_INFO_STREAM("baseline:"<<params.baseline);
         params.encoders_measurements_noise=0.0000000175;
         params.encoders_state_noise=1.0;
         params.encoders_transition_noise=0.005;
@@ -165,6 +164,7 @@ public:
         params.min_number_of_features=2;
         params.number_fixed_state_params=5;
         params.number_measurements=6;
+        ROS_INFO("Done.");
 
         return params;
     }
@@ -260,43 +260,49 @@ public:
         scd.t_left_cam_to_right_cam.at<double>(2,0) = r_l_eye_transform.getOrigin()[2];
         //std::cout <<"scd.t_left_cam_to_right_cam:"<< scd.t_left_cam_to_right_cam<<std::endl;
 
-        EgoSphereData stereo_data=ego_sphere->computeEgoSphere(left_image_mat,
-                                                               right_image_mat,
-                                                               scd.R_left_cam_to_right_cam,
-                                                               scd.t_left_cam_to_right_cam,
-                                                               stereo_calibration->csc.LeftCalibMat,
-                                                               stereo_calibration->csc.RightCalibMat,
-                                                               left_to_center
-                                                               );//*/
+        StereoData stereo_data=ego_sphere->computeStereo(left_image_mat,
+                                                         right_image_mat,
+                                                         scd.R_left_cam_to_right_cam,
+                                                         scd.t_left_cam_to_right_cam,
+                                                         stereo_calibration->csc.LeftCalibMat,
+                                                         stereo_calibration->csc.RightCalibMat,
+                                                         left_to_center
+                                                         );//*/
 
-
-        //std::cout << "stereo_data.disparity_values: " << stereo_data.disparity_values << std::endl;
-
-        /*stereo_data=ego_sphere->getDisparityMapNormal(left_image_mat,
-                                                       right_image_mat,
-                                                       scd.R_left_cam_to_right_cam,
-                                                       scd.t_left_cam_to_right_cam,
-                                                       stereo_calibration->csc.LeftCalibMat,
-                                                       stereo_calibration->csc.RightCalibMat
-                                                       );//*/
-        //std::cout << "stereo_data.disparity_values: " << stereo_data.disparity_values << std::endl;
-        //exit(-1);
         sensor_msgs::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", stereo_data.disparity_image).toImageMsg();
         image_pub_.publish(msg);
-
         publishPointCloud(stereo_data);
-
     }
 
-    void publishPointCloud(EgoSphereData & sdd)
+    void publishPointCloud(StereoData & sdd)
     {
-        /*pcl::PointCloud<pcl::PointXYZRGB> point_cloud;
+        pcl::PointCloud<pcl::PointXYZRGB> point_cloud;
+        point_cloud.header.frame_id="eyes_center_vision_link";
+        point_cloud.width=sdd.point_cloud_cartesian.cols;
+        point_cloud.height=sdd.point_cloud_cartesian.rows;
         for(int r=0; r<sdd.point_cloud_cartesian.rows; ++r)
         {
             for (int c=0; c<sdd.point_cloud_cartesian.cols; ++c)
             {
+                /*if(isinf(sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[0])||
+                   isinf(sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[1])||
+                   isinf(sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[2]))
+                {
+                 sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[0]=0.0;
+                 sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[1]=0.0;
+                 sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[2]=0.0;
+
+                }
+                else if(sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[2]<0)
+                {
+                    sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[0]=0.0;
+                    sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[1]=0.0;
+                   sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[2]=0.0;
+                }*/
+
                 pcl::PointXYZRGB point;
 
+                //memcpy(&point.data[0],&sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[0],sizeof(CV_64FC3));
                 point.data[0] = sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[0];
                 point.data[1] = sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[1];
                 point.data[2] = sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[2];
@@ -304,7 +310,6 @@ public:
                 point.r=sdd.point_cloud_rgb.at<cv::Vec3b>(r,c)[2];
                 point.g=sdd.point_cloud_rgb.at<cv::Vec3b>(r,c)[1];
                 point.b=sdd.point_cloud_rgb.at<cv::Vec3b>(r,c)[0];
-
                 point_cloud.push_back(point);
             }
         }
@@ -312,13 +317,7 @@ public:
         sensor_msgs::PointCloud2 point_cloud_msg;
         pcl::toROSMsg(point_cloud,point_cloud_msg);
 
-        point_cloud_msg.header.frame_id="eyes_center_vision_link";*/
-        //point_cloud_msg.header.frame_id="eyes_center_vision_link";
-
-        sdd.point_cloud.header.frame_id="eyes_center_vision_link";
-        sensor_msgs::PointCloud2 point_cloud_msg;
-        pcl::toROSMsg(sdd.point_cloud,point_cloud_msg);
-
+        point_cloud_msg.is_dense=false;
         point_cloud_publisher.publish(point_cloud_msg);
     }
 };
@@ -392,20 +391,20 @@ int main(int argc, char** argv)
     ROS_INFO_STREAM("shell_radius: "<<shell_radius);
 
     FoveatedStereoNode ego_sphere(nh,
-                                                                                                           rings,
-                                                                                                           min_radius,
-                                                                                                           interp,
-                                                                                                           full,
-                                                                                                           sectors,
-                                                                                                           sp,
-                                                                                                           disparities_vec,
-                                                                                                           sigma,
-                                                                                                           occ_likelihood,
-                                                                                                           pole,
-                                                                                                           spherical_angle_bins,
-                                                                                                           shell_radius,
-                                                                                                           high_pass
-                                                                                                           );
+                                  rings,
+                                  min_radius,
+                                  interp,
+                                  full,
+                                  sectors,
+                                  sp,
+                                  disparities_vec,
+                                  sigma,
+                                  occ_likelihood,
+                                  pole,
+                                  spherical_angle_bins,
+                                  shell_radius,
+                                  high_pass
+                                  );
 
     // Tell ROS how fast to run this node.
     ros::Rate r(rate);
