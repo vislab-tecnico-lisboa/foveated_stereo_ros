@@ -13,6 +13,7 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   tf
   image_transport
+	pcl_ros
 )
 
 find_package(PCL)
@@ -51,7 +52,6 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/lib/stereo_calib_lib)
 ## Declare a cpp executable
 add_executable(foveated_stereo_ros_node src/foveated_stereo_ros_node.cpp)
 
-
 ## Specify libraries to link a library or executable target against
 target_link_libraries(foveated_stereo_ros_node
    ${PCL_LIBRARIES}
@@ -59,5 +59,17 @@ target_link_libraries(foveated_stereo_ros_node
    foveated_stereo_lib
    STEREO_CALIB_LIB
 )
+
+## Declare a cpp executable
+add_executable(ego_sphere_manager_ros_node src/EgoSphereManagerRos.cpp)
+
+## Specify libraries to link a library or executable target against
+target_link_libraries(ego_sphere_manager_ros_node
+   ${PCL_LIBRARIES}
+   ${catkin_LIBRARIES}
+   foveated_stereo_lib
+   STEREO_CALIB_LIB
+)
+
 
 

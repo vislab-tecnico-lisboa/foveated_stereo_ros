@@ -9,4 +9,8 @@
 		<remap from="left_camera_info" to="/vizzy/l_camera/camera_info"/>
 		<remap from="right_camera_info" to="/vizzy/r_camera/camera_info"/>
 	</node>
+
+	<node name="ego_sphere_manager_ros" pkg="foveated_stereo_ros" type="ego_sphere_manager_ros_node" respawn="false" output="screen" >
+  	<rosparam file="$(find foveated_stereo_ros)/config/egosphere.yaml" command="load" />
+	</node>
 </launch>

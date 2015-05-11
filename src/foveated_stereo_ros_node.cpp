@@ -271,10 +271,10 @@ public:
 
         sensor_msgs::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", stereo_data.disparity_image).toImageMsg();
         image_pub_.publish(msg);
-        publishPointCloud(stereo_data);
+        publishPointCloud(stereo_data, left_image->header.stamp);
     }
 
-    void publishPointCloud(StereoData & sdd)
+    void publishPointCloud(StereoData & sdd, const ros::Time & time)
     {
         pcl::PointCloud<pcl::PointXYZRGB> point_cloud;
         point_cloud.header.frame_id="eyes_center_vision_link";
@@ -315,9 +315,12 @@ public:
         }
 
         sensor_msgs::PointCloud2 point_cloud_msg;
+
         pcl::toROSMsg(point_cloud,point_cloud_msg);
 
         point_cloud_msg.is_dense=false;
+        point_cloud_msg.header.stamp=time;
+
         point_cloud_publisher.publish(point_cloud_msg);
     }
 };
