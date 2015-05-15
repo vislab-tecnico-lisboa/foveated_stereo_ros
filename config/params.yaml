@@ -1,8 +1,8 @@
-rings: 128
+rings: 556
 min_radius: 1
 interp: 1
 full: 0
-sectors: 128
+sectors: 556
 sp: 0
 min_disparity: -30
 disparities: 80

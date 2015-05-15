@@ -1,8 +1,27 @@
 #include "EgoSphereManagerRos.h"
 
-EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, const unsigned int & egosphere_nodes, const unsigned int & angle_bins, std::string & world_frame_id_) : nh(nh_), world_frame_id(world_frame_id_)//, listener(nh_, ros::Duration(50.))
+EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, const unsigned int & egosphere_nodes, const unsigned int & angle_bins, std::string & world_frame_id_) :
+    nh(nh_),
+    world_frame_id(world_frame_id_)//, listener(nh_, ros::Duration(50.))
 {
-    ego_sphere=boost::shared_ptr<SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > > (new SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > (egosphere_nodes, angle_bins));
+    tf::StampedTransform sensorToWorldTf;
+
+    while(1)
+    {
+        try
+        {
+            listener.lookupTransform("eyes_center_vision_link",world_frame_id, ros::Time::now(), sensorToWorldTf);
+        } catch(tf::TransformException& ex){
+            //ROS_ERROR_STREAM( "Transform error of sensor data: " << ex.what() << ", quitting callback");
+            continue;
+        }
+        break;
+    }
+
+    Eigen::Matrix4f sensorToWorld;
+    pcl_ros::transformAsMatrix(sensorToWorldTf, sensorToWorld);
+
+    ego_sphere=boost::shared_ptr<SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > > (new SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > (egosphere_nodes, angle_bins, sensorToWorld));
     point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere", 10);
 
     point_cloud_subscriber_ = new message_filters::Subscriber<sensor_msgs::PointCloud2> (nh, "stereo", 5);
@@ -15,33 +34,27 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, const unsigned i
 EgoSphereManagerRos::~EgoSphereManagerRos()
 {
     if (tf_filter_){
-      delete tf_filter_;
-      tf_filter_ = NULL;
+        delete tf_filter_;
+        tf_filter_ = NULL;
     }
 
     if (point_cloud_subscriber_){
-      delete point_cloud_subscriber_;
-      point_cloud_subscriber_ = NULL;
+        delete point_cloud_subscriber_;
+        point_cloud_subscriber_ = NULL;
     }
 }
 
 void EgoSphereManagerRos::insertCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& cloud)
 {
-    ROS_INFO_STREAM("Ego Sphere new data in.");
+    //ROS_INFO_STREAM("Ego Sphere new data in.");
 
     ros::WallTime startTime = ros::WallTime::now();
 
-
-    //
-    // ground filtering in base frame
-    //
-    PCLPointCloud pc; // input cloud for filtering and ground-detection
-    pcl::fromROSMsg(*cloud, pc);
-
+    // 1. get transform from world to ego-sphere frame
     tf::StampedTransform sensorToWorldTf;
     try
     {
-        listener.lookupTransform(world_frame_id, cloud->header.frame_id, cloud->header.stamp, sensorToWorldTf);
+        listener.lookupTransform(cloud->header.frame_id, world_frame_id, cloud->header.stamp, sensorToWorldTf);
     } catch(tf::TransformException& ex){
         ROS_ERROR_STREAM( "Transform error of sensor data: " << ex.what() << ", quitting callback");
         return;
@@ -50,34 +63,66 @@ void EgoSphereManagerRos::insertCloudCallback(const sensor_msgs::PointCloud2::Co
     Eigen::Matrix4f sensorToWorld;
     pcl_ros::transformAsMatrix(sensorToWorldTf, sensorToWorld);
 
-    ///////////////////////
-    // Update ego-sphere //
-    ///////////////////////
+    ros::WallTime transform_time = ros::WallTime::now();
 
-    ego_sphere->update(sensorToWorld);
+    ROS_INFO_STREAM(" 1. transform time: " <<  (transform_time - startTime).toSec());
 
-    /////////////////////////////////////////
-    // Insert new data into the ego-sphere //
-    /////////////////////////////////////////
 
-    // set up filter for height range, also removes NANs:
-    pcl::PassThrough<pcl::PointXYZRGB> pass;
-    pass.setFilterFieldName("z");
-    pass.setFilterLimits(-std::numeric_limits<double>::max(), std::numeric_limits<double>::max());
 
-    // directly transform to map frame:
-    //pcl::transformPointCloud(pc, pc, sensorToWorld);
 
-    // just filter height range:
-    pass.setInputCloud(pc.makeShared());
-    pass.filter(pc);
+    // 1. Update or insert
 
-    insertScan(sensorToWorldTf.getOrigin(), pc);
+    if(ego_sphere->update(sensorToWorld))
+    {
+        ///////////////////////
+        // Update ego-sphere //
+        ///////////////////////
+        ros::WallTime update_time = ros::WallTime::now();
+        ROS_INFO_STREAM(" 2. update time: " <<  (update_time - transform_time).toSec());
 
-    double total_elapsed = (ros::WallTime::now() - startTime).toSec();
-    ROS_INFO("Pointcloud insertion in EgoSphereServer done (%zu pts , %f sec)", pc.size(), total_elapsed);
+        return;
+    }
+    else
+    {
+        /////////////////////////////////////////
+        // Insert new data into the ego-sphere //
+        /////////////////////////////////////////
 
+        PCLPointCloud pc; // input cloud for filtering and ground-detection
+        pcl::fromROSMsg(*cloud, pc);
+
+        // set up filter for height range, also removes NANs:
+        pcl::PassThrough<pcl::PointXYZRGB> pass;
+        pass.setFilterFieldName("z");
+        pass.setFilterLimits(-std::numeric_limits<double>::max(), std::numeric_limits<double>::max());
+
+        // directly transform to map frame:
+        //pcl::transformPointCloud(pc, pc, sensorToWorld);
+
+        // just filter height range:
+        pass.setInputCloud(pc.makeShared());
+        pass.filter(pc);
+
+        ros::WallTime update_time = ros::WallTime::now();
+
+        ros::WallTime filtering_time = ros::WallTime::now();
+
+        ROS_INFO_STREAM(" 2. filtering time: " <<  (filtering_time - transform_time).toSec());
+
+
+        insertScan(sensorToWorldTf.getOrigin(), pc);
+
+        ros::WallTime insert_time = ros::WallTime::now();
+        ROS_INFO_STREAM(" 2. insertion time: " <<  (insert_time - filtering_time).toSec());
+
+        ROS_INFO_STREAM("   total points inserted: " <<   pc.size());
+
+    }
     publishAll(cloud->header.stamp);
+    double total_elapsed = (ros::WallTime::now() - startTime).toSec();
+
+    ROS_INFO(" TOTAL TIME:  %f sec", total_elapsed);
+
 }
 
 void EgoSphereManagerRos::insertScan(const tf::Point& sensorOriginTf, const PCLPointCloud& point_cloud)
@@ -89,8 +134,7 @@ void EgoSphereManagerRos::insertScan(const tf::Point& sensorOriginTf, const PCLP
 
 void EgoSphereManagerRos::publishAll(const ros::Time& rostime)
 {
-
-    pcl::PointCloud<pcl::PointXYZ> point_cloud=ego_sphere->getPointCloud();
+    pcl::PointCloud<pcl::PointXYZRGB> point_cloud=ego_sphere->getPointCloud();
     point_cloud.header.frame_id="eyes_center_vision_link";
 
     sensor_msgs::PointCloud2 point_cloud_msg;
