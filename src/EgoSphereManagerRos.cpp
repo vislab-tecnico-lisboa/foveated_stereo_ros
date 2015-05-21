@@ -24,7 +24,7 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, const unsigned i
     ego_sphere=boost::shared_ptr<SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > > (new SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > (egosphere_nodes, angle_bins, sensorToWorld));
     point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere", 10);
 
-    point_cloud_subscriber_ = new message_filters::Subscriber<sensor_msgs::PointCloud2> (nh, "stereo", 5);
+    point_cloud_subscriber_ = new message_filters::Subscriber<sensor_msgs::PointCloud2> (nh, "stereo", 10);
     tf_filter_ = new tf::MessageFilter<sensor_msgs::PointCloud2> (*point_cloud_subscriber_, listener, world_frame_id, 5);
     tf_filter_->registerCallback(boost::bind(&EgoSphereManagerRos::insertCloudCallback, this, _1));
     last=ros::Time::now();

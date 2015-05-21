@@ -127,7 +127,7 @@ public:
                                               );
 
 
-        point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("stereo", 1);
+        point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("stereo", 10);
         return;
     }
 
