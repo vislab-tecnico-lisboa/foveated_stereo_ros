@@ -172,6 +172,7 @@ public:
     void callback(const ImageConstPtr& left_image,
                   const ImageConstPtr& right_image)
     {
+        ros::WallTime startTime = ros::WallTime::now();
 
         // 1. Get uncalibrated color images
         cv::Mat left_image_mat =cv_bridge::toCvCopy(left_image, "bgr8")->image;
@@ -269,6 +270,10 @@ public:
                                                          left_to_center
                                                          );//*/
 
+        double total_elapsed = (ros::WallTime::now() - startTime).toSec();
+
+        ROS_INFO(" TOTAL TIME STEREO:  %f sec", total_elapsed);
+
         sensor_msgs::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", stereo_data.disparity_image).toImageMsg();
         image_pub_.publish(msg);
         publishPointCloud(stereo_data, left_image->header.stamp);
@@ -278,34 +283,21 @@ public:
     {
         pcl::PointCloud<pcl::PointXYZRGB> point_cloud;
         point_cloud.header.frame_id="eyes_center_vision_link";
-        point_cloud.width=sdd.point_cloud_cartesian.cols;
-        point_cloud.height=sdd.point_cloud_cartesian.rows;
-        for(int r=0; r<sdd.point_cloud_cartesian.rows; ++r)
+        point_cloud.width=sdd.sigma_clouds_mats[0].cols;
+        point_cloud.height=sdd.sigma_clouds_mats[0].rows;
+        for(int r=0; r<sdd.sigma_clouds_mats[0].rows; ++r)
         {
-            for (int c=0; c<sdd.point_cloud_cartesian.cols; ++c)
+            for (int c=0; c<sdd.sigma_clouds_mats[0].cols; ++c)
             {
-                /*if(isinf(sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[0])||
-                   isinf(sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[1])||
-                   isinf(sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[2]))
-                {
-                 sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[0]=0.0;
-                 sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[1]=0.0;
-                 sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[2]=0.0;
 
-                }
-                else if(sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[2]<0)
-                {
-                    sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[0]=0.0;
-                    sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[1]=0.0;
-                   sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[2]=0.0;
-                }*/
+                if(sdd.sigma_clouds_mats[0].at<cv::Vec3d>(r,c)[2]>10.0)
+                    continue;
 
                 pcl::PointXYZRGB point;
 
-                //memcpy(&point.data[0],&sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[0],sizeof(CV_64FC3));
-                point.data[0] = sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[0];
-                point.data[1] = sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[1];
-                point.data[2] = sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[2];
+                point.data[0] = sdd.sigma_clouds_mats[0].at<cv::Vec3d>(r,c)[0];
+                point.data[1] = sdd.sigma_clouds_mats[0].at<cv::Vec3d>(r,c)[1];
+                point.data[2] = sdd.sigma_clouds_mats[0].at<cv::Vec3d>(r,c)[2];
 
                 point.r=sdd.point_cloud_rgb.at<cv::Vec3b>(r,c)[2];
                 point.g=sdd.point_cloud_rgb.at<cv::Vec3b>(r,c)[1];
