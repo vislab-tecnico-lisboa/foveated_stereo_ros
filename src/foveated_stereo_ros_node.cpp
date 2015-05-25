@@ -120,7 +120,6 @@ public:
                                                          occ_likelihood_,
                                                          pole_,
                                                          focal_distance,
-                                                         baseline,
                                                          spherical_angle_bins_,
                                                          shell_radius_,
                                                          high_pass_)
