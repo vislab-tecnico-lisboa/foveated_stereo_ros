@@ -20,6 +20,8 @@
 #include <sensor_msgs/image_encodings.h>
 
 #include <image_transport/image_transport.h>
+#include <iostream>
+#include <sstream>
 
 using namespace sensor_msgs;
 
@@ -40,6 +42,9 @@ public:
 
     ros::NodeHandle nh;
     ros::Publisher point_cloud_publisher;
+
+    std::vector<ros::Publisher> sigma_point_clouds_publishers;
+
 
     boost::shared_ptr<message_filters::Subscriber<Image> > left_image_sub;
     boost::shared_ptr<message_filters::Subscriber<Image> > right_image_sub;
@@ -127,6 +132,13 @@ public:
 
 
         point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("stereo", 10);
+        for(int i=0; i<5; ++i)
+        {
+            std::stringstream ss;
+            ss << i;
+            std::string str = ss.str();
+            sigma_point_clouds_publishers.push_back(nh.advertise<sensor_msgs::PointCloud2>("sigma_point_clouds"+str, 10));
+        }
         return;
     }
 
@@ -275,44 +287,21 @@ public:
 
         sensor_msgs::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", stereo_data.disparity_image).toImageMsg();
         image_pub_.publish(msg);
-        publishPointCloud(stereo_data, left_image->header.stamp);
+        publishPointClouds(stereo_data, left_image->header.stamp);
     }
 
-    void publishPointCloud(StereoData & sdd, const ros::Time & time)
+    void publishPointClouds(StereoData & sdd, const ros::Time & time)
     {
-        pcl::PointCloud<pcl::PointXYZRGB> point_cloud;
-        point_cloud.header.frame_id="eyes_center_vision_link";
-        point_cloud.width=sdd.sigma_clouds_mats[0].cols;
-        point_cloud.height=sdd.sigma_clouds_mats[0].rows;
-        for(int r=0; r<sdd.sigma_clouds_mats[0].rows; ++r)
+        for(int i=0; i<sdd.sigma_point_clouds.size();++i)
         {
-            for (int c=0; c<sdd.sigma_clouds_mats[0].cols; ++c)
-            {
+            sensor_msgs::PointCloud2 point_cloud_msg;
 
-                if(sdd.sigma_clouds_mats[0].at<cv::Vec3d>(r,c)[2]>10.0)
-                    continue;
+            pcl::toROSMsg(sdd.sigma_point_clouds[i],point_cloud_msg);
+            point_cloud_msg.is_dense=false;
+            point_cloud_msg.header.stamp=time;
 
-                pcl::PointXYZRGB point;
-
-                point.data[0] = sdd.sigma_clouds_mats[0].at<cv::Vec3d>(r,c)[0];
-                point.data[1] = sdd.sigma_clouds_mats[0].at<cv::Vec3d>(r,c)[1];
-                point.data[2] = sdd.sigma_clouds_mats[0].at<cv::Vec3d>(r,c)[2];
-
-                point.r=sdd.point_cloud_rgb.at<cv::Vec3b>(r,c)[2];
-                point.g=sdd.point_cloud_rgb.at<cv::Vec3b>(r,c)[1];
-                point.b=sdd.point_cloud_rgb.at<cv::Vec3b>(r,c)[0];
-                point_cloud.push_back(point);
-            }
+            sigma_point_clouds_publishers[i].publish(point_cloud_msg);
         }
-
-        sensor_msgs::PointCloud2 point_cloud_msg;
-
-        pcl::toROSMsg(point_cloud,point_cloud_msg);
-
-        point_cloud_msg.is_dense=false;
-        point_cloud_msg.header.stamp=time;
-
-        point_cloud_publisher.publish(point_cloud_msg);
     }
 };
 
