@@ -55,10 +55,10 @@ add_executable(foveated_stereo_ros_node src/foveated_stereo_ros_node.cpp)
 ## Specify libraries to link a library or executable target against
 target_link_libraries(foveated_stereo_ros_node
    ${PCL_LIBRARIES}
-   ${OpenCV_LIBRARIES}
    ${catkin_LIBRARIES}
    foveated_stereo_lib
    STEREO_CALIB_LIB
+   ${OpenCV_LIBRARIES}
 )
 
 ## Declare a cpp executable
@@ -67,10 +67,10 @@ add_executable(ego_sphere_manager_ros_node src/EgoSphereManagerRos.cpp)
 ## Specify libraries to link a library or executable target against
 target_link_libraries(ego_sphere_manager_ros_node
    ${PCL_LIBRARIES}
-   ${OpenCV_LIBRARIES}
    ${catkin_LIBRARIES}
    foveated_stereo_lib
    STEREO_CALIB_LIB
+   ${OpenCV_LIBRARIES}
 )
 
 
