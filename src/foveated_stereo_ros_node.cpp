@@ -22,6 +22,9 @@
 #include <image_transport/image_transport.h>
 #include <iostream>
 #include <sstream>
+#include <visualization_msgs/Marker.h>
+#include <visualization_msgs/MarkerArray.h>
+#include "opencv2/core/core.hpp"
 
 using namespace sensor_msgs;
 
@@ -36,7 +39,7 @@ class FoveatedStereoNode
 
     image_transport::ImageTransport it_;
     image_transport::Publisher image_pub_;
-
+    ros::Publisher marker_pub;
 public:
     typedef sync_policies::ApproximateTime<Image, Image> MySyncPolicy;
 
@@ -139,6 +142,8 @@ public:
             std::string str = ss.str();
             sigma_point_clouds_publishers.push_back(nh.advertise<sensor_msgs::PointCloud2>("sigma_point_clouds_"+str, 10));
         }
+
+        marker_pub = nh.advertise<visualization_msgs::MarkerArray>("covariances", 1);
         return;
     }
 
@@ -248,11 +253,6 @@ public:
         left_to_center.at<double>(1,3) = l_eye_transform.getOrigin()[1];
         left_to_center.at<double>(2,3) = l_eye_transform.getOrigin()[2];
 
-        /*std::cout <<"left_to_center:"<< l_eye_transform.getOrigin()[0] << " "
-                 << l_eye_transform.getOrigin()[1] << " "
-                 << l_eye_transform.getOrigin()[2]<<std::endl;*/
-        //std::cout <<"left_to_center:"<< left_to_center<<std::endl;
-
         stereo_calib_data scd;//=stereo_calibration->get_calibrated_transformations(l_eye_angle,r_eye_angle);
         scd.R_left_cam_to_right_cam=Mat(3,3,CV_64F);
         scd.t_left_cam_to_right_cam=Mat(3,1,CV_64F);
@@ -270,7 +270,6 @@ public:
         scd.t_left_cam_to_right_cam.at<double>(0,0) = r_l_eye_transform.getOrigin()[0];
         scd.t_left_cam_to_right_cam.at<double>(1,0) = r_l_eye_transform.getOrigin()[1];
         scd.t_left_cam_to_right_cam.at<double>(2,0) = r_l_eye_transform.getOrigin()[2];
-        //std::cout <<"scd.t_left_cam_to_right_cam:"<< scd.t_left_cam_to_right_cam<<std::endl;
 
         StereoData stereo_data=ego_sphere->computeStereo(left_image_mat,
                                                          right_image_mat,
@@ -288,10 +287,18 @@ public:
         sensor_msgs::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", stereo_data.disparity_image).toImageMsg();
         image_pub_.publish(msg);
         publishPointClouds(stereo_data, left_image->header.stamp);
+        publishCovarianceMatrices(stereo_data, left_image->header.stamp);
+
     }
 
     void publishPointClouds(StereoData & sdd, const ros::Time & time)
     {
+        sensor_msgs::PointCloud2 point_cloud_msg;
+        pcl::toROSMsg(sdd.point_cloud, point_cloud_msg);
+        point_cloud_msg.is_dense=false;
+        point_cloud_msg.header.stamp=time;
+        point_cloud_publisher.publish(point_cloud_msg);
+
         for(int i=0; i<sdd.sigma_point_clouds.size();++i)
         {
             sensor_msgs::PointCloud2 point_cloud_msg;
@@ -302,6 +309,67 @@ public:
 
             sigma_point_clouds_publishers[i].publish(point_cloud_msg);
         }
+    }
+
+    void publishCovarianceMatrices(StereoData & sdd, const ros::Time & time)
+    {
+        visualization_msgs::MarkerArray marker_array;
+
+        for(int r=0; r<sdd.cov_3d.size();++r)
+        {
+            for(int c=0; c<sdd.cov_3d[r].size();++c)
+            {
+                if(sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[2]>10.0)
+                    continue;
+
+                cv::Mat eigen_values;
+                cv::Mat eigen_vectors;
+
+                cv::eigen(sdd.cov_3d[r][c],  eigen_values,  eigen_vectors);
+                /*std::cout << sdd.cov_3d[r][c] << std::endl;
+                std::cout << eigen_values.at<double>(0) << " " <<
+                             eigen_values.at<double>(1) << " " <<
+                             eigen_values.at<double>(2) << std::endl;
+                exit(-1);*/
+                visualization_msgs::Marker marker;
+                // Set the frame ID and timestamp.  See the TF tutorials for information on these.
+                marker.header.frame_id = "eyes_center_vision_link";
+                marker.header.stamp = ros::Time::now();
+
+                // Set the namespace and id for this marker.  This serves to create a unique ID
+                // Any marker sent with the same namespace and id will overwrite the old one
+                marker.ns = "basic_shapes";
+                marker.id = c+r*sdd.cov_3d[r].size();
+
+                marker.type = visualization_msgs::Marker::SPHERE;
+                marker.action = visualization_msgs::Marker::ADD;
+
+                // Set the pose of the marker.  This is a full 6DOF pose relative to the frame/time specified in the header
+                marker.pose.position.x = sdd.mean_3d.at<cv::Vec3d>(r,c)[0];
+                marker.pose.position.y = sdd.mean_3d.at<cv::Vec3d>(r,c)[1];
+                marker.pose.position.z = sdd.mean_3d.at<cv::Vec3d>(r,c)[2];
+                marker.pose.orientation.x = 0.0;
+                marker.pose.orientation.y = 0.0;
+                marker.pose.orientation.z = 0.0;
+                marker.pose.orientation.w = 1.0;
+
+                // Set the scale of the marker -- 1x1x1 here means 1m on a side
+                marker.scale.x = eigen_values.at<double>(0);
+                marker.scale.y = eigen_values.at<double>(1);
+                marker.scale.z = eigen_values.at<double>(2);
+
+                // Set the color -- be sure to set alpha to something non-zero!
+                marker.color.r = 0.0f;
+                marker.color.g = 1.0f;
+                marker.color.b = 0.0f;
+                marker.color.a = 1.0;
+
+                marker.lifetime = ros::Duration();
+                marker_array.markers.push_back(marker);
+            }
+
+        }
+        marker_pub.publish(marker_array);
     }
 };
 
