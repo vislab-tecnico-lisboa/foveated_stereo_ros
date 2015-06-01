@@ -132,12 +132,12 @@ public:
 
 
         point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("stereo", 10);
-        for(int i=0; i<5; ++i)
+        for(int i=0; i<9; ++i)
         {
             std::stringstream ss;
             ss << i;
             std::string str = ss.str();
-            sigma_point_clouds_publishers.push_back(nh.advertise<sensor_msgs::PointCloud2>("sigma_point_clouds"+str, 10));
+            sigma_point_clouds_publishers.push_back(nh.advertise<sensor_msgs::PointCloud2>("sigma_point_clouds_"+str, 10));
         }
         return;
     }
