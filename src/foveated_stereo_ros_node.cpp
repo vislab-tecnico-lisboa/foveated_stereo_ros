@@ -319,7 +319,20 @@ public:
         {
             for(int c=0; c<sdd.cov_3d[r].size();++c)
             {
-                if(sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[2]>10.0)
+                if(sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[2]>3.0)
+                    continue;
+
+                if(cv::norm(sdd.cov_3d[r][c])<0.1 || cv::norm(sdd.cov_3d[r][c])>1000.0)
+                    continue;
+
+                if(!cv::checkRange(sdd.cov_3d[r][c])||!cv::checkRange(sdd.mean_3d.at<cv::Vec3d>(r,c)))
+                {
+                    std::cout << "yaicks" << std::endl;
+                    std::cout << sdd.cov_3d[r][c] << std::endl;
+                    continue;
+                }
+
+                if(sdd.mean_3d.at<cv::Vec3d>(r,c)[2]<0)
                     continue;
 
                 cv::Mat eigen_values;
@@ -332,13 +345,12 @@ public:
                              eigen_values.at<double>(2) << std::endl;
                 exit(-1);*/
                 visualization_msgs::Marker marker;
+
                 // Set the frame ID and timestamp.  See the TF tutorials for information on these.
                 marker.header.frame_id = "eyes_center_vision_link";
-                marker.header.stamp = ros::Time::now();
+                //marker.header.stamp = ros::Time::now();
 
-                // Set the namespace and id for this marker.  This serves to create a unique ID
-                // Any marker sent with the same namespace and id will overwrite the old one
-                marker.ns = "basic_shapes";
+                marker.ns = "covariances";
                 marker.id = c+r*sdd.cov_3d[r].size();
 
                 marker.type = visualization_msgs::Marker::SPHERE;
@@ -354,9 +366,13 @@ public:
                 marker.pose.orientation.w = 1.0;
 
                 // Set the scale of the marker -- 1x1x1 here means 1m on a side
-                marker.scale.x = eigen_values.at<double>(0);
-                marker.scale.y = eigen_values.at<double>(1);
-                marker.scale.z = eigen_values.at<double>(2);
+                //marker.scale.x = 0.1*eigen_values.at<double>(0);
+                //marker.scale.y = 0.1*eigen_values.at<double>(1);
+                //marker.scale.z = 0.1*eigen_values.at<double>(2);
+
+                marker.scale.x = 0.1;
+                marker.scale.y = 0.1;
+                marker.scale.z = 0.1;
 
                 // Set the color -- be sure to set alpha to something non-zero!
                 marker.color.r = 0.0f;
@@ -367,7 +383,6 @@ public:
                 marker.lifetime = ros::Duration();
                 marker_array.markers.push_back(marker);
             }
-
         }
         marker_pub.publish(marker_array);
     }
