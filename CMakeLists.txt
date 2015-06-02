@@ -13,7 +13,8 @@ find_package(catkin REQUIRED COMPONENTS
   std_msgs
   tf
   image_transport
-	pcl_ros
+  pcl_ros
+  rviz_visual_tools
 )
 
 find_package(PCL)
