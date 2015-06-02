@@ -263,60 +263,79 @@ void FoveatedStereoNode::publishCovarianceMatrices(StereoData & sdd, const ros::
 {
 
     visualization_msgs::MarkerArray marker_array;
-    double scale=0.8;
-
-    for(int r=0; r<sdd.cov_3d.size();++r)
+    double scale=1.0;
+    int jump=5;
+    for(int r=0; r<sdd.cov_3d.size();r=r+jump)
     {
-        for(int c=0; c<sdd.cov_3d[r].size();++c)
+        for(int c=0; c<sdd.cov_3d[r].size();c=c+jump)
         {
-            visualization_msgs::Marker marker;
-            // Set the frame ID and timestamp.  See the TF tutorials for information on these.
-            marker.header.frame_id = "eyes_center_vision_link";
-            marker.header.stamp = ros::Time::now();
 
-            marker.ns = "covariances";
-            marker.id = c+r*sdd.cov_3d[r].size();
             if(sdd.mean_3d.at<cv::Vec3d>(r,c)[2]>5.0||sdd.mean_3d.at<cv::Vec3d>(r,c)[2]<0)
             {
-                marker.action = visualization_msgs::Marker::DELETE;
-                marker_array.markers.push_back(marker);
-
+                //marker.action = visualization_msgs::Marker::DELETE;
+                //marker_array.markers.push_back(marker);
                 continue;
             }
-            if(cv::norm(sdd.cov_3d[r][c])<0.0001||cv::norm(sdd.cov_3d[r][c])>0.1)
+            if(cv::norm(sdd.cov_3d[r][c])<0.0001||cv::norm(sdd.cov_3d[r][c])>1.0)
             {
-                marker.action = visualization_msgs::Marker::ADD;
-                marker_array.markers.push_back(marker);
-
+                //marker.action = visualization_msgs::Marker::ADD;
+                //marker_array.markers.push_back(marker);
                 continue;
             }
             if(!cv::checkRange(sdd.cov_3d[r][c])||!cv::checkRange(sdd.mean_3d.at<cv::Vec3d>(r,c)))
             {
-                marker.action = visualization_msgs::Marker::ADD;
-                marker_array.markers.push_back(marker);
-
+                //marker.action = visualization_msgs::Marker::ADD;
+                //marker_array.markers.push_back(marker);
                 continue;
             }
 
             cv::Mat eigen_values;
             cv::Mat eigen_vectors;
 
+
             cv::eigen(sdd.cov_3d[r][c],  eigen_values,  eigen_vectors);
             Eigen::Matrix<double,3,3> eigen_vectors_eigen;
             cv2eigen(eigen_vectors,eigen_vectors_eigen);
-            Eigen::Quaternion<double> q(eigen_vectors_eigen);
+            Eigen::Quaternion<double> q(eigen_vectors_eigen.transpose());
+            q.normalize();
 
-            if (r==60&&c==120)
+            /*if(r==150&&c==150)
+            {
+                std::cout << "foda-se" << std::endl;
+                std::cout << eigen_values << std::endl;
+                std::cout << eigen_vectors << std::endl;
+                std::cout << eigen_vectors_eigen << std::endl;
+                std::cout << q.x() << " "
+                          << q.y() << " "
+                          << q.z() << " "
+                          << q.w() << " " << std::endl;
+                q.normalize();
+                std::cout << q.x() << " "
+                          << q.y() << " "
+                          << q.z() << " "
+                          << q.w() << " " << std::endl;
+                exit(-1);
+            }*/
+
+            /*if (r==60&&c==120)
             {
                 std::cout << sdd.cov_3d[r][c] << std::endl;
                 std::cout << eigen_values.at<double>(0) << " " <<
                              eigen_values.at<double>(1) << " " <<
                              eigen_values.at<double>(2) << std::endl;
                 exit(-1);
-            }
+            }*/
 
 
+            visualization_msgs::Marker marker;
+            // Set the frame ID and timestamp.  See the TF tutorials for information on these.
+            //marker.header.frame_id = "eyes_center_vision_link";
+            marker.header.frame_id = "l_camera_vision_link";
 
+            marker.header.stamp = ros::Time::now();
+
+            marker.ns = "covariances";
+            marker.id = c+r*sdd.cov_3d[r].size();
             marker.type = visualization_msgs::Marker::SPHERE;
             marker.action = visualization_msgs::Marker::ADD;
 
@@ -340,7 +359,7 @@ void FoveatedStereoNode::publishCovarianceMatrices(StereoData & sdd, const ros::
             marker.color.b = 0.0f;
             marker.color.a = 1.0;
 
-            marker.lifetime = ros::Duration();
+            marker.lifetime = ros::Duration(1.2);
             marker_array.markers.push_back(marker);
         }
     }
