@@ -30,6 +30,8 @@
 #include <visualization_msgs/MarkerArray.h>
 #include "opencv2/core/core.hpp"
 #include "opencv2/core/eigen.hpp"
+
+#include <tf_conversions/tf_eigen.h>
 using namespace sensor_msgs;
 
 using namespace message_filters;
@@ -50,7 +52,7 @@ public:
 
     ros::NodeHandle nh;
     ros::Publisher point_cloud_publisher;
-
+    ros::Publisher mean_point_cloud_publisher;
     std::vector<ros::Publisher> sigma_point_clouds_publishers;
 
 

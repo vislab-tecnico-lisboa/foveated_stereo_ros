@@ -83,6 +83,8 @@ FoveatedStereoNode::FoveatedStereoNode(ros::NodeHandle & nh_,
 
 
     point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("stereo", 10);
+    mean_point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("mean_pcl", 10);
+
     for(int i=0; i<9; ++i)
     {
         std::stringstream ss;
@@ -186,20 +188,11 @@ void FoveatedStereoNode::callback(const ImageConstPtr& left_image,
                                       l_eye_angle,
                                       r_eye_angle);
         */
+    Eigen::Affine3d left_to_center_eigen;
 
+    tf::transformTFToEigen (l_eye_transform, left_to_center_eigen );
     cv::Mat left_to_center = Mat::eye(4,4,CV_64F);
-    left_to_center.at<double>(0,0) = l_eye_transform.getBasis().getColumn(0)[0];
-    left_to_center.at<double>(1,0) = l_eye_transform.getBasis().getColumn(0)[1];
-    left_to_center.at<double>(2,0) = l_eye_transform.getBasis().getColumn(0)[2];
-    left_to_center.at<double>(0,1) = l_eye_transform.getBasis().getColumn(1)[0];
-    left_to_center.at<double>(1,1) = l_eye_transform.getBasis().getColumn(1)[1];
-    left_to_center.at<double>(2,1) = l_eye_transform.getBasis().getColumn(1)[2];
-    left_to_center.at<double>(0,2) = l_eye_transform.getBasis().getColumn(2)[0];
-    left_to_center.at<double>(1,2) = l_eye_transform.getBasis().getColumn(2)[1];
-    left_to_center.at<double>(2,2) = l_eye_transform.getBasis().getColumn(2)[2];
-    left_to_center.at<double>(0,3) = l_eye_transform.getOrigin()[0];
-    left_to_center.at<double>(1,3) = l_eye_transform.getOrigin()[1];
-    left_to_center.at<double>(2,3) = l_eye_transform.getOrigin()[2];
+    cv::eigen2cv(left_to_center_eigen.matrix(),left_to_center);
 
     stereo_calib_data scd;//=stereo_calibration->get_calibrated_transformations(l_eye_angle,r_eye_angle);
     scd.R_left_cam_to_right_cam=Mat(3,3,CV_64F);
@@ -247,6 +240,11 @@ void FoveatedStereoNode::publishPointClouds(StereoData & sdd, const ros::Time & 
     point_cloud_msg.header.stamp=time;
     point_cloud_publisher.publish(point_cloud_msg);
 
+    pcl::toROSMsg(sdd.mean_point_cloud, point_cloud_msg);
+    point_cloud_msg.is_dense=false;
+    point_cloud_msg.header.stamp=time;
+    mean_point_cloud_publisher.publish(point_cloud_msg);
+
     for(int i=0; i<sdd.sigma_point_clouds.size();++i)
     {
         sensor_msgs::PointCloud2 point_cloud_msg;
@@ -289,48 +287,26 @@ void FoveatedStereoNode::publishCovarianceMatrices(StereoData & sdd, const ros::
                 continue;
             }
 
-            cv::Mat eigen_values;
-            cv::Mat eigen_vectors;
+            Eigen::Matrix<double,3,3> cov_eigen;
+            cv2eigen(sdd.cov_3d[r][c],cov_eigen);
 
-
-            cv::eigen(sdd.cov_3d[r][c],  eigen_values,  eigen_vectors);
-            Eigen::Matrix<double,3,3> eigen_vectors_eigen;
-            cv2eigen(eigen_vectors,eigen_vectors_eigen);
-            Eigen::Quaternion<double> q(eigen_vectors_eigen.transpose());
+            Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eig(cov_eigen);
+            Eigen::Quaternion<double> q(-eig.eigenvectors());
             q.normalize();
 
-            /*if(r==150&&c==150)
-            {
-                std::cout << "foda-se" << std::endl;
-                std::cout << eigen_values << std::endl;
-                std::cout << eigen_vectors << std::endl;
-                std::cout << eigen_vectors_eigen << std::endl;
-                std::cout << q.x() << " "
-                          << q.y() << " "
-                          << q.z() << " "
-                          << q.w() << " " << std::endl;
-                q.normalize();
-                std::cout << q.x() << " "
-                          << q.y() << " "
-                          << q.z() << " "
-                          << q.w() << " " << std::endl;
-                exit(-1);
-            }*/
-
-            /*if (r==60&&c==120)
+            /*if (r==30&&c==30)
             {
                 std::cout << sdd.cov_3d[r][c] << std::endl;
-                std::cout << eigen_values.at<double>(0) << " " <<
-                             eigen_values.at<double>(1) << " " <<
-                             eigen_values.at<double>(2) << std::endl;
+                std::cout << eig.eigenvalues()(0) << " " <<
+                             eig.eigenvalues()(1) << " " <<
+                             eig.eigenvalues()(2) << std::endl;
                 exit(-1);
             }*/
-
 
             visualization_msgs::Marker marker;
             // Set the frame ID and timestamp.  See the TF tutorials for information on these.
-            //marker.header.frame_id = "eyes_center_vision_link";
-            marker.header.frame_id = "l_camera_vision_link";
+            marker.header.frame_id = "eyes_center_vision_link";
+            //marker.header.frame_id = "l_camera_vision_link";
 
             marker.header.stamp = ros::Time::now();
 
@@ -349,9 +325,9 @@ void FoveatedStereoNode::publishCovarianceMatrices(StereoData & sdd, const ros::
             marker.pose.orientation.w = q.w();
 
             // Set the scale of the marker -- 1x1x1 here means 1m on a side
-            marker.scale.x = scale*eigen_values.at<double>(0);
-            marker.scale.y = scale*eigen_values.at<double>(1);
-            marker.scale.z = scale*eigen_values.at<double>(2);
+            marker.scale.x = scale*eig.eigenvalues()(0);
+            marker.scale.y = scale*eig.eigenvalues()(1);
+            marker.scale.z = scale*eig.eigenvalues()(2);
 
             // Set the color -- be sure to set alpha to something non-zero!
             marker.color.r = 0.0f;

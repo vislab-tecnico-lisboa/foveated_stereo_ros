@@ -15,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
   image_transport
   pcl_ros
   rviz_visual_tools
+  tf_conversions
 )
 
 find_package(PCL)
