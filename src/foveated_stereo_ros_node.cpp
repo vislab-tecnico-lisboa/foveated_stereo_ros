@@ -3,8 +3,6 @@ using namespace sensor_msgs;
 
 using namespace message_filters;
 
-
-
 FoveatedStereoNode::~FoveatedStereoNode()
 {}
 
@@ -92,6 +90,7 @@ FoveatedStereoNode::FoveatedStereoNode(ros::NodeHandle & nh_,
         std::string str = ss.str();
         sigma_point_clouds_publishers.push_back(nh.advertise<sensor_msgs::PointCloud2>("sigma_point_clouds_"+str, 10));
     }
+    stereo_data_publisher = nh.advertise<foveated_stereo_ros::Stereo>("stereo_data", 1);
 
     marker_pub = nh.advertise<visualization_msgs::MarkerArray>("covariances", 1);
     return;
@@ -227,6 +226,7 @@ void FoveatedStereoNode::callback(const ImageConstPtr& left_image,
 
     sensor_msgs::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", stereo_data.disparity_image).toImageMsg();
     image_pub_.publish(msg);
+    publishStereoData(stereo_data, left_image->header.stamp);
     publishPointClouds(stereo_data, left_image->header.stamp);
     publishCovarianceMatrices(stereo_data, left_image->header.stamp);
 
@@ -268,12 +268,6 @@ void FoveatedStereoNode::publishCovarianceMatrices(StereoData & sdd, const ros::
         for(int c=0; c<sdd.cov_3d[r].size();c=c+jump)
         {
 
-            if(sdd.mean_3d.at<cv::Vec3d>(r,c)[2]>5.0||sdd.mean_3d.at<cv::Vec3d>(r,c)[2]<0)
-            {
-                //marker.action = visualization_msgs::Marker::DELETE;
-                //marker_array.markers.push_back(marker);
-                continue;
-            }
             if(cv::norm(sdd.cov_3d[r][c])<0.0001||cv::norm(sdd.cov_3d[r][c])>1.0)
             {
                 //marker.action = visualization_msgs::Marker::ADD;
@@ -293,15 +287,6 @@ void FoveatedStereoNode::publishCovarianceMatrices(StereoData & sdd, const ros::
             Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eig(cov_eigen);
             Eigen::Quaternion<double> q(-eig.eigenvectors());
             q.normalize();
-
-            /*if (r==30&&c==30)
-            {
-                std::cout << sdd.cov_3d[r][c] << std::endl;
-                std::cout << eig.eigenvalues()(0) << " " <<
-                             eig.eigenvalues()(1) << " " <<
-                             eig.eigenvalues()(2) << std::endl;
-                exit(-1);
-            }*/
 
             visualization_msgs::Marker marker;
             // Set the frame ID and timestamp.  See the TF tutorials for information on these.
@@ -342,6 +327,34 @@ void FoveatedStereoNode::publishCovarianceMatrices(StereoData & sdd, const ros::
     marker_pub.publish(marker_array);
 }
 
+void FoveatedStereoNode::publishStereoData(StereoData & sdd, const ros::Time & time)
+{
+    foveated_stereo_ros::Stereo stereo_msg;
+    sensor_msgs::PointCloud2 point_cloud_msg;
+    pcl::toROSMsg(sdd.point_cloud, point_cloud_msg);
+    point_cloud_msg.is_dense=false;
+    point_cloud_msg.header.stamp=time;
+    stereo_msg.point_cloud=point_cloud_msg;
+    stereo_msg.header=point_cloud_msg.header;
+    for(int r=0; r<sdd.cov_3d.size(); ++r)
+    {
+        for(int c=0; c<sdd.cov_3d[r].size();++c)
+        {
+            foveated_stereo_ros::Covariance covariance_msg;
+            for(int i=0; i<3; ++i)
+            {
+                for(int j=0; j<3; ++j)
+                {
+                    int index=j+i*3;
+                    covariance_msg.covariance[index]=sdd.cov_3d[r][c].at<double>(i,j);
+                }
+            }
+            stereo_msg.covariances.push_back(covariance_msg);
+        }
+    }
+
+    stereo_data_publisher.publish(stereo_msg);
+}
 
 int main(int argc, char** argv)
 {

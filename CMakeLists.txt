@@ -16,20 +16,33 @@ find_package(catkin REQUIRED COMPONENTS
   pcl_ros
   rviz_visual_tools
   tf_conversions
+  message_generation
 )
 
 find_package(PCL)
 find_package(OpenCV)
 
+add_message_files(
+  FILES
+  Covariance.msg
+  Stereo.msg
+)
 
-
+generate_messages(
+  DEPENDENCIES
+  std_msgs
+  sensor_msgs
+)
 
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES foveated_stereo_ros
 #  CATKIN_DEPENDS cv_bridge geometry_msgs message_filters roscpp sensor_msgs std_msgs tf
 #  DEPENDS system_lib
+   CATKIN_DEPENDS message_runtime
 )
+
+
 
 ###########
 ## Build ##
@@ -62,7 +75,7 @@ target_link_libraries(foveated_stereo_ros_node
    STEREO_CALIB_LIB
    ${OpenCV_LIBRARIES}
 )
-
+add_dependencies(foveated_stereo_ros_node foveated_stereo_ros_generate_messages_cpp)
 ## Declare a cpp executable
 add_executable(ego_sphere_manager_ros_node src/EgoSphereManagerRos.cpp)
 
@@ -75,5 +88,6 @@ target_link_libraries(ego_sphere_manager_ros_node
    ${OpenCV_LIBRARIES}
 )
 
+add_dependencies(ego_sphere_manager_ros_node foveated_stereo_ros_generate_messages_cpp)
 
 

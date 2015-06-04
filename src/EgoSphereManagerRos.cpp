@@ -19,13 +19,14 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, const unsigned i
     }
 
     Eigen::Matrix4f sensorToWorld;
+
     pcl_ros::transformAsMatrix(sensorToWorldTf, sensorToWorld);
 
-    ego_sphere=boost::shared_ptr<SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > > (new SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > (egosphere_nodes, angle_bins, sensorToWorld));
+    ego_sphere=boost::shared_ptr<SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > > (new SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > (egosphere_nodes, angle_bins, sensorToWorld.cast <double> ()));
     point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere", 10);
 
-    point_cloud_subscriber_ = new message_filters::Subscriber<sensor_msgs::PointCloud2> (nh, "stereo", 10);
-    tf_filter_ = new tf::MessageFilter<sensor_msgs::PointCloud2> (*point_cloud_subscriber_, listener, world_frame_id, 5);
+    stereo_data_subscriber_ = new message_filters::Subscriber<foveated_stereo_ros::Stereo> (nh, "stereo_data", 10);
+    tf_filter_ = new tf::MessageFilter<foveated_stereo_ros::Stereo> (*stereo_data_subscriber_, listener, world_frame_id, 5);
     tf_filter_->registerCallback(boost::bind(&EgoSphereManagerRos::insertCloudCallback, this, _1));
     last=ros::Time::now();
     return;
@@ -38,13 +39,13 @@ EgoSphereManagerRos::~EgoSphereManagerRos()
         tf_filter_ = NULL;
     }
 
-    if (point_cloud_subscriber_){
-        delete point_cloud_subscriber_;
-        point_cloud_subscriber_ = NULL;
+    if (stereo_data_subscriber_){
+        delete stereo_data_subscriber_;
+        stereo_data_subscriber_ = NULL;
     }
 }
 
-void EgoSphereManagerRos::insertCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& cloud)
+void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::Stereo::ConstPtr& stereo_data)
 {
     //ROS_INFO_STREAM("Ego Sphere new data in.");
 
@@ -54,7 +55,7 @@ void EgoSphereManagerRos::insertCloudCallback(const sensor_msgs::PointCloud2::Co
     tf::StampedTransform sensorToWorldTf;
     try
     {
-        listener.lookupTransform(cloud->header.frame_id, world_frame_id, cloud->header.stamp, sensorToWorldTf);
+        listener.lookupTransform(stereo_data->point_cloud.header.frame_id, world_frame_id, stereo_data->point_cloud.header.stamp, sensorToWorldTf);
     } catch(tf::TransformException& ex){
         ROS_ERROR_STREAM( "Transform error of sensor data: " << ex.what() << ", quitting callback");
         return;
@@ -67,12 +68,9 @@ void EgoSphereManagerRos::insertCloudCallback(const sensor_msgs::PointCloud2::Co
 
     ROS_INFO_STREAM(" 1. transform time: " <<  (transform_time - startTime).toSec());
 
-
-
-
     // 1. Update or insert
 
-    if(ego_sphere->update(sensorToWorld))
+    if(ego_sphere->update(sensorToWorld.cast <double> ()))
     {
         ///////////////////////
         // Update ego-sphere //
@@ -89,7 +87,7 @@ void EgoSphereManagerRos::insertCloudCallback(const sensor_msgs::PointCloud2::Co
         /////////////////////////////////////////
 
         PCLPointCloud pc; // input cloud for filtering and ground-detection
-        pcl::fromROSMsg(*cloud, pc);
+        pcl::fromROSMsg(stereo_data->point_cloud, pc);
 
         // set up filter for height range, also removes NANs:
         pcl::PassThrough<pcl::PointXYZRGB> pass;
@@ -103,14 +101,37 @@ void EgoSphereManagerRos::insertCloudCallback(const sensor_msgs::PointCloud2::Co
         pass.setInputCloud(pc.makeShared());
         pass.filter(pc);
 
-        ros::WallTime update_time = ros::WallTime::now();
+        pass.setNegative(true);
+        std::vector<int> indices;
+        pass.filter(indices);
+
+        if(indices.size()>0)
+        {
+            exit(-1);
+        }
 
         ros::WallTime filtering_time = ros::WallTime::now();
 
         ROS_INFO_STREAM(" 2. filtering time: " <<  (filtering_time - transform_time).toSec());
 
+        std::vector<Eigen::Matrix3d> covariances;
+        covariances.reserve(stereo_data->covariances.size());
+        for(int c=0; c<stereo_data->covariances.size();++c)
+        {
+            Eigen::Matrix3d covariance;
+            for(int i=0; i<3; ++i)
+            {
+                for(int j=0; j<3; ++j)
+                {
+                    int index=j+i*3;
+                    covariance(i,j)=stereo_data->covariances[c].covariance[index];
+                }
+            }
 
-        insertScan(sensorToWorldTf.getOrigin(), pc);
+            covariances.push_back(covariance);
+        }
+
+        insertScan(pc,covariances);
 
         ros::WallTime insert_time = ros::WallTime::now();
         ROS_INFO_STREAM(" 2. insertion time: " <<  (insert_time - filtering_time).toSec());
@@ -118,17 +139,17 @@ void EgoSphereManagerRos::insertCloudCallback(const sensor_msgs::PointCloud2::Co
         ROS_INFO_STREAM("   total points inserted: " <<   pc.size());
 
     }
-    publishAll(cloud->header.stamp);
+    publishAll(stereo_data->point_cloud.header.stamp);
     double total_elapsed = (ros::WallTime::now() - startTime).toSec();
 
     ROS_INFO(" TOTAL TIME:  %f sec", total_elapsed);
 
 }
 
-void EgoSphereManagerRos::insertScan(const tf::Point& sensorOriginTf, const PCLPointCloud& point_cloud)
+void EgoSphereManagerRos::insertScan(const PCLPointCloud& point_cloud, const std::vector<Eigen::Matrix3d> & covariances)
 {
     //ego_sphere->insert(point_cloud);
-    ego_sphere->insertHashTable(point_cloud);
+    ego_sphere->insertHashTable(point_cloud, covariances);
 
 }
 

@@ -1,7 +1,6 @@
 #ifndef EGOSPHEREMANAGERROS_H
 #define EGOSPHEREMANAGERROS_H
 
-
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
@@ -27,7 +26,7 @@
 #include <pcl_ros/transforms.h>
 #include "structures.h"
 #include "EgoSphere.h"
-
+#include <foveated_stereo_ros/Stereo.h>
 using namespace sensor_msgs;
 using namespace message_filters;
 
@@ -40,8 +39,8 @@ class EgoSphereManagerRos
 
     image_transport::Publisher image_pub_;
 
-    message_filters::Subscriber<sensor_msgs::PointCloud2>* point_cloud_subscriber_;
-    tf::MessageFilter<sensor_msgs::PointCloud2>* tf_filter_;
+    message_filters::Subscriber<foveated_stereo_ros::Stereo>* stereo_data_subscriber_;
+    tf::MessageFilter<foveated_stereo_ros::Stereo>* tf_filter_;
 
 public:
     typedef pcl::PointCloud<pcl::PointXYZRGB> PCLPointCloud;
@@ -57,11 +56,11 @@ public:
 
     ~EgoSphereManagerRos();
 
-    void insertCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& cloud);
+    void insertCloudCallback(const foveated_stereo_ros::Stereo::ConstPtr& stereo_data);
 
     void publishAll(const ros::Time& rostime);
 
-    void insertScan(const tf::Point& sensorOriginTf, const PCLPointCloud& point_cloud);
+    void insertScan(const PCLPointCloud& point_cloud, const std::vector<Eigen::Matrix3d> & covariances);
 
     ros::Time last;
 };

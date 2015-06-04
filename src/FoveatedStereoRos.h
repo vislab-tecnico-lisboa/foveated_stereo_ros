@@ -32,6 +32,8 @@
 #include "opencv2/core/eigen.hpp"
 
 #include <tf_conversions/tf_eigen.h>
+#include <foveated_stereo_ros/Stereo.h>
+
 using namespace sensor_msgs;
 
 using namespace message_filters;
@@ -47,13 +49,15 @@ class FoveatedStereoNode
     image_transport::ImageTransport it_;
     image_transport::Publisher image_pub_;
     ros::Publisher marker_pub;
-public:
-    typedef sync_policies::ApproximateTime<Image, Image> MySyncPolicy;
+    ros::Publisher stereo_data_publisher;
 
     ros::NodeHandle nh;
     ros::Publisher point_cloud_publisher;
     ros::Publisher mean_point_cloud_publisher;
     std::vector<ros::Publisher> sigma_point_clouds_publishers;
+public:
+    typedef sync_policies::ApproximateTime<Image, Image> MySyncPolicy;
+
 
 
     boost::shared_ptr<message_filters::Subscriber<Image> > left_image_sub;
@@ -90,4 +94,7 @@ public:
     void publishPointClouds(StereoData & sdd, const ros::Time & time);
 
     void publishCovarianceMatrices(StereoData & sdd, const ros::Time & time);
+
+    void publishStereoData(StereoData & sdd, const ros::Time & time);
+
 };
