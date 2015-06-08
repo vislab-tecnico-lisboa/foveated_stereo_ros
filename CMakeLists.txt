@@ -65,7 +65,7 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/lib/foveated_stereo/cpp)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/lib/stereo_calib_lib)
 
 ## Declare a cpp executable
-add_executable(foveated_stereo_ros_node src/foveated_stereo_ros_node.cpp)
+add_executable(foveated_stereo_ros_node src/FoveatedStereoRos.cpp)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(foveated_stereo_ros_node

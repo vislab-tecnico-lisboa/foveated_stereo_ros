@@ -261,14 +261,14 @@ void FoveatedStereoNode::publishCovarianceMatrices(StereoData & sdd, const ros::
 {
 
     visualization_msgs::MarkerArray marker_array;
-    double scale=1.0;
+    double scale=3.0;
     int jump=5;
     for(int r=0; r<sdd.cov_3d.size();r=r+jump)
     {
         for(int c=0; c<sdd.cov_3d[r].size();c=c+jump)
         {
 
-            if(cv::norm(sdd.cov_3d[r][c])<0.0001||cv::norm(sdd.cov_3d[r][c])>1.0)
+            if(cv::norm(sdd.cov_3d[r][c])<0.0001||cv::norm(sdd.cov_3d[r][c])>10.0)
             {
                 //marker.action = visualization_msgs::Marker::ADD;
                 //marker_array.markers.push_back(marker);
@@ -340,6 +340,8 @@ void FoveatedStereoNode::publishStereoData(StereoData & sdd, const ros::Time & t
     {
         for(int c=0; c<sdd.cov_3d[r].size();++c)
         {
+            if(sdd.disparity_values.at<double>(r,c)>=0)
+                continue;
             foveated_stereo_ros::Covariance covariance_msg;
             for(int i=0; i<3; ++i)
             {

@@ -24,6 +24,9 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, const unsigned i
 
     ego_sphere=boost::shared_ptr<SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > > (new SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > (egosphere_nodes, angle_bins, sensorToWorld.cast <double> ()));
     point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere", 10);
+    point_cloud_uncertainty_publisher  = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere_uncertainty", 10);
+    marker_pub = nh.advertise<visualization_msgs::MarkerArray>("covariances_debug", 1);
+
 
     stereo_data_subscriber_ = new message_filters::Subscriber<foveated_stereo_ros::Stereo> (nh, "stereo_data", 10);
     tf_filter_ = new tf::MessageFilter<foveated_stereo_ros::Stereo> (*stereo_data_subscriber_, listener, world_frame_id, 5);
@@ -34,12 +37,14 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, const unsigned i
 
 EgoSphereManagerRos::~EgoSphereManagerRos()
 {
-    if (tf_filter_){
+    if (tf_filter_)
+    {
         delete tf_filter_;
         tf_filter_ = NULL;
     }
 
-    if (stereo_data_subscriber_){
+    if (stereo_data_subscriber_)
+    {
         delete stereo_data_subscriber_;
         stereo_data_subscriber_ = NULL;
     }
@@ -69,7 +74,6 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::Stereo:
     ROS_INFO_STREAM(" 1. transform time: " <<  (transform_time - startTime).toSec());
 
     // 1. Update or insert
-
     if(ego_sphere->update(sensorToWorld.cast <double> ()))
     {
         ///////////////////////
@@ -85,36 +89,8 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::Stereo:
         /////////////////////////////////////////
         // Insert new data into the ego-sphere //
         /////////////////////////////////////////
-
-        PCLPointCloud pc; // input cloud for filtering and ground-detection
-        pcl::fromROSMsg(stereo_data->point_cloud, pc);
-
-        // set up filter for height range, also removes NANs:
-        pcl::PassThrough<pcl::PointXYZRGB> pass;
-        pass.setFilterFieldName("z");
-        pass.setFilterLimits(-std::numeric_limits<double>::max(), std::numeric_limits<double>::max());
-
-        // directly transform to map frame:
-        //pcl::transformPointCloud(pc, pc, sensorToWorld);
-
-        // just filter height range:
-        pass.setInputCloud(pc.makeShared());
-        pass.filter(pc);
-
-        pass.setNegative(true);
-        std::vector<int> indices;
-        pass.filter(indices);
-
-        if(indices.size()>0)
-        {
-            exit(-1);
-        }
-
-        ros::WallTime filtering_time = ros::WallTime::now();
-
-        ROS_INFO_STREAM(" 2. filtering time: " <<  (filtering_time - transform_time).toSec());
-
         std::vector<Eigen::Matrix3d> covariances;
+        pcl::PointIndices::Ptr inliers (new pcl::PointIndices ());
         covariances.reserve(stereo_data->covariances.size());
         for(int c=0; c<stereo_data->covariances.size();++c)
         {
@@ -127,9 +103,37 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::Stereo:
                     covariance(i,j)=stereo_data->covariances[c].covariance[index];
                 }
             }
-
-            covariances.push_back(covariance);
+            if(covariance.norm()>0.0001&&covariance.norm()<3.0)
+            {
+                inliers->indices.push_back(c);
+                covariances.push_back(covariance);
+                continue;
+            }
         }
+
+        PCLPointCloud pc; // input cloud for filtering and ground-detection
+        pcl::fromROSMsg(stereo_data->point_cloud, pc);
+        // set up filter for height range, also removes NANs:
+        //pcl::PassThrough<pcl::PointXYZRGB> pass;
+        //pass.setFilterFieldName("z");
+        //pass.setFilterLimits(-std::numeric_limits<double>::max(), std::numeric_limits<double>::max());
+
+        // just filter height range:
+        //pass.setInputCloud(pc.makeShared());
+        //pass.setIndices(inliers);
+        //pass.filter(pc);
+
+        // Create the filtering object
+        pcl::ExtractIndices<pcl::PointXYZRGB> extract;
+        // Extract the inliers
+        extract.setInputCloud (pc.makeShared());
+        extract.setIndices (inliers);
+        extract.setNegative (false);
+        extract.filter (pc);
+        ros::WallTime filtering_time = ros::WallTime::now();
+
+        ROS_INFO_STREAM(" 2. filtering time: " <<  (filtering_time - transform_time).toSec());
+
 
         insertScan(pc,covariances);
 
@@ -139,11 +143,11 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::Stereo:
         ROS_INFO_STREAM("   total points inserted: " <<   pc.size());
 
     }
+    publishCovarianceMatrices(stereo_data->point_cloud.header.stamp);
     publishAll(stereo_data->point_cloud.header.stamp);
     double total_elapsed = (ros::WallTime::now() - startTime).toSec();
 
     ROS_INFO(" TOTAL TIME:  %f sec", total_elapsed);
-
 }
 
 void EgoSphereManagerRos::insertScan(const PCLPointCloud& point_cloud, const std::vector<Eigen::Matrix3d> & covariances)
@@ -156,6 +160,7 @@ void EgoSphereManagerRos::insertScan(const PCLPointCloud& point_cloud, const std
 void EgoSphereManagerRos::publishAll(const ros::Time& rostime)
 {
     pcl::PointCloud<pcl::PointXYZRGB> point_cloud=ego_sphere->getPointCloud();
+
     point_cloud.header.frame_id="eyes_center_vision_link";
 
     sensor_msgs::PointCloud2 point_cloud_msg;
@@ -166,8 +171,74 @@ void EgoSphereManagerRos::publishAll(const ros::Time& rostime)
     point_cloud_msg.header.stamp=rostime;
 
     point_cloud_publisher.publish(point_cloud_msg);
+
+    pcl::PointCloud<pcl::PointXYZI> point_cloud_uncertainty=ego_sphere->getPointCloudUncertainty();
+    point_cloud_uncertainty.header.frame_id="eyes_center_vision_link";
+
+    sensor_msgs::PointCloud2 point_cloud_uncertainty_msg;
+
+    pcl::toROSMsg(point_cloud_uncertainty,point_cloud_uncertainty_msg);
+
+    point_cloud_uncertainty_msg.is_dense=false;
+    point_cloud_uncertainty_msg.header.stamp=rostime;
+
+    point_cloud_uncertainty_publisher.publish(point_cloud_uncertainty_msg);
 }
 
+
+void EgoSphereManagerRos::publishCovarianceMatrices(const ros::Time & time)
+{
+
+    visualization_msgs::MarkerArray marker_array;
+    double scale=3.0;
+    int index=0;
+    for(std::vector<boost::shared_ptr<MemoryPatch> >::iterator structure_it = ego_sphere->structure.begin(); structure_it != ego_sphere->structure.end(); ++structure_it)
+    {
+        double norm_=(*structure_it)->sensory_data.position.inv_cov.norm();
+        if(norm_<0.01)
+        {
+            continue;
+        }
+
+        Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eig((*structure_it)->sensory_data.position.cov);
+        Eigen::Quaternion<double> q(-eig.eigenvectors());
+        q.normalize();
+
+        visualization_msgs::Marker marker;
+        // Set the frame ID and timestamp.  See the TF tutorials for information on these.
+        marker.header.frame_id = "eyes_center_vision_link";
+        marker.header.stamp = ros::Time::now();
+        marker.ns = "covariances";
+        marker.id = index++;
+        marker.type = visualization_msgs::Marker::SPHERE;
+        marker.action = visualization_msgs::Marker::ADD;
+
+        // Set the pose of the marker.  This is a full 6DOF pose relative to the frame/time specified in the header
+        marker.pose.position.x = (*structure_it)->sensory_data.position.mean[0];
+        marker.pose.position.y = (*structure_it)->sensory_data.position.mean[1];
+        marker.pose.position.z = (*structure_it)->sensory_data.position.mean[2];
+        marker.pose.orientation.x = q.x();
+        marker.pose.orientation.y = q.y();
+        marker.pose.orientation.z = q.z();
+        marker.pose.orientation.w = q.w();
+
+        // Set the scale of the marker -- 1x1x1 here means 1m on a side
+        marker.scale.x = scale*eig.eigenvalues()(0);
+        marker.scale.y = scale*eig.eigenvalues()(1);
+        marker.scale.z = scale*eig.eigenvalues()(2);
+
+        // Set the color -- be sure to set alpha to something non-zero!
+        marker.color.r = 0.0f;
+        marker.color.g = 1.0f;
+        marker.color.b = 0.0f;
+        marker.color.a = 1.0;
+
+        marker.lifetime = ros::Duration(1.2);
+        marker_array.markers.push_back(marker);
+
+    }
+    marker_pub.publish(marker_array);
+}
 
 int main(int argc, char** argv)
 {

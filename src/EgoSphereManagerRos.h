@@ -27,6 +27,9 @@
 #include "structures.h"
 #include "EgoSphere.h"
 #include <foveated_stereo_ros/Stereo.h>
+#include <visualization_msgs/MarkerArray.h>
+#include <pcl/filters/extract_indices.h>
+
 using namespace sensor_msgs;
 using namespace message_filters;
 
@@ -49,6 +52,8 @@ public:
     ros::NodeHandle nh;
 
     ros::Publisher point_cloud_publisher;
+    ros::Publisher point_cloud_uncertainty_publisher;
+    ros::Publisher marker_pub;
 
     boost::shared_ptr<SphericalShell<std::vector<boost::shared_ptr<MemoryPatch> > > > ego_sphere;
 
@@ -59,6 +64,7 @@ public:
     void insertCloudCallback(const foveated_stereo_ros::Stereo::ConstPtr& stereo_data);
 
     void publishAll(const ros::Time& rostime);
+    void publishCovarianceMatrices(const ros::Time & time);
 
     void insertScan(const PCLPointCloud& point_cloud, const std::vector<Eigen::Matrix3d> & covariances);
 
