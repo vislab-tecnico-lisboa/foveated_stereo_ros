@@ -53,8 +53,15 @@ class FoveatedStereoNode
 
     ros::NodeHandle nh;
     ros::Publisher point_cloud_publisher;
+    ros::Publisher point_cloud_uncertainty_publisher;
+
     ros::Publisher mean_point_cloud_publisher;
     std::vector<ros::Publisher> sigma_point_clouds_publishers;
+    std::string ego_frame;
+    std::string left_camera_frame;
+    std::string right_camera_frame;
+    double uncertainty_lower_bound;
+    double uncertainty_upper_bound;
 public:
     typedef sync_policies::ApproximateTime<Image, Image> MySyncPolicy;
 
@@ -83,7 +90,12 @@ public:
                        float pole_,
                        unsigned int spherical_angle_bins_,
                        float shell_radius_,
-                       bool high_pass_);
+                       bool high_pass_,
+                       const std::string & ego_frame_,
+                       const std::string & left_camera_frame_,
+                       const std::string & right_camera_frame_,
+                       double & uncertainty_lower_bound_,
+                       double & uncertainty_upper_bound_);
 
 
     stereo_calib_params fillStereoCalibParams(float & baseline);

@@ -190,7 +190,7 @@ void EgoSphereManagerRos::publishCovarianceMatrices(const ros::Time & time)
 {
 
     visualization_msgs::MarkerArray marker_array;
-    double scale=3.0;
+    double scale=0.5;
     int index=0;
     for(std::vector<boost::shared_ptr<MemoryPatch> >::iterator structure_it = ego_sphere->structure.begin(); structure_it != ego_sphere->structure.end(); ++structure_it)
     {
