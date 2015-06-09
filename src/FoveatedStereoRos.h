@@ -33,7 +33,7 @@
 
 #include <tf_conversions/tf_eigen.h>
 #include <foveated_stereo_ros/Stereo.h>
-
+#include <nodelet/nodelet.h>
 using namespace sensor_msgs;
 
 using namespace message_filters;
@@ -84,18 +84,16 @@ public:
                        int full_,
                        int sectors_,
                        int sp_,
-                       std::vector<double> & disparities_,
-                       float sigma_,
-                       float occ_likelihood_,
-                       float pole_,
-                       unsigned int spherical_angle_bins_,
-                       float shell_radius_,
-                       bool high_pass_,
                        const std::string & ego_frame_,
                        const std::string & left_camera_frame_,
                        const std::string & right_camera_frame_,
                        double & uncertainty_lower_bound_,
-                       double & uncertainty_upper_bound_);
+                       double & uncertainty_upper_bound_,
+                       double & L_,
+                       double & alpha_,
+                       double & beta_,
+                       double & ki_,
+                       double & scaling_factor_);
 
 
     stereo_calib_params fillStereoCalibParams(float & baseline);

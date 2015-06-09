@@ -51,7 +51,6 @@
   <build_depend>pcl_ros</build_depend>
   <build_depend>rviz_visual_tools</build_depend>
   <build_depend>tf_conversions</build_depend>
-  <build_depend>nodelet</build_depend>
 
   <run_depend>cv_bridge</run_depend>
   <run_depend>geometry_msgs</run_depend>
@@ -64,7 +63,6 @@
   <run_depend>pcl_ros</run_depend>
   <run_depend>rviz_visual_tools</run_depend>
   <run_depend>tf_conversions</run_depend>
-  <run_depend>nodelet</run_depend>
 
   <build_depend>message_generation</build_depend>
   <run_depend>message_runtime</run_depend>

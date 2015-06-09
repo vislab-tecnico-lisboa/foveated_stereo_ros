@@ -1,4 +1,5 @@
 #include "FoveatedStereoRos.h"
+
 using namespace sensor_msgs;
 
 using namespace message_filters;
@@ -7,24 +8,22 @@ FoveatedStereoNode::~FoveatedStereoNode()
 {}
 
 FoveatedStereoNode::FoveatedStereoNode(ros::NodeHandle & nh_,
-                                           int rings_,
-                                           double min_radius_,
-                                           int interp_,
-                                           int full_,
-                                           int sectors_,
-                                           int sp_,
-                                           std::vector<double> & disparities_,
-                                           float sigma_,
-                                           float occ_likelihood_,
-                                           float pole_,
-                                           unsigned int spherical_angle_bins_,
-                                           float shell_radius_,
-                                           bool high_pass_,
-                                           const std::string & ego_frame_,
-                                           const std::string & left_camera_frame_,
-                                           const std::string & right_camera_frame_,
-                                           double & uncertainty_lower_bound_,
-                                           double & uncertainty_upper_bound_) : nh(nh_),
+                                       int rings_,
+                                       double min_radius_,
+                                       int interp_,
+                                       int full_,
+                                       int sectors_,
+                                       int sp_,
+                                       const std::string & ego_frame_,
+                                       const std::string & left_camera_frame_,
+                                       const std::string & right_camera_frame_,
+                                       double & uncertainty_lower_bound_,
+                                       double & uncertainty_upper_bound_,
+                                       double & L_,
+                                       double & alpha_,
+                                       double & beta_,
+                                       double & ki_,
+                                       double & scaling_factor_) : nh(nh_),
     it_(nh_),
     ego_frame(ego_frame_),
     left_camera_frame(left_camera_frame_),
@@ -78,20 +77,15 @@ FoveatedStereoNode::FoveatedStereoNode(ros::NodeHandle & nh_,
                                                      full_,
                                                      sectors_,
                                                      sp_,
-                                                     disparities_,
-                                                     sigma_,
-                                                     occ_likelihood_,
-                                                     pole_,
-                                                     focal_distance,
-                                                     spherical_angle_bins_,
-                                                     shell_radius_,
-                                                     high_pass_,
                                                      ego_frame,
                                                      uncertainty_lower_bound_,
-                                                     uncertainty_upper_bound_)
+                                                     uncertainty_upper_bound_,
+                                                     L_,
+                                                     alpha_,
+                                                     beta_,
+                                                     ki_,
+                                                     scaling_factor_)
                                           );
-
-
     point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("stereo", 10);
     mean_point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("mean_pcl", 10);
     point_cloud_uncertainty_publisher = nh.advertise<sensor_msgs::PointCloud2>("uncertainty_pcl", 10);
@@ -104,7 +98,6 @@ FoveatedStereoNode::FoveatedStereoNode(ros::NodeHandle & nh_,
         //sigma_point_clouds_publishers.push_back(nh.advertise<sensor_msgs::PointCloud2>("sigma_point_clouds_"+str, 10));
     }*/
     stereo_data_publisher = nh.advertise<foveated_stereo_ros::Stereo>("stereo_data", 1);
-
     marker_pub = nh.advertise<visualization_msgs::MarkerArray>("covariances", 1);
     return;
 }
@@ -405,47 +398,34 @@ int main(int argc, char** argv)
     int interp;
     int full;
     int sp;
-    bool high_pass;
-    double pole;
-    double occ_likelihood;
-    double sigma;
-    int disparities;
-    int min_disparity;
-    int spherical_angle_bins;
-    double shell_radius;
+
     std::string ego_frame;
     std::string left_camera_frame;
     std::string right_camera_frame;
     double uncertainty_lower_bound;
     double uncertainty_upper_bound;
-
+    double scaling_factor;
+    double L;                                      // numer of states
+    double alpha;                                  // default, tunable
+    double beta;                                   // default, tunable
+    double ki;                                     // default, tunable
     private_node_handle_.param("sectors", sectors, 100);
     private_node_handle_.param("rings", rings, 100);
     private_node_handle_.param("min_radius", min_radius, 1.0);
     private_node_handle_.param("interp", interp, 1);
     private_node_handle_.param("sp", sp, 0);
     private_node_handle_.param("full", full, 1);
-    private_node_handle_.param("high_pass", high_pass, false);
-    private_node_handle_.param("pole", pole, 0.8);
-    private_node_handle_.param("occ_likelihood", occ_likelihood, 0.1);
-    private_node_handle_.param("sigma", sigma, 3.0);
-    private_node_handle_.param("disparities", disparities, 60);
-    private_node_handle_.param("min_disparity", min_disparity, 1);
-    private_node_handle_.param("spherical_angle_bins", spherical_angle_bins, 50);
-    private_node_handle_.param("shell_radius", shell_radius, 1.0);
     private_node_handle_.param<std::string>("ego_frame", ego_frame, "ego_frame");
     private_node_handle_.param<std::string>("left_camera_frame", left_camera_frame, "left_camera_frame");
     private_node_handle_.param<std::string>("right_camera_frame", right_camera_frame, "right_camera_frame");
     private_node_handle_.param("uncertainty_lower_bound", uncertainty_lower_bound, 0.0);
     private_node_handle_.param("uncertainty_upper_bound", uncertainty_upper_bound, 0.0);
+    private_node_handle_.param("L", L, 4.0);
+    private_node_handle_.param("alpha", alpha, 0.25);
+    private_node_handle_.param("beta", beta, 2.0);
+    private_node_handle_.param("ki", ki, 3.0);
+    private_node_handle_.param("scaling_factor", scaling_factor, 0.1);
 
-
-    std::vector<double> disparities_vec;
-
-    for(int i=min_disparity; i<disparities; ++i)
-    {
-        disparities_vec.push_back(i);
-    }
 
     ROS_INFO_STREAM("sectors: "<<sectors);
     ROS_INFO_STREAM("rings: "<<rings);
@@ -453,19 +433,16 @@ int main(int argc, char** argv)
     ROS_INFO_STREAM("interp: "<<interp);
     ROS_INFO_STREAM("sp: "<<sp);
     ROS_INFO_STREAM("full: "<<full);
-    ROS_INFO_STREAM("high_pass: "<<high_pass);
-    ROS_INFO_STREAM("pole: "<<pole);
-    ROS_INFO_STREAM("occ_likelihood: "<<occ_likelihood);
-    ROS_INFO_STREAM("sigma: "<<sigma);
-    ROS_INFO_STREAM("disparities: "<<disparities);
-    ROS_INFO_STREAM("min_disparity: "<<min_disparity);
-    ROS_INFO_STREAM("spherical_angle_bins: "<<spherical_angle_bins);
-    ROS_INFO_STREAM("shell_radius: "<<shell_radius);
     ROS_INFO_STREAM("ego_frame: "<<ego_frame);
     ROS_INFO_STREAM("left_camera_frame: "<<left_camera_frame);
     ROS_INFO_STREAM("right_camera_frame: "<<right_camera_frame);
     ROS_INFO_STREAM("uncertainty_lower_bound: "<<uncertainty_lower_bound);
     ROS_INFO_STREAM("uncertainty_upper_bound: "<<uncertainty_upper_bound);
+    ROS_INFO_STREAM("L: " << L);
+    ROS_INFO_STREAM("alpha: " << alpha);
+    ROS_INFO_STREAM("beta: " << beta);
+    ROS_INFO_STREAM("ki: " << ki);
+    ROS_INFO_STREAM("scaling_factor: " << scaling_factor);
 
     FoveatedStereoNode ego_sphere(nh,
                                   rings,
@@ -474,18 +451,16 @@ int main(int argc, char** argv)
                                   full,
                                   sectors,
                                   sp,
-                                  disparities_vec,
-                                  sigma,
-                                  occ_likelihood,
-                                  pole,
-                                  spherical_angle_bins,
-                                  shell_radius,
-                                  high_pass,
                                   ego_frame,
                                   left_camera_frame,
                                   right_camera_frame,
                                   uncertainty_lower_bound,
-                                  uncertainty_upper_bound
+                                  uncertainty_upper_bound,
+                                  L,
+                                  alpha,
+                                  beta,
+                                  ki,
+                                  scaling_factor
                                   );
 
     // Tell ROS how fast to run this node.
@@ -502,3 +477,6 @@ int main(int argc, char** argv)
 } // end
 
 
+// Register as nodelet
+//#include <pluginlib/class_list_macros.h>
+//PLUGINLIB_DECLARE_CLASS (openni_camera, driver, openni_camera::DriverNodelet, nodelet::Nodelet);
