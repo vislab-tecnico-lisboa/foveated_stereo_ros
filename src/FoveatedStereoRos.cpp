@@ -38,8 +38,8 @@ FoveatedStereoNode::FoveatedStereoNode(ros::NodeHandle & nh_,
 
     try
     {
-        listener.waitForTransform("/l_camera_vision_link", "/r_camera_vision_link", ros::Time(0), ros::Duration(10.0) );
-        listener.lookupTransform("/l_camera_vision_link", "/r_camera_vision_link",
+        listener.waitForTransform(right_camera_frame, left_camera_frame, ros::Time(0), ros::Duration(10.0) );
+        listener.lookupTransform(right_camera_frame, left_camera_frame,
                                  ros::Time(0), transform);
     }
     catch (tf::TransformException &ex)
@@ -160,8 +160,8 @@ void FoveatedStereoNode::callback(const ImageConstPtr& left_image,
         /*listener.waitForTransform(ego_frame, "/r_camera_vision_link", ros::Time(0), ros::Duration(10.0) );
             listener.lookupTransform(ego_frame, "/r_camera_vision_link",
                                      ros::Time(0), r_eye_transform);*/
-        listener.waitForTransform(left_camera_frame, right_camera_frame, ros::Time(0), ros::Duration(10.0) );
-        listener.lookupTransform(left_camera_frame, right_camera_frame,
+        listener.waitForTransform(right_camera_frame, left_camera_frame, ros::Time(0), ros::Duration(10.0) );
+        listener.lookupTransform(right_camera_frame, left_camera_frame,
                                  ros::Time(0), r_l_eye_transform);
     }
     catch (tf::TransformException &ex)
@@ -348,7 +348,7 @@ void FoveatedStereoNode::publishStereoData(StereoData & sdd, const ros::Time & t
     {
         for(unsigned int c=0; c<sdd.cov_3d[r].size();++c)
         {
-            if(sdd.disparity_values.at<double>(r,c)>=0)
+            if(sdd.disparity_values.at<double>(r,c)<=0)
                 continue;
 
             Eigen::Matrix<double,3,3> cov_eigen;
