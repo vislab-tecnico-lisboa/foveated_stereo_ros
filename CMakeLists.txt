@@ -17,7 +17,6 @@ find_package(catkin REQUIRED COMPONENTS
   rviz_visual_tools
   tf_conversions
   message_generation
-  nodelet
 )
 
 find_package(PCL)

@@ -4,7 +4,6 @@ interp: 1
 full: 0
 sectors: 556
 sp: 0
-
 ego_frame: eyes_center_vision_link
 left_camera_frame: l_camera_vision_link
 right_camera_frame: r_camera_vision_link

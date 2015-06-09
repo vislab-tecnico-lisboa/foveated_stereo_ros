@@ -33,7 +33,7 @@
 
 #include <tf_conversions/tf_eigen.h>
 #include <foveated_stereo_ros/Stereo.h>
-#include <nodelet/nodelet.h>
+
 using namespace sensor_msgs;
 
 using namespace message_filters;
@@ -91,8 +91,8 @@ public:
                        double & uncertainty_upper_bound_,
                        double & L_,
                        double & alpha_,
-                       double & beta_,
                        double & ki_,
+                       double & beta_,
                        double & scaling_factor_);
 
 

@@ -1,5 +1,4 @@
 #include "FoveatedStereoRos.h"
-
 using namespace sensor_msgs;
 
 using namespace message_filters;
@@ -21,8 +20,8 @@ FoveatedStereoNode::FoveatedStereoNode(ros::NodeHandle & nh_,
                                        double & uncertainty_upper_bound_,
                                        double & L_,
                                        double & alpha_,
-                                       double & beta_,
                                        double & ki_,
+                                       double & beta_,
                                        double & scaling_factor_) : nh(nh_),
     it_(nh_),
     ego_frame(ego_frame_),
@@ -82,10 +81,12 @@ FoveatedStereoNode::FoveatedStereoNode(ros::NodeHandle & nh_,
                                                      uncertainty_upper_bound_,
                                                      L_,
                                                      alpha_,
-                                                     beta_,
                                                      ki_,
+                                                     beta_,
                                                      scaling_factor_)
                                           );
+
+
     point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("stereo", 10);
     mean_point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("mean_pcl", 10);
     point_cloud_uncertainty_publisher = nh.advertise<sensor_msgs::PointCloud2>("uncertainty_pcl", 10);
@@ -98,6 +99,7 @@ FoveatedStereoNode::FoveatedStereoNode(ros::NodeHandle & nh_,
         //sigma_point_clouds_publishers.push_back(nh.advertise<sensor_msgs::PointCloud2>("sigma_point_clouds_"+str, 10));
     }*/
     stereo_data_publisher = nh.advertise<foveated_stereo_ros::Stereo>("stereo_data", 1);
+
     marker_pub = nh.advertise<visualization_msgs::MarkerArray>("covariances", 1);
     return;
 }
@@ -396,19 +398,21 @@ int main(int argc, char** argv)
     int rings;
     double min_radius;
     int interp;
-    int full;
     int sp;
+    int full;
+
 
     std::string ego_frame;
     std::string left_camera_frame;
     std::string right_camera_frame;
     double uncertainty_lower_bound;
     double uncertainty_upper_bound;
-    double scaling_factor;
-    double L;                                      // numer of states
-    double alpha;                                  // default, tunable
-    double beta;                                   // default, tunable
-    double ki;                                     // default, tunable
+    double L=4.0;                                      // numer of states
+    double alpha=0.25;                                 // default, tunable
+    double ki=3.0;                                     // default, tunable
+    double beta=2.0;
+    double scaling_factor=0.1;
+
     private_node_handle_.param("sectors", sectors, 100);
     private_node_handle_.param("rings", rings, 100);
     private_node_handle_.param("min_radius", min_radius, 1.0);
@@ -420,12 +424,6 @@ int main(int argc, char** argv)
     private_node_handle_.param<std::string>("right_camera_frame", right_camera_frame, "right_camera_frame");
     private_node_handle_.param("uncertainty_lower_bound", uncertainty_lower_bound, 0.0);
     private_node_handle_.param("uncertainty_upper_bound", uncertainty_upper_bound, 0.0);
-    private_node_handle_.param("L", L, 4.0);
-    private_node_handle_.param("alpha", alpha, 0.25);
-    private_node_handle_.param("beta", beta, 2.0);
-    private_node_handle_.param("ki", ki, 3.0);
-    private_node_handle_.param("scaling_factor", scaling_factor, 0.1);
-
 
     ROS_INFO_STREAM("sectors: "<<sectors);
     ROS_INFO_STREAM("rings: "<<rings);
@@ -438,11 +436,6 @@ int main(int argc, char** argv)
     ROS_INFO_STREAM("right_camera_frame: "<<right_camera_frame);
     ROS_INFO_STREAM("uncertainty_lower_bound: "<<uncertainty_lower_bound);
     ROS_INFO_STREAM("uncertainty_upper_bound: "<<uncertainty_upper_bound);
-    ROS_INFO_STREAM("L: " << L);
-    ROS_INFO_STREAM("alpha: " << alpha);
-    ROS_INFO_STREAM("beta: " << beta);
-    ROS_INFO_STREAM("ki: " << ki);
-    ROS_INFO_STREAM("scaling_factor: " << scaling_factor);
 
     FoveatedStereoNode ego_sphere(nh,
                                   rings,
@@ -458,10 +451,9 @@ int main(int argc, char** argv)
                                   uncertainty_upper_bound,
                                   L,
                                   alpha,
-                                  beta,
                                   ki,
-                                  scaling_factor
-                                  );
+                                  beta,
+                                  scaling_factor);
 
     // Tell ROS how fast to run this node.
     ros::Rate r(rate);
@@ -477,6 +469,3 @@ int main(int argc, char** argv)
 } // end
 
 
-// Register as nodelet
-//#include <pluginlib/class_list_macros.h>
-//PLUGINLIB_DECLARE_CLASS (openni_camera, driver, openni_camera::DriverNodelet, nodelet::Nodelet);
