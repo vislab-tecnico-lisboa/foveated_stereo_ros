@@ -18,6 +18,10 @@ find_package(catkin REQUIRED COMPONENTS
   tf_conversions
   message_generation
   nodelet
+
+  moveit_core
+  moveit_ros_planning
+  moveit_ros_planning_interface
 )
 
 find_package(PCL)
@@ -108,3 +112,13 @@ install(TARGETS foveated_stereo_ros_nodelet
 install(FILES foveated_stereo_nodelets.xml
         DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
+
+
+
+add_executable(gaze src/Gaze.cpp)
+## Specify libraries to link a library or executable target against
+target_link_libraries(gaze
+   ${catkin_LIBRARIES}
+)
+
+

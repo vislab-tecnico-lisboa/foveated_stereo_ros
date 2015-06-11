@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<!-- ROS head file to simulate vizzy in gazebo -->
+<launch>
+
+	<node name="gaze" pkg="foveated_stereo_ros" type="gaze" respawn="false" output="screen">
+ 		<rosparam command="load" file="$(find vizzy_moveit_config)/config/kinematics.yaml"/>
+	</node>
+
+</launch>
