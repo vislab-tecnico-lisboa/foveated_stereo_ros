@@ -6,34 +6,64 @@ using namespace message_filters;
 FoveatedStereoNode::~FoveatedStereoNode()
 {}
 
-FoveatedStereoNode::FoveatedStereoNode(ros::NodeHandle & nh_,
-                                       int rings_,
-                                       double min_radius_,
-                                       int interp_,
-                                       int full_,
-                                       int sectors_,
-                                       int sp_,
-                                       const std::string & ego_frame_,
-                                       const std::string & left_camera_frame_,
-                                       const std::string & right_camera_frame_,
-                                       double & uncertainty_lower_bound_,
-                                       double & uncertainty_upper_bound_,
-                                       double & L_,
-                                       double & alpha_,
-                                       double & ki_,
-                                       double & beta_,
-                                       double & scaling_factor_) : nh(nh_),
-    it_(nh_),
-    ego_frame(ego_frame_),
-    left_camera_frame(left_camera_frame_),
-    right_camera_frame(right_camera_frame_),
-    uncertainty_lower_bound(uncertainty_lower_bound_),
-    uncertainty_upper_bound(uncertainty_upper_bound_)
+FoveatedStereoNode::FoveatedStereoNode(ros::NodeHandle & nh_, ros::NodeHandle & private_node_handle_) :
+    nh(nh_),
+    private_node_handle(private_node_handle_),
+    it_(nh_)
 {
+    boost::lock_guard<boost::mutex> lock(connect_mutex_);
+    int sectors;
+    int rings;
+    double min_radius;
+    int interp;
+    int sp;
+    int full;
+
+    double L;                                      // numer of states
+    double alpha;                                 // default, tunable
+    double ki;                                     // default, tunable
+    double beta;
+    double scaling_factor;
+
+    private_node_handle_.param("sectors", sectors, 100);
+    private_node_handle_.param("rings", rings, 100);
+    private_node_handle_.param("min_radius", min_radius, 1.0);
+    private_node_handle_.param("interp", interp, 1);
+    private_node_handle_.param("sp", sp, 0);
+    private_node_handle_.param("full", full, 1);
+    private_node_handle_.param<std::string>("ego_frame", ego_frame, "ego_frame");
+    private_node_handle_.param<std::string>("left_camera_frame", left_camera_frame, "left_camera_frame");
+    private_node_handle_.param<std::string>("right_camera_frame", right_camera_frame, "right_camera_frame");
+    private_node_handle_.param("uncertainty_lower_bound", uncertainty_lower_bound, 0.0);
+    private_node_handle_.param("L", L, 1.0);
+    private_node_handle_.param("alpha", alpha, 1.0);
+    private_node_handle_.param("beta", beta, 2.0);
+    private_node_handle_.param("ki", ki, 1.0);
+    private_node_handle_.param("scaling_factor", scaling_factor, 1.0);
+
+    ROS_INFO_STREAM("sectors: "<<sectors);
+    ROS_INFO_STREAM("rings: "<<rings);
+    ROS_INFO_STREAM("min_radius: "<<min_radius);
+    ROS_INFO_STREAM("interp: "<<interp);
+    ROS_INFO_STREAM("sp: "<<sp);
+    ROS_INFO_STREAM("full: "<<full);
+    ROS_INFO_STREAM("ego_frame: "<<ego_frame);
+    ROS_INFO_STREAM("left_camera_frame: "<<left_camera_frame);
+    ROS_INFO_STREAM("right_camera_frame: "<<right_camera_frame);
+    ROS_INFO_STREAM("uncertainty_lower_bound: "<<uncertainty_lower_bound);
+    ROS_INFO_STREAM("L: "<<L);
+    ROS_INFO_STREAM("alpha: "<<alpha);
+    ROS_INFO_STREAM("beta: "<<beta);
+    ROS_INFO_STREAM("ki: "<<ki);
+    ROS_INFO_STREAM("scaling_factor: "<<scaling_factor);
+
+    sensor_msgs::CameraInfoConstPtr left_camera_info=ros::topic::waitForMessage<sensor_msgs::CameraInfo>("/vizzy/l_camera/camera_info", ros::Duration(30));
+
+    sensor_msgs::CameraInfoConstPtr right_camera_info=ros::topic::waitForMessage<sensor_msgs::CameraInfo>("/vizzy/r_camera/camera_info", ros::Duration(30));
+
     left_image_sub=boost::shared_ptr<message_filters::Subscriber<Image> > (new message_filters::Subscriber<Image>(nh, "left_image", 10));
     right_image_sub=boost::shared_ptr<message_filters::Subscriber<Image> > (new message_filters::Subscriber<Image>(nh, "right_image", 10));
     image_pub_ = it_.advertise("/vizzy/disparity", 3);
-
     tf::StampedTransform transform;
 
     try
@@ -51,18 +81,29 @@ FoveatedStereoNode::FoveatedStereoNode(ros::NodeHandle & nh_,
 
     tf::Vector3 origin=transform.getOrigin();
 
-    float baseline=origin.length(); // meters
+    //float baseline=origin.length(); // meters
 
     sync=boost::shared_ptr<Synchronizer<MySyncPolicy> > (new Synchronizer<MySyncPolicy>(MySyncPolicy(10), *left_image_sub, *right_image_sub));
     sync->registerCallback(boost::bind(&FoveatedStereoNode::callback, this, _1, _2));
-    stereo_calibration=boost::shared_ptr<stereo_calib> (new stereo_calib(fillStereoCalibParams(baseline)));
+    ROS_INFO("Getting cameras' parameters");
 
-    sensor_msgs::CameraInfoConstPtr left_camera_info=ros::topic::waitForMessage<sensor_msgs::CameraInfo>("/vizzy/l_camera/camera_info", ros::Duration(30));
+    //set the camera intrinsic parameters
+    left_cam_intrinsic = Mat::eye(3,3,CV_64F);
+    left_cam_intrinsic.at<double>(0,0) = left_camera_info->K.at(0);
+    left_cam_intrinsic.at<double>(1,1) = left_camera_info->K.at(4);
+    left_cam_intrinsic.at<double>(0,2) = left_camera_info->K.at(2);
+    left_cam_intrinsic.at<double>(1,2) = left_camera_info->K.at(5);
 
+    right_cam_intrinsic = Mat::eye(3,3,CV_64F);
+    right_cam_intrinsic.at<double>(0,0) = right_camera_info->K.at(0);
+    right_cam_intrinsic.at<double>(1,1) = right_camera_info->K.at(4);
+    right_cam_intrinsic.at<double>(0,2) = right_camera_info->K.at(2);
+    right_cam_intrinsic.at<double>(1,2) = right_camera_info->K.at(5);
+
+    //stereo_calibration=boost::shared_ptr<stereo_calib> (new stereo_calib(fillStereoCalibParams(baseline)));
     //float fx_=left_camera_info->K.at(0); // fx
     //float fy_=left_camera_info->K.at(4); // fy
     float focal_distance=left_camera_info->K.at(4); // fy
-
 
     //float focal_pixel = (image_width_in_pixels * 0.5) / tan(FOV * 0.5);
     //float tan(FOV*0.5)=(left_camera_info->width * 0.5) /
@@ -70,22 +111,20 @@ FoveatedStereoNode::FoveatedStereoNode(ros::NodeHandle & nh_,
                                                      (int)left_camera_info->height,
                                                      cv::Point2i(left_camera_info->width/2.0,
                                                                  left_camera_info->height/2.0),
-                                                     rings_,
-                                                     min_radius_,
-                                                     interp_,
-                                                     full_,
-                                                     sectors_,
-                                                     sp_,
+                                                     rings,
+                                                     min_radius,
+                                                     interp,
+                                                     full,
+                                                     sectors,
+                                                     sp,
                                                      ego_frame,
-                                                     uncertainty_lower_bound_,
-                                                     uncertainty_upper_bound_,
-                                                     L_,
-                                                     alpha_,
-                                                     ki_,
-                                                     beta_,
-                                                     scaling_factor_)
+                                                     uncertainty_lower_bound,
+                                                     L,
+                                                     alpha,
+                                                     ki,
+                                                     beta,
+                                                     scaling_factor)
                                           );
-
 
     point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("stereo", 10);
     mean_point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("mean_pcl", 10);
@@ -223,8 +262,8 @@ void FoveatedStereoNode::callback(const ImageConstPtr& left_image,
                                                      right_image_mat,
                                                      scd.R_left_cam_to_right_cam,
                                                      scd.t_left_cam_to_right_cam,
-                                                     stereo_calibration->csc.LeftCalibMat,
-                                                     stereo_calibration->csc.RightCalibMat,
+                                                     left_cam_intrinsic,
+                                                     right_cam_intrinsic,
                                                      left_to_center
                                                      );//*/
 
@@ -280,22 +319,26 @@ void FoveatedStereoNode::publishCovarianceMatrices(StereoData & sdd, const ros::
     {
         for(int c=0; c<sdd.cov_3d[r].size();c=c+jump)
         {
-            if(!cv::checkRange(sdd.cov_3d[r][c])||!cv::checkRange(sdd.mean_3d.at<cv::Vec3d>(r,c)))
+            if(sdd.disparity_values.at<double>(r,c)<=0)
+                continue;
+
+            Eigen::Matrix<double,3,3> information_eigen;
+            cv2eigen(sdd.information_3d[r][c],information_eigen);
+
+            Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eig(information_eigen.transpose()*information_eigen); // last one is the greatest eigen value
+
+            //double norm_=(information_matrix.norm()); // L2 norm
+            double norm_=sqrt(eig.eigenvalues()(2)); // SPECTRAL NORM
+
+            if(norm_<uncertainty_lower_bound || norm_!=norm_)
             {
-                //marker.action = visualization_msgs::Marker::ADD;
-                //marker_array.markers.push_back(marker);
                 continue;
             }
 
-            Eigen::Matrix<double,3,3> cov_eigen;
-            cv2eigen(sdd.cov_3d[r][c],cov_eigen);
-            double norm_=cov_eigen.inverse().norm();
-            if(norm_<uncertainty_lower_bound || norm_>uncertainty_upper_bound || norm_!=norm_)
-            {
-                continue;
-            }
+            Eigen::Matrix<double,3,3> covariance_eigen;
+            cv2eigen(sdd.cov_3d[r][c],covariance_eigen);
+            eig=Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d>(covariance_eigen); // last one is the greatest eigen value
 
-            Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eig(cov_eigen);
             Eigen::Quaternion<double> q(-eig.eigenvectors());
             q.normalize();
 
@@ -309,9 +352,9 @@ void FoveatedStereoNode::publishCovarianceMatrices(StereoData & sdd, const ros::
             marker.action = visualization_msgs::Marker::ADD;
 
             // Set the pose of the marker.  This is a full 6DOF pose relative to the frame/time specified in the header
-            marker.pose.position.x = sdd.mean_3d.at<cv::Vec3d>(r,c)[0];
-            marker.pose.position.y = sdd.mean_3d.at<cv::Vec3d>(r,c)[1];
-            marker.pose.position.z = sdd.mean_3d.at<cv::Vec3d>(r,c)[2];
+            marker.pose.position.x = sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[0];
+            marker.pose.position.y = sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[1];
+            marker.pose.position.z = sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[2];
             marker.pose.orientation.x = q.x();
             marker.pose.orientation.y = q.y();
             marker.pose.orientation.z = q.z();
@@ -351,16 +394,21 @@ void FoveatedStereoNode::publishStereoData(StereoData & sdd, const ros::Time & t
             if(sdd.disparity_values.at<double>(r,c)<=0)
                 continue;
 
-            Eigen::Matrix<double,3,3> cov_eigen;
-            cv2eigen(sdd.cov_3d[r][c],cov_eigen);
+            Eigen::Matrix<double,3,3> information_eigen;
+            cv2eigen(sdd.information_3d[r][c],information_eigen);
 
-            double norm_=cov_eigen.inverse().norm();
-            if(norm_<uncertainty_lower_bound || norm_>uncertainty_upper_bound || norm_!=norm_)
+            Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eig(information_eigen.transpose()*information_eigen); // last one is the greatest eigen value
+
+            //double norm_=(information_matrix.norm()); // L2 norm
+            double norm_=sqrt(eig.eigenvalues()(2)); // SPECTRAL NORM
+
+            if(norm_<uncertainty_lower_bound || norm_!=norm_)
             {
                 continue;
             }
 
             foveated_stereo_ros::Covariance covariance_msg;
+            foveated_stereo_ros::Information information_msg;
 
             for(int i=0; i<3; ++i)
             {
@@ -368,10 +416,14 @@ void FoveatedStereoNode::publishStereoData(StereoData & sdd, const ros::Time & t
                 {
                     int index=j+i*3;
                     covariance_msg.covariance[index]=sdd.cov_3d[r][c].at<double>(i,j);
+                    information_msg.information[index]=sdd.information_3d[r][c].at<double>(i,j);
                 }
             }
-
+            /*std::cout << sdd.information_3d[r][c]<< std::endl;
+            std::cout << sdd.cov_3d[r][c]<< std::endl;
+            std::cout << "ola" << std::endl;*/
             stereo_msg.covariances.push_back(covariance_msg);
+            stereo_msg.informations.push_back(information_msg);
         }
     }
 
@@ -394,66 +446,8 @@ int main(int argc, char** argv)
 
     private_node_handle_.param("rate", rate, 100);
 
-    int sectors;
-    int rings;
-    double min_radius;
-    int interp;
-    int sp;
-    int full;
-
-
-    std::string ego_frame;
-    std::string left_camera_frame;
-    std::string right_camera_frame;
-    double uncertainty_lower_bound;
-    double uncertainty_upper_bound;
-    double L=4.0;                                      // numer of states
-    double alpha=0.25;                                 // default, tunable
-    double ki=3.0;                                     // default, tunable
-    double beta=2.0;
-    double scaling_factor=0.1;
-
-    private_node_handle_.param("sectors", sectors, 100);
-    private_node_handle_.param("rings", rings, 100);
-    private_node_handle_.param("min_radius", min_radius, 1.0);
-    private_node_handle_.param("interp", interp, 1);
-    private_node_handle_.param("sp", sp, 0);
-    private_node_handle_.param("full", full, 1);
-    private_node_handle_.param<std::string>("ego_frame", ego_frame, "ego_frame");
-    private_node_handle_.param<std::string>("left_camera_frame", left_camera_frame, "left_camera_frame");
-    private_node_handle_.param<std::string>("right_camera_frame", right_camera_frame, "right_camera_frame");
-    private_node_handle_.param("uncertainty_lower_bound", uncertainty_lower_bound, 0.0);
-    private_node_handle_.param("uncertainty_upper_bound", uncertainty_upper_bound, 0.0);
-
-    ROS_INFO_STREAM("sectors: "<<sectors);
-    ROS_INFO_STREAM("rings: "<<rings);
-    ROS_INFO_STREAM("min_radius: "<<min_radius);
-    ROS_INFO_STREAM("interp: "<<interp);
-    ROS_INFO_STREAM("sp: "<<sp);
-    ROS_INFO_STREAM("full: "<<full);
-    ROS_INFO_STREAM("ego_frame: "<<ego_frame);
-    ROS_INFO_STREAM("left_camera_frame: "<<left_camera_frame);
-    ROS_INFO_STREAM("right_camera_frame: "<<right_camera_frame);
-    ROS_INFO_STREAM("uncertainty_lower_bound: "<<uncertainty_lower_bound);
-    ROS_INFO_STREAM("uncertainty_upper_bound: "<<uncertainty_upper_bound);
-
     FoveatedStereoNode ego_sphere(nh,
-                                  rings,
-                                  min_radius,
-                                  interp,
-                                  full,
-                                  sectors,
-                                  sp,
-                                  ego_frame,
-                                  left_camera_frame,
-                                  right_camera_frame,
-                                  uncertainty_lower_bound,
-                                  uncertainty_upper_bound,
-                                  L,
-                                  alpha,
-                                  ki,
-                                  beta,
-                                  scaling_factor);
+                                  private_node_handle_);
 
     // Tell ROS how fast to run this node.
     ros::Rate r(rate);

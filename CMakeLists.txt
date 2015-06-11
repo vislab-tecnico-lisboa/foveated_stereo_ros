@@ -17,6 +17,7 @@ find_package(catkin REQUIRED COMPONENTS
   rviz_visual_tools
   tf_conversions
   message_generation
+  nodelet
 )
 
 find_package(PCL)
@@ -25,6 +26,7 @@ find_package(OpenCV)
 add_message_files(
   FILES
   Covariance.msg
+  Information.msg
   Stereo.msg
 )
 
@@ -91,3 +93,18 @@ target_link_libraries(ego_sphere_manager_ros_node
 add_dependencies(ego_sphere_manager_ros_node foveated_stereo_ros_generate_messages_cpp)
 
 
+# Nodelet library
+add_library(foveated_stereo_ros_nodelet src/FoveatedStereoRos.cpp src/FoveatedStereoRosNodelet.cpp)
+target_link_libraries(foveated_stereo_ros_nodelet    
+   ${PCL_LIBRARIES}
+   ${catkin_LIBRARIES}
+   foveated_stereo_lib
+   STEREO_CALIB_LIB
+   ${OpenCV_LIBRARIES})
+
+install(TARGETS foveated_stereo_ros_nodelet
+        DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+)
+install(FILES foveated_stereo_nodelets.xml
+        DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+)

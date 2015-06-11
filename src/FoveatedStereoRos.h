@@ -18,6 +18,7 @@
 
 #include <tf/transform_listener.h>
 #include <sensor_msgs/image_encodings.h>
+#include <sensor_msgs/CameraInfo.h>
 #include <Stereo.h>
 #include <stereo_calib_lib.h>
 #include <cv_bridge/cv_bridge.h>
@@ -33,6 +34,7 @@
 
 #include <tf_conversions/tf_eigen.h>
 #include <foveated_stereo_ros/Stereo.h>
+#include <boost/thread.hpp>
 
 using namespace sensor_msgs;
 
@@ -40,6 +42,7 @@ using namespace message_filters;
 
 class FoveatedStereoNode
 {
+    boost::mutex connect_mutex_;
     // For visualizing things in rviz
     tf::TransformListener listener;
     tf::StampedTransform l_eye_transform;
@@ -52,6 +55,7 @@ class FoveatedStereoNode
     ros::Publisher stereo_data_publisher;
 
     ros::NodeHandle nh;
+    ros::NodeHandle private_node_handle;
     ros::Publisher point_cloud_publisher;
     ros::Publisher point_cloud_uncertainty_publisher;
 
@@ -61,7 +65,8 @@ class FoveatedStereoNode
     std::string left_camera_frame;
     std::string right_camera_frame;
     double uncertainty_lower_bound;
-    double uncertainty_upper_bound;
+
+    cv::Mat left_cam_intrinsic, right_cam_intrinsic;
 public:
     typedef sync_policies::ApproximateTime<Image, Image> MySyncPolicy;
 
@@ -78,22 +83,8 @@ public:
     ~FoveatedStereoNode();
 
     FoveatedStereoNode(ros::NodeHandle & nh_,
-                       int rings_,
-                       double min_radius_,
-                       int interp_,
-                       int full_,
-                       int sectors_,
-                       int sp_,
-                       const std::string & ego_frame_,
-                       const std::string & left_camera_frame_,
-                       const std::string & right_camera_frame_,
-                       double & uncertainty_lower_bound_,
-                       double & uncertainty_upper_bound_,
-                       double & L_,
-                       double & alpha_,
-                       double & ki_,
-                       double & beta_,
-                       double & scaling_factor_);
+                       ros::NodeHandle & private_node_handle_
+                      );
 
 
     stereo_calib_params fillStereoCalibParams(float & baseline);

@@ -1,8 +1,9 @@
 #include "EgoSphereManagerRos.h"
 
-EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, const unsigned int & egosphere_nodes, const unsigned int & angle_bins, std::string & world_frame_id_) :
+EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, const unsigned int & egosphere_nodes, const unsigned int & angle_bins, std::string & world_frame_id_, const double & uncertainty_lower_bound_) :
     nh(nh_),
-    world_frame_id(world_frame_id_)//, listener(nh_, ros::Duration(50.))
+    world_frame_id(world_frame_id_)
+    //, listener(nh_, ros::Duration(50.))
 {
     tf::StampedTransform sensorToWorldTf;
 
@@ -22,7 +23,7 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, const unsigned i
 
     pcl_ros::transformAsMatrix(sensorToWorldTf, sensorToWorld);
 
-    ego_sphere=boost::shared_ptr<SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > > (new SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > (egosphere_nodes, angle_bins, sensorToWorld.cast <double> ()));
+    ego_sphere=boost::shared_ptr<SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > > (new SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > (egosphere_nodes, angle_bins, sensorToWorld.cast <double> (),uncertainty_lower_bound_));
     point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere", 10);
     point_cloud_uncertainty_publisher  = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere_uncertainty", 10);
     marker_pub = nh.advertise<visualization_msgs::MarkerArray>("covariances_debug", 1);
@@ -89,39 +90,26 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::Stereo:
         /////////////////////////////////////////
         // Insert new data into the ego-sphere //
         /////////////////////////////////////////
-        std::vector<Eigen::Matrix3d> covariances;
+        std::vector<Eigen::Matrix3d> informations;
         pcl::PointIndices::Ptr inliers (new pcl::PointIndices ());
-        covariances.reserve(stereo_data->covariances.size());
-        for(int c=0; c<stereo_data->covariances.size();++c)
+        informations.reserve(stereo_data->informations.size());
+        for(int c=0; c<stereo_data->informations.size();++c)
         {
-            Eigen::Matrix3d covariance;
+            Eigen::Matrix3d information;
             for(int i=0; i<3; ++i)
             {
                 for(int j=0; j<3; ++j)
                 {
                     int index=j+i*3;
-                    covariance(i,j)=stereo_data->covariances[c].covariance[index];
+                    information(i,j)=stereo_data->informations[c].information[index];
                 }
             }
-            if(covariance.norm()>0.0001&&covariance.norm()<3.0)
-            {
-                inliers->indices.push_back(c);
-                covariances.push_back(covariance);
-                continue;
-            }
+            inliers->indices.push_back(c);
+            informations.push_back(information);
         }
 
         PCLPointCloud pc; // input cloud for filtering and ground-detection
         pcl::fromROSMsg(stereo_data->point_cloud, pc);
-        // set up filter for height range, also removes NANs:
-        //pcl::PassThrough<pcl::PointXYZRGB> pass;
-        //pass.setFilterFieldName("z");
-        //pass.setFilterLimits(-std::numeric_limits<double>::max(), std::numeric_limits<double>::max());
-
-        // just filter height range:
-        //pass.setInputCloud(pc.makeShared());
-        //pass.setIndices(inliers);
-        //pass.filter(pc);
 
         // Create the filtering object
         pcl::ExtractIndices<pcl::PointXYZRGB> extract;
@@ -130,12 +118,12 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::Stereo:
         extract.setIndices (inliers);
         extract.setNegative (false);
         extract.filter (pc);
+
         ros::WallTime filtering_time = ros::WallTime::now();
 
         ROS_INFO_STREAM(" 2. filtering time: " <<  (filtering_time - transform_time).toSec());
 
-
-        insertScan(pc,covariances);
+        insertScan(pc,informations);
 
         ros::WallTime insert_time = ros::WallTime::now();
         ROS_INFO_STREAM(" 2. insertion time: " <<  (insert_time - filtering_time).toSec());
@@ -143,7 +131,6 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::Stereo:
         ROS_INFO_STREAM("   total points inserted: " <<   pc.size());
 
     }
-    publishCovarianceMatrices(stereo_data->point_cloud.header.stamp);
     publishAll(stereo_data->point_cloud.header.stamp);
     double total_elapsed = (ros::WallTime::now() - startTime).toSec();
 
@@ -189,7 +176,7 @@ void EgoSphereManagerRos::publishAll(const ros::Time& rostime)
 void EgoSphereManagerRos::publishCovarianceMatrices(const ros::Time & time)
 {
 
-    visualization_msgs::MarkerArray marker_array;
+    /*visualization_msgs::MarkerArray marker_array;
     double scale=0.5;
     int index=0;
     for(std::vector<boost::shared_ptr<MemoryPatch> >::iterator structure_it = ego_sphere->structure.begin(); structure_it != ego_sphere->structure.end(); ++structure_it)
@@ -200,7 +187,7 @@ void EgoSphereManagerRos::publishCovarianceMatrices(const ros::Time & time)
             continue;
         }
 
-        Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eig((*structure_it)->sensory_data.position.cov);
+        Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eig((*structure_it)->sensory_data.position.information);
         Eigen::Quaternion<double> q(-eig.eigenvectors());
         q.normalize();
 
@@ -237,9 +224,8 @@ void EgoSphereManagerRos::publishCovarianceMatrices(const ros::Time & time)
         marker_array.markers.push_back(marker);
 
     }
-    marker_pub.publish(marker_array);
+    marker_pub.publish(marker_array);*/
 }
-
 int main(int argc, char** argv)
 {
     ros::init(argc, argv, "vision_node");
@@ -255,21 +241,25 @@ int main(int argc, char** argv)
     int rate;
     int egosphere_nodes;
     int spherical_angle_bins;
+    double uncertainty_lower_bound;
 
     private_node_handle_.param("rate", rate, 100);
     private_node_handle_.param("egosphere_nodes", egosphere_nodes, 1000);
     private_node_handle_.param("spherical_angle_bins", spherical_angle_bins, 1000);
+    private_node_handle_.param("uncertainty_lower_bound", uncertainty_lower_bound, 0.0);
 
     ROS_INFO_STREAM("rate: "<<rate);
     ROS_INFO_STREAM("egosphere_nodes: "<<egosphere_nodes);
     ROS_INFO_STREAM("spherical_angle_bins: "<<spherical_angle_bins);
+    ROS_INFO_STREAM("uncertainty_lower_bound: "<<uncertainty_lower_bound);
 
     std::string world_frame_id="base_link";
 
     EgoSphereManagerRos ego_sphere(nh,
                                    egosphere_nodes,
                                    spherical_angle_bins,
-                                   world_frame_id
+                                   world_frame_id,
+                                   uncertainty_lower_bound
                                    );
 
     // Tell ROS how fast to run this node.

@@ -1,2 +1,3 @@
-spherical_angle_bins: 1000
+spherical_angle_bins: 100
 egosphere_nodes: 10000
+uncertainty_lower_bound: 100.0

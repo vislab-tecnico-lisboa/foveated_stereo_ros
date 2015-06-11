@@ -1,7 +1,7 @@
 <!-- OpenNI2 driver nodelet publisher -->
-<library path="lib/libopenni2_camera_nodelet">
+<library path="lib/libfoveated_stereo_ros_nodelet">
 
-  <class name="openni2_camera/OpenNI2DriverNodelet" type="openni2_camera::OpenNI2DriverNodelet" base_class_type="nodelet::Nodelet">
+  <class name="foveated_stereo_ros/FoveatedStereoRosNodelet" type="foveated_stereo_ros::FoveatedStereoRosNodelet" base_class_type="nodelet::Nodelet">
     <description>
       OpenNI2 camera driver nodelet.
     </description>
