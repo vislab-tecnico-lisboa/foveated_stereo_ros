@@ -54,6 +54,8 @@ class FoveatedStereoNode
     ros::Publisher marker_pub;
     ros::Publisher stereo_data_publisher;
 
+    ros::Subscriber left_camera_info_sub;
+
     ros::NodeHandle nh;
     ros::NodeHandle private_node_handle;
     ros::Publisher point_cloud_publisher;
@@ -67,10 +69,11 @@ class FoveatedStereoNode
     double uncertainty_lower_bound;
 
     cv::Mat left_cam_intrinsic, right_cam_intrinsic;
+
+    void cameraInfoCallback(const sensor_msgs::CameraInfoPtr & left_camera_info);
+
 public:
     typedef sync_policies::ApproximateTime<Image, Image> MySyncPolicy;
-
-
 
     boost::shared_ptr<message_filters::Subscriber<Image> > left_image_sub;
     boost::shared_ptr<message_filters::Subscriber<Image> > right_image_sub;

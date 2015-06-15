@@ -3,7 +3,8 @@
 #include <nodelet/nodelet.h>
 #include "FoveatedStereoRos.h"
 
-namespace foveated_stereo_ros{
+namespace foveated_stereo_ros
+{
 class FoveatedStereoRosNodelet: public nodelet::Nodelet
 {
 

@@ -1,10 +1,27 @@
 #include "EgoSphereManagerRos.h"
 
-EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, const unsigned int & egosphere_nodes, const unsigned int & angle_bins, std::string & world_frame_id_, const double & uncertainty_lower_bound_) :
+EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle & private_node_handle_) :
     nh(nh_),
-    world_frame_id(world_frame_id_)
-    //, listener(nh_, ros::Duration(50.))
+    world_frame_id("base_link")
+  //world_frame_id("map")
+
 {
+
+
+    // Declare variables that can be modified by launch file or command line.
+    int egosphere_nodes;
+    int spherical_angle_bins;
+    double uncertainty_lower_bound;
+
+    private_node_handle_.param("egosphere_nodes", egosphere_nodes, 1000);
+    private_node_handle_.param("spherical_angle_bins", spherical_angle_bins, 1000);
+    private_node_handle_.param("uncertainty_lower_bound", uncertainty_lower_bound, 0.0);
+
+    ROS_INFO_STREAM("egosphere_nodes: "<<egosphere_nodes);
+    ROS_INFO_STREAM("spherical_angle_bins: "<<spherical_angle_bins);
+    ROS_INFO_STREAM("uncertainty_lower_bound: "<<uncertainty_lower_bound);
+
+
     tf::StampedTransform sensorToWorldTf;
 
     while(1)
@@ -23,14 +40,14 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, const unsigned i
 
     pcl_ros::transformAsMatrix(sensorToWorldTf, sensorToWorld);
 
-    ego_sphere=boost::shared_ptr<SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > > (new SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > (egosphere_nodes, angle_bins, sensorToWorld.cast <double> (),uncertainty_lower_bound_));
-    point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere", 10);
-    point_cloud_uncertainty_publisher  = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere_uncertainty", 10);
+    ego_sphere=boost::shared_ptr<SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > > (new SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > (egosphere_nodes, spherical_angle_bins, sensorToWorld.cast <double> (),uncertainty_lower_bound));
+    point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere", 2);
+    point_cloud_uncertainty_publisher  = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere_uncertainty", 2);
     marker_pub = nh.advertise<visualization_msgs::MarkerArray>("covariances_debug", 1);
 
 
-    stereo_data_subscriber_ = new message_filters::Subscriber<foveated_stereo_ros::Stereo> (nh, "stereo_data", 10);
-    tf_filter_ = new tf::MessageFilter<foveated_stereo_ros::Stereo> (*stereo_data_subscriber_, listener, world_frame_id, 5);
+    stereo_data_subscriber_ = new message_filters::Subscriber<foveated_stereo_ros::Stereo> (nh, "stereo_data", 2);
+    tf_filter_ = new tf::MessageFilter<foveated_stereo_ros::Stereo> (*stereo_data_subscriber_, listener, world_frame_id, 2);
     tf_filter_->registerCallback(boost::bind(&EgoSphereManagerRos::insertCloudCallback, this, _1));
     last=ros::Time::now();
     return;
@@ -90,8 +107,14 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::Stereo:
         /////////////////////////////////////////
         // Insert new data into the ego-sphere //
         /////////////////////////////////////////
-        std::vector<Eigen::Matrix3d> informations;
+
         pcl::PointIndices::Ptr inliers (new pcl::PointIndices ());
+
+        PCLPointCloud pc; // input cloud for filtering and ground-detection
+        pcl::fromROSMsg(stereo_data->point_cloud, pc);
+        pcl::removeNaNFromPointCloud(pc, pc, inliers->indices);
+
+        std::vector<Eigen::Matrix3d> informations;
         informations.reserve(stereo_data->informations.size());
         for(int c=0; c<stereo_data->informations.size();++c)
         {
@@ -104,12 +127,8 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::Stereo:
                     information(i,j)=stereo_data->informations[c].information[index];
                 }
             }
-            inliers->indices.push_back(c);
             informations.push_back(information);
         }
-
-        PCLPointCloud pc; // input cloud for filtering and ground-detection
-        pcl::fromROSMsg(stereo_data->point_cloud, pc);
 
         // Create the filtering object
         pcl::ExtractIndices<pcl::PointXYZRGB> extract;
@@ -236,30 +255,12 @@ int main(int argc, char** argv)
     // Use a private node handle so that multiple instances of the node can be run simultaneously
     // while using different parameters.
     ros::NodeHandle private_node_handle_("~");
-
-    // Declare variables that can be modified by launch file or command line.
     int rate;
-    int egosphere_nodes;
-    int spherical_angle_bins;
-    double uncertainty_lower_bound;
 
     private_node_handle_.param("rate", rate, 100);
-    private_node_handle_.param("egosphere_nodes", egosphere_nodes, 1000);
-    private_node_handle_.param("spherical_angle_bins", spherical_angle_bins, 1000);
-    private_node_handle_.param("uncertainty_lower_bound", uncertainty_lower_bound, 0.0);
-
     ROS_INFO_STREAM("rate: "<<rate);
-    ROS_INFO_STREAM("egosphere_nodes: "<<egosphere_nodes);
-    ROS_INFO_STREAM("spherical_angle_bins: "<<spherical_angle_bins);
-    ROS_INFO_STREAM("uncertainty_lower_bound: "<<uncertainty_lower_bound);
-
-    std::string world_frame_id="base_link";
-
     EgoSphereManagerRos ego_sphere(nh,
-                                   egosphere_nodes,
-                                   spherical_angle_bins,
-                                   world_frame_id,
-                                   uncertainty_lower_bound
+                                   private_node_handle_
                                    );
 
     // Tell ROS how fast to run this node.

@@ -1,11 +1,17 @@
-<!-- OpenNI2 driver nodelet publisher -->
+<!-- stereo driver nodelet publisher -->
 <library path="lib/libfoveated_stereo_ros_nodelet">
-
   <class name="foveated_stereo_ros/FoveatedStereoRosNodelet" type="foveated_stereo_ros::FoveatedStereoRosNodelet" base_class_type="nodelet::Nodelet">
     <description>
-      OpenNI2 camera driver nodelet.
+      foveated stereo nodelet.
     </description>
   </class>
+</library>
 
+<library path="lib/libego_sphere_manager_ros_nodedelet">
+  <class name="foveated_stereo_ros/EgoSphereManagerRosNodelet" type="foveated_stereo_ros::EgoSphereManagerRosNodelet" base_class_type="nodelet::Nodelet">
+    <description>
+      ego sphere nodelet.
+    </description>
+  </class>
 </library>
 

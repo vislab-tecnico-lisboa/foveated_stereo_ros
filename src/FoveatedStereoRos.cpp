@@ -11,7 +11,16 @@ FoveatedStereoNode::FoveatedStereoNode(ros::NodeHandle & nh_, ros::NodeHandle & 
     private_node_handle(private_node_handle_),
     it_(nh_)
 {
-    boost::lock_guard<boost::mutex> lock(connect_mutex_);
+
+    left_camera_info_sub=nh_.subscribe("/vizzy/l_camera/camera_info",1,&FoveatedStereoNode::cameraInfoCallback, this);
+
+    return;
+}
+
+void FoveatedStereoNode::cameraInfoCallback(const sensor_msgs::CameraInfoPtr & left_camera_info)
+{
+    left_camera_info_sub.shutdown();
+
     int sectors;
     int rings;
     double min_radius;
@@ -25,21 +34,21 @@ FoveatedStereoNode::FoveatedStereoNode(ros::NodeHandle & nh_, ros::NodeHandle & 
     double beta;
     double scaling_factor;
 
-    private_node_handle_.param("sectors", sectors, 100);
-    private_node_handle_.param("rings", rings, 100);
-    private_node_handle_.param("min_radius", min_radius, 1.0);
-    private_node_handle_.param("interp", interp, 1);
-    private_node_handle_.param("sp", sp, 0);
-    private_node_handle_.param("full", full, 1);
-    private_node_handle_.param<std::string>("ego_frame", ego_frame, "ego_frame");
-    private_node_handle_.param<std::string>("left_camera_frame", left_camera_frame, "left_camera_frame");
-    private_node_handle_.param<std::string>("right_camera_frame", right_camera_frame, "right_camera_frame");
-    private_node_handle_.param("uncertainty_lower_bound", uncertainty_lower_bound, 0.0);
-    private_node_handle_.param("L", L, 1.0);
-    private_node_handle_.param("alpha", alpha, 1.0);
-    private_node_handle_.param("beta", beta, 2.0);
-    private_node_handle_.param("ki", ki, 1.0);
-    private_node_handle_.param("scaling_factor", scaling_factor, 1.0);
+    private_node_handle.param("sectors", sectors, 100);
+    private_node_handle.param("rings", rings, 100);
+    private_node_handle.param("min_radius", min_radius, 1.0);
+    private_node_handle.param("interp", interp, 1);
+    private_node_handle.param("sp", sp, 0);
+    private_node_handle.param("full", full, 1);
+    private_node_handle.param<std::string>("ego_frame", ego_frame, "ego_frame");
+    private_node_handle.param<std::string>("left_camera_frame", left_camera_frame, "left_camera_frame");
+    private_node_handle.param<std::string>("right_camera_frame", right_camera_frame, "right_camera_frame");
+    private_node_handle.param("uncertainty_lower_bound", uncertainty_lower_bound, 0.0);
+    private_node_handle.param("L", L, 1.0);
+    private_node_handle.param("alpha", alpha, 1.0);
+    private_node_handle.param("beta", beta, 2.0);
+    private_node_handle.param("ki", ki, 1.0);
+    private_node_handle.param("scaling_factor", scaling_factor, 1.0);
 
     ROS_INFO_STREAM("sectors: "<<sectors);
     ROS_INFO_STREAM("rings: "<<rings);
@@ -57,7 +66,7 @@ FoveatedStereoNode::FoveatedStereoNode(ros::NodeHandle & nh_, ros::NodeHandle & 
     ROS_INFO_STREAM("ki: "<<ki);
     ROS_INFO_STREAM("scaling_factor: "<<scaling_factor);
 
-    sensor_msgs::CameraInfoConstPtr left_camera_info=ros::topic::waitForMessage<sensor_msgs::CameraInfo>("/vizzy/l_camera/camera_info", ros::Duration(30));
+
 
     sensor_msgs::CameraInfoConstPtr right_camera_info=ros::topic::waitForMessage<sensor_msgs::CameraInfo>("/vizzy/r_camera/camera_info", ros::Duration(30));
 
@@ -140,10 +149,9 @@ FoveatedStereoNode::FoveatedStereoNode(ros::NodeHandle & nh_, ros::NodeHandle & 
     stereo_data_publisher = nh.advertise<foveated_stereo_ros::Stereo>("stereo_data", 1);
 
     marker_pub = nh.advertise<visualization_msgs::MarkerArray>("covariances", 1);
-    return;
+
+
 }
-
-
 
 stereo_calib_params FoveatedStereoNode::fillStereoCalibParams(float & baseline)
 {

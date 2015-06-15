@@ -1,4 +1,3 @@
-#include <nodelet/nodelet.h>
 #include "FoveatedStereoRosNodelet.h"
 
 namespace foveated_stereo_ros
@@ -9,8 +8,6 @@ namespace foveated_stereo_ros
         inst_.reset(new FoveatedStereoNode(getNodeHandle(), getPrivateNodeHandle()));
     }
 }
-
-
 // Register nodelet
 #include <pluginlib/class_list_macros.h>
 PLUGINLIB_EXPORT_CLASS(foveated_stereo_ros::FoveatedStereoRosNodelet,nodelet::Nodelet)

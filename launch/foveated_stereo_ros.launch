@@ -9,7 +9,11 @@
 		<remap from="left_camera_info" to="/vizzy/l_camera/camera_info"/>
 		<remap from="right_camera_info" to="/vizzy/r_camera/camera_info"/>
 	</node>-->
+	<!--<node name="ego_sphere_manager_ros" pkg="foveated_stereo_ros" type="ego_sphere_manager_ros_node" respawn="false" output="screen" >
+  		<rosparam file="$(find foveated_stereo_ros)/config/egosphere.yaml" command="load" />
+	</node>-->
 
+	<!-- nodelet manager -->
   	<node pkg="nodelet" type="nodelet" name="nodelet_manager"
         	args="manager"
 	    	respawn="true" output="screen"/>
@@ -24,8 +28,12 @@
 		<remap from="right_camera_info" to="/vizzy/r_camera/camera_info"/>
 	</node>
 
-
-	<node name="ego_sphere_manager_ros" pkg="foveated_stereo_ros" type="ego_sphere_manager_ros_node" respawn="false" output="screen" >
-  	<rosparam file="$(find foveated_stereo_ros)/config/egosphere.yaml" command="load" />
+  	<node pkg="nodelet" type="nodelet" name="egosphere"
+        	args="load foveated_stereo_ros/EgoSphereManagerRosNodelet nodelet_manager"
+	    	respawn="true" output="screen">
+  		<rosparam file="$(find foveated_stereo_ros)/config/egosphere.yaml" command="load" />
 	</node>
+
+
+
 </launch>

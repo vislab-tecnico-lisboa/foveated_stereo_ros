@@ -61,6 +61,11 @@ include_directories(
   ${catkin_INCLUDE_DIRS}
   ${PCL_INCLUDE_DIRS}
 )
+
+
+
+#INCLUDE_DIRECTORIES(${CUDA_SDK_ROOT_DIR}/common/inc) #helper functions
+
 include_directories(lib/foveated_stereo/cpp/cpp)
 include_directories(lib/stereo_calib_lib/include)
 
@@ -97,7 +102,7 @@ target_link_libraries(ego_sphere_manager_ros_node
 add_dependencies(ego_sphere_manager_ros_node foveated_stereo_ros_generate_messages_cpp)
 
 
-# Nodelet library
+# Nodelet libraries
 add_library(foveated_stereo_ros_nodelet src/FoveatedStereoRos.cpp src/FoveatedStereoRosNodelet.cpp)
 target_link_libraries(foveated_stereo_ros_nodelet    
    ${PCL_LIBRARIES}
@@ -113,7 +118,21 @@ install(FILES foveated_stereo_nodelets.xml
         DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
 
+# Nodelet library
+add_library(ego_sphere_manager_ros_nodedelet src/EgoSphereManagerRos.cpp src/EgoSphereManagerRosNodelet.cpp)
+target_link_libraries(ego_sphere_manager_ros_nodedelet
+   ${PCL_LIBRARIES}
+   ${catkin_LIBRARIES}
+   foveated_stereo_lib
+   STEREO_CALIB_LIB
+   ${OpenCV_LIBRARIES})
 
+install(TARGETS ego_sphere_manager_ros_nodedelet
+        DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+)
+install(FILES foveated_stereo_nodelets.xml
+        DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+)
 
 add_executable(gaze src/Gaze.cpp)
 ## Specify libraries to link a library or executable target against
@@ -121,4 +140,10 @@ target_link_libraries(gaze
    ${catkin_LIBRARIES}
 )
 
+
+#add_executable(teste src/test.cpp)
+## Specify libraries to link a library or executable target against
+#target_link_libraries(teste
+#   ${catkin_LIBRARIES}
+#)
 
