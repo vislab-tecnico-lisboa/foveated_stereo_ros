@@ -22,13 +22,33 @@
 #include <moveit_msgs/CollisionObject.h>
 #include <std_msgs/Float64.h>
 
+#include <ros/ros.h>
+#include <actionlib/server/simple_action_server.h>
+#include <foveated_stereo_ros/GazeAction.h>
+#include <tf/transform_listener.h>
+
+
 
 class Gaze
 {
-    ros::NodeHandle node_handle;
-    ros::Publisher neck_pan_publisher;// = node_handle.advertise<std_msgs::Float64>("/vizzy/neck_pan_position_controller/command", 10);
-    ros::Publisher neck_tilt_publisher;// = node_handle.advertise<std_msgs::Float64>("/vizzy/neck_tilt_position_controller/command", 10);
-    ros::Publisher eyes_tilt_publisher;// = node_handle.advertise<std_msgs::Float64>("/vizzy/eyes_tilt_position_controller/command", 10);
+
+protected:
+    tf::TransformListener listener;
+
+    ros::NodeHandle nh_;
+    ros::NodeHandle private_node_handle;
+
+    // NodeHandle instance must be created before this line. Otherwise strange error may occur.
+    actionlib::SimpleActionServer<foveated_stereo_ros::GazeAction> as_;
+    std::string action_name_;
+    // create messages that are used to published feedback/result
+    foveated_stereo_ros::GazeFeedback feedback_;
+    foveated_stereo_ros::GazeResult result_;
+
+    ros::Publisher neck_pan_publisher;
+    ros::Publisher neck_tilt_publisher;
+    ros::Publisher eyes_tilt_publisher;
+    ros::Publisher eyes_vergence_publisher;
 
     robot_model_loader::RobotModelLoader robot_model_loader;//("robot_description");
     moveit::core::RobotModelPtr kinematic_model;// = robot_model_loader.getModel();
@@ -40,8 +60,13 @@ class Gaze
     std::vector<std::string> joint_names;
 
 public:
-    Gaze(const ros::NodeHandle & node_handle_);
+    double half_base_line;
+    Gaze(std::string name);
+    void move(const Eigen::Vector3d &fixation_point);
     void move(const Eigen::Affine3d &end_effector_state);
+
+
+    void executeCB(const foveated_stereo_ros::GazeGoalConstPtr &goal);
 };
 
 #endif // GAZE_H

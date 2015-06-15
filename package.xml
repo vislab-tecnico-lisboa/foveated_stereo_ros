@@ -56,6 +56,7 @@
   <build_depend>moveit_core</build_depend>
   <build_depend>moveit_ros_planning</build_depend>
   <build_depend>moveit_ros_planning_interface</build_depend>
+  <build_depend>actionlib_msgs</build_depend>
 
   <run_depend>cv_bridge</run_depend>
   <run_depend>geometry_msgs</run_depend>
@@ -75,6 +76,7 @@
   <run_depend>moveit_core</run_depend>
   <run_depend>moveit_ros_planning</run_depend>
   <run_depend>moveit_ros_planning_interface</run_depend>
+  <run_depend>actionlib_msgs</run_depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

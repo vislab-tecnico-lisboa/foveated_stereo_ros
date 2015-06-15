@@ -18,6 +18,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf_conversions
   message_generation
   nodelet
+  actionlib_msgs
 
   moveit_core
   moveit_ros_planning
@@ -34,11 +35,20 @@ add_message_files(
   Stereo.msg
 )
 
+add_action_files(
+  DIRECTORY action
+  FILES Gaze.action
+)
+
 generate_messages(
   DEPENDENCIES
   std_msgs
   sensor_msgs
+  geometry_msgs
+  actionlib_msgs
 )
+
+
 
 catkin_package(
 #  INCLUDE_DIRS include
@@ -140,6 +150,11 @@ target_link_libraries(gaze
    ${catkin_LIBRARIES}
 )
 
+add_executable(gaze_client src/GazeClient.cpp)
+## Specify libraries to link a library or executable target against
+target_link_libraries(gaze_client
+   ${catkin_LIBRARIES}
+)
 
 #add_executable(teste src/test.cpp)
 ## Specify libraries to link a library or executable target against

@@ -4,7 +4,6 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     nh(nh_),
     world_frame_id("base_link")
   //world_frame_id("map")
-
 {
 
 
@@ -20,7 +19,6 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     ROS_INFO_STREAM("egosphere_nodes: "<<egosphere_nodes);
     ROS_INFO_STREAM("spherical_angle_bins: "<<spherical_angle_bins);
     ROS_INFO_STREAM("uncertainty_lower_bound: "<<uncertainty_lower_bound);
-
 
     tf::StampedTransform sensorToWorldTf;
 
@@ -50,6 +48,7 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     tf_filter_ = new tf::MessageFilter<foveated_stereo_ros::Stereo> (*stereo_data_subscriber_, listener, world_frame_id, 2);
     tf_filter_->registerCallback(boost::bind(&EgoSphereManagerRos::insertCloudCallback, this, _1));
     last=ros::Time::now();
+
     return;
 }
 
