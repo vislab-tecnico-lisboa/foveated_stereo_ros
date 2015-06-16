@@ -27,13 +27,16 @@
 #include <foveated_stereo_ros/GazeAction.h>
 #include <tf/transform_listener.h>
 
-
+#include <moveit/planning_scene_monitor/planning_scene_monitor.h>
+//#include <moveit/planning_scene_monitor/current_state_monitor.h>
 
 class Gaze
 {
 
 protected:
-    tf::TransformListener listener;
+
+    planning_scene_monitor::CurrentStateMonitorPtr state_monitor;
+    boost::shared_ptr<tf::TransformListener> tf_listener;
 
     ros::NodeHandle nh_;
     ros::NodeHandle private_node_handle;
@@ -51,10 +54,9 @@ protected:
     ros::Publisher eyes_vergence_publisher;
 
     robot_model_loader::RobotModelLoader robot_model_loader;//("robot_description");
-    moveit::core::RobotModelPtr kinematic_model;// = robot_model_loader.getModel();
-
-    moveit::core::RobotStatePtr kinematic_state;//(new robot_state::RobotState(kinematic_model));
+    moveit::core::RobotModelPtr robot_model;// = robot_model_loader.getModel();
     const moveit::core::JointModelGroup* joint_model_group;//kinematic_model->getJointModelGroup("head");
+    moveit::planning_interface::MoveGroup* group;
 
     std::vector<double> joint_values;
     std::vector<std::string> joint_names;
@@ -63,8 +65,6 @@ public:
     double half_base_line;
     Gaze(std::string name);
     void move(const Eigen::Vector3d &fixation_point);
-    void move(const Eigen::Affine3d &end_effector_state);
-
 
     void executeCB(const foveated_stereo_ros::GazeGoalConstPtr &goal);
 };

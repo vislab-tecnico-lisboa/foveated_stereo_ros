@@ -16,9 +16,9 @@ int main (int argc, char **argv)
     ROS_INFO("Action server started, sending goal.");
     // send a goal to the action
     foveated_stereo_ros::GazeGoal goal;
-    goal.fixation_point.point.x = 1.0;
+    goal.fixation_point.point.x = 0.0;
     goal.fixation_point.point.y = 0.0;
-    goal.fixation_point.point.z = 5.0;
+    goal.fixation_point.point.z = 0.3;
 
     ac.sendGoal(goal);
 

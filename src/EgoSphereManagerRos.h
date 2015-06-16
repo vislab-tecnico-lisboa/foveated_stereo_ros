@@ -29,8 +29,9 @@
 #include <foveated_stereo_ros/Stereo.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <pcl/filters/extract_indices.h>
-#include <geometry_msgs/Vector3Stamped.h>
-
+#include <actionlib/client/simple_action_client.h>
+#include <actionlib/client/terminal_state.h>
+#include <foveated_stereo_ros/GazeAction.h>
 
 
 using namespace sensor_msgs;
@@ -48,7 +49,7 @@ class EgoSphereManagerRos
     message_filters::Subscriber<foveated_stereo_ros::Stereo>* stereo_data_subscriber_;
     tf::MessageFilter<foveated_stereo_ros::Stereo>* tf_filter_;
 
-
+    //actionlib::SimpleActionClient<foveated_stereo_ros::GazeAction> ac;
 public:
     typedef pcl::PointCloud<pcl::PointXYZRGB> PCLPointCloud;
     //typedef sync_policies::ApproximateTime<Image, Image> MySyncPolicy;
@@ -58,8 +59,6 @@ public:
     ros::Publisher point_cloud_publisher;
     ros::Publisher point_cloud_uncertainty_publisher;
     ros::Publisher marker_pub;
-    ros::Publisher closest_point;
-
 
     boost::shared_ptr<SphericalShell<std::vector<boost::shared_ptr<MemoryPatch> > > > ego_sphere;
 

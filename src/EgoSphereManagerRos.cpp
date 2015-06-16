@@ -3,10 +3,9 @@
 EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle & private_node_handle_) :
     nh(nh_),
     world_frame_id("base_link")
+    //ac("gaze", false)
   //world_frame_id("map")
 {
-
-
     // Declare variables that can be modified by launch file or command line.
     int egosphere_nodes;
     int spherical_angle_bins;
@@ -69,7 +68,7 @@ EgoSphereManagerRos::~EgoSphereManagerRos()
 
 void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::Stereo::ConstPtr& stereo_data)
 {
-    //ROS_INFO_STREAM("Ego Sphere new data in.");
+    ROS_INFO_STREAM("Ego Sphere new data in.");
 
     ros::WallTime startTime = ros::WallTime::now();
 
@@ -148,8 +147,38 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::Stereo:
 
         ROS_INFO_STREAM("   total points inserted: " <<   pc.size());
 
+
+
     }
     publishAll(stereo_data->point_cloud.header.stamp);
+
+    /*if(ego_sphere->new_closest_point)
+    {
+        ROS_INFO("Waiting for action server to start.");
+        // wait for the action server to start
+        ac.waitForServer(); //will wait for infinite time
+
+        // send a goal to the action
+        foveated_stereo_ros::GazeGoal goal;
+        goal.fixation_point.header=stereo_data->point_cloud.header;
+        goal.fixation_point.point.x = ego_sphere->closest_point(0);
+        goal.fixation_point.point.y = ego_sphere->closest_point(0);
+        goal.fixation_point.point.z = ego_sphere->closest_point(0);
+
+        ac.sendGoal(goal);
+
+        //wait for the action to return
+        bool finished_before_timeout = ac.waitForResult(ros::Duration(30.0));
+
+        if (finished_before_timeout)
+        {
+            actionlib::SimpleClientGoalState state = ac.getState();
+            ROS_INFO("Action finished: %s",state.toString().c_str());
+        }
+        else
+            ROS_INFO("Action did not finish before the time out.");
+    }*/
+
     double total_elapsed = (ros::WallTime::now() - startTime).toSec();
 
     ROS_INFO(" TOTAL TIME:  %f sec", total_elapsed);

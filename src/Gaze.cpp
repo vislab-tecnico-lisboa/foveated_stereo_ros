@@ -4,10 +4,19 @@ Gaze::Gaze(std::string name) :
     private_node_handle("~"),
     action_name_(name),
     robot_model_loader("robot_description"),
-    kinematic_model(robot_model_loader.getModel()),
-    kinematic_state(new robot_state::RobotState(kinematic_model)),
-    joint_model_group(kinematic_model->getJointModelGroup("head"))
+    robot_model(robot_model_loader.getModel()),
+    joint_model_group(robot_model->getJointModelGroup("head")),
+    tf_listener(new tf::TransformListener(ros::Duration(2.0))),
+    group(new moveit::planning_interface::MoveGroup("head"))
 {
+    joint_names=group->getActiveJoints();
+    joint_values.resize(joint_names.size());
+    std::cout << joint_names[0] << " " << joint_names[1] << " " << joint_names[2] << std::endl;
+
+    state_monitor=boost::shared_ptr<planning_scene_monitor::CurrentStateMonitor>(new planning_scene_monitor::CurrentStateMonitor(robot_model,tf_listener));
+    state_monitor->startStateMonitor("/vizzy/joint_states");
+
+
     std::string left_camera_frame;
     std::string right_camera_frame;
     private_node_handle.param<std::string>("left_camera_frame", left_camera_frame, "left_camera_frame");
@@ -16,8 +25,8 @@ Gaze::Gaze(std::string name) :
 
     try
     {
-        listener.waitForTransform(right_camera_frame, left_camera_frame, ros::Time(0), ros::Duration(10.0) );
-        listener.lookupTransform(right_camera_frame, left_camera_frame, ros::Time(0), transform);
+        tf_listener->waitForTransform(right_camera_frame, left_camera_frame, ros::Time(0), ros::Duration(10.0) );
+        tf_listener->lookupTransform(right_camera_frame, left_camera_frame, ros::Time(0), transform);
     }
     catch (tf::TransformException &ex)
     {
@@ -30,7 +39,7 @@ Gaze::Gaze(std::string name) :
 
     half_base_line=(double)origin.length()/2.0; // meters
 
-    ROS_INFO("Model frame: %s", kinematic_model->getModelFrame().c_str());
+    ROS_INFO("Model frame: %s", robot_model->getModelFrame().c_str());
     //kinematic_state->setToDefaultValues();
 
     neck_pan_publisher = nh_.advertise<std_msgs::Float64>("/vizzy/neck_pan_position_controller/command", 10);
@@ -46,12 +55,7 @@ void Gaze::move(const Eigen::Vector3d & fixation_point)
     std_msgs::Float64 neck_pan_angle;
     std_msgs::Float64 neck_tilt_angle;
     std_msgs::Float64 vergence_angle;
-    //moveit::core::RobotStatePtr kinematic_state(new robot_state::RobotState(kinematic_model));
-    //const moveit::core::JointModelGroup* joint_model_group = kinematic_model->getJointModelGroup("head");
-    //group.getCurrentState()->getJointPositions();
-    /* Get the joint values*/
 
-    //group.getCurrentState()->//copyJointGroupPositions(group.getCurrentState()->getRobotModel()->getJointModelGroup(group.getName()), group_variable_values);
     Eigen::Vector3d fixation_point_normalized=fixation_point.normalized();
     if(fixation_point_normalized.x()!=fixation_point_normalized.x())
     {
@@ -61,10 +65,10 @@ void Gaze::move(const Eigen::Vector3d & fixation_point)
     }
     else
     {
-
         neck_pan_angle.data=asin(fixation_point_normalized.x());
         neck_tilt_angle.data=asin(fixation_point_normalized.y());
         vergence_angle.data=M_PI/2.0-atan2(fixation_point.z(),half_base_line);
+
         /*std::cout << "Z:" << fixation_point.z() <<std::endl;
         std::cout << "atan2(fixation_point.z(),half_base_line):" << atan2(fixation_point.z(),half_base_line) << std::endl;
         std::cout << "half_base_line" << half_base_line << std::endl;
@@ -78,58 +82,41 @@ void Gaze::move(const Eigen::Vector3d & fixation_point)
         std::cout << "vergence_angle.data"<<vergence_angle.data << std::endl;*/
 
     }
-    neck_pan_publisher.publish(neck_pan_angle);
+
+    joint_values[0] = neck_pan_angle.data;
+    joint_values[1] = 0;
+    joint_values[2] = neck_tilt_angle.data;
+
+    group->setJointValueTarget(joint_values);
+    std::cout << "going to move..." << std::endl;
+    group->move();
+    std::cout << "done" << std::endl;
+
+    // INSTEAD SHOULD CHECK LIMITS AND MOVE MANUALLY
+    //robot_model->getActiveJointModelsBounds()
+    //neck_pan_publisher.publish(neck_pan_angle);
     //neck_tilt_publisher.publish(neck_tilt_angle);
-    eyes_tilt_publisher.publish(neck_tilt_angle);
+    //eyes_tilt_publisher.publish(neck_tilt_angle);
     eyes_vergence_publisher.publish(vergence_angle);
 
-    robot_model_loader::RobotModelLoader robot_model_loader("robot_description");
-    moveit::core::RobotModelPtr kinematic_model = robot_model_loader.getModel();
-    ROS_INFO("Model frame: %s", kinematic_model->getModelFrame().c_str());
-    moveit::core::RobotStatePtr kinematic_state(new robot_state::RobotState(kinematic_model));
-    kinematic_state->setToDefaultValues();
-    const moveit::core::JointModelGroup* joint_model_group = kinematic_model->getJointModelGroup("head");
+    state_monitor->getCurrentState()->copyJointGroupPositions(joint_model_group, joint_values);
+
     double error=10000;
     double epsilon=0.1;
-    while(error>epsilon)
+    /*do
     {
-        /* Get the joint values*/
-        std::vector<double> joint_values;
-        kinematic_state->copyJointGroupPositions(joint_model_group, joint_values);
-        for(int i=0; i<joint_values.size();++i)
-        {
+        error=0.0;
 
-            std::cout << "joint values[" <<i << "]:" << joint_values[i] << std::endl;
-        }
+        state_monitor->getCurrentState()->copyJointGroupPositions(joint_model_group, joint_values);
+
+        error=  (joint_values[0]-neck_pan_angle.data)*(joint_values[0]-neck_pan_angle.data)+
+                (joint_values[1]-neck_tilt_angle.data)*(joint_values[1]-neck_tilt_angle.data)+
+                (joint_values[2]-vergence_angle.data)*(joint_values[2]-vergence_angle.data);
+        //std::cout << error << std::endl;
+        //std::cout << "joint values["  << "]:" << joint_values[0] << " " << joint_values[1] << " "<<joint_values[2] << std::endl;
+
     }
-
-
-}
-
-void Gaze::move(const Eigen::Affine3d &end_effector_state)
-{
-    // find neck pan angle
-
-
-    bool found_ik = kinematic_state->setFromIK(joint_model_group, end_effector_state, 10, 0.1);
-
-    if(found_ik)
-    {
-        kinematic_state->copyJointGroupPositions(joint_model_group, joint_values);
-        for(std::size_t i=0; i < joint_names.size(); ++i)
-        {
-            ROS_INFO("Joint %s: %f", joint_names[i].c_str(), joint_values[i]);
-        }
-        std_msgs::Float64 j_value;
-        j_value.data=joint_values[0];
-        neck_pan_publisher.publish(j_value);
-        j_value.data=joint_values[1];
-        neck_tilt_publisher.publish(j_value);
-    }
-    else
-    {
-        ROS_INFO("Did not find IK solution");
-    }
+    while(error>epsilon);*/
 }
 
 void Gaze::executeCB(const foveated_stereo_ros::GazeGoalConstPtr &goal)
@@ -165,17 +152,20 @@ void Gaze::executeCB(const foveated_stereo_ros::GazeGoalConstPtr &goal)
         as_.publishFeedback(feedback_);
         // this sleep is not necessary, the sequence is computed at 1 Hz for demonstration purposes
         r.sleep();
-    }
-
+    }*/
+    success=true;
     if(success)
     {
-        result_.sequence = feedback_.sequence;
+        result_.state_reached=true;
         ROS_INFO("%s: Succeeded", action_name_.c_str());
         // set the action state to succeeded
         as_.setSucceeded(result_);
-    }*/
-    result_.state_reached=true;
-    as_.setSucceeded(result_);
+    }
+    else
+    {
+        result_.state_reached=false;
+        as_.setAborted(result_);
+    }
 }
 
 
@@ -183,7 +173,7 @@ int main(int argc, char **argv)
 {
     ros::init(argc, argv, "gaze");
     ros::NodeHandle nh_;
-    ros::AsyncSpinner spinner(1);
+    ros::AsyncSpinner spinner(2);
     spinner.start();
     Gaze gaze(ros::this_node::getName());
 
@@ -196,14 +186,7 @@ int main(int argc, char **argv)
     moveit::core::RobotStatePtr kinematic_state(new robot_state::RobotState(kinematic_model));
     const moveit::core::JointModelGroup* joint_model_group = kinematic_model->getJointModelGroup("head");
 
-    while(ros::ok())
-    {
-        /* Compute FK for a set of random joint values*/
-        //kinematic_state->setToRandomPositions(joint_model_group);
-        //const Eigen::Affine3d &end_effector_state = kinematic_state->getGlobalLinkTransform("eyes_center_vision_link");
-        //gaze.move(end_effector_state);
-        r.sleep();
-    }
+    ros::spin();
 
     return 1;
 }
