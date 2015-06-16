@@ -42,6 +42,8 @@ using namespace message_filters;
 
 class FoveatedStereoNode
 {
+    int number_of_disparities;
+
     boost::mutex connect_mutex_;
     // For visualizing things in rviz
     tf::TransformListener listener;

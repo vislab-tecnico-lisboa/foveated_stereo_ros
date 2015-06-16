@@ -26,7 +26,7 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 find_package(PCL)
-find_package(OpenCV)
+find_package(OpenCV 2.4.9 REQUIRED)
 #find_package(CUDA)
 
 add_message_files(
@@ -49,8 +49,6 @@ generate_messages(
   actionlib_msgs
 )
 
-
-
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES foveated_stereo_ros
@@ -58,8 +56,6 @@ catkin_package(
 #  DEPENDS system_lib
    CATKIN_DEPENDS message_runtime
 )
-
-
 
 ###########
 ## Build ##
@@ -95,6 +91,7 @@ target_link_libraries(foveated_stereo_ros_node
    ${OpenCV_LIBRARIES}
 )
 add_dependencies(foveated_stereo_ros_node foveated_stereo_ros_generate_messages_cpp)
+
 ## Declare a cpp executable
 add_executable(ego_sphere_manager_ros_node src/EgoSphereManagerRos.cpp)
 
@@ -108,7 +105,6 @@ target_link_libraries(ego_sphere_manager_ros_node
 )
 
 add_dependencies(ego_sphere_manager_ros_node foveated_stereo_ros_generate_messages_cpp)
-
 
 # Nodelet libraries
 add_library(foveated_stereo_ros_nodelet src/FoveatedStereoRos.cpp src/FoveatedStereoRosNodelet.cpp)

@@ -152,7 +152,7 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::Stereo:
     }
     publishAll(stereo_data->point_cloud.header.stamp);
 
-    if(ego_sphere->new_closest_point)
+    /*if(ego_sphere->new_closest_point)
     {
         ROS_INFO("Waiting for action server to start.");
         // wait for the action server to start
@@ -177,7 +177,7 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::Stereo:
         }
         else
             ROS_INFO("Action did not finish before the time out.");
-    }
+    }*/
 
     double total_elapsed = (ros::WallTime::now() - startTime).toSec();
 
