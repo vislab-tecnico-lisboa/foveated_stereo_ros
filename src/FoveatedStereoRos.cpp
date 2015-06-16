@@ -66,28 +66,14 @@ void FoveatedStereoNode::cameraInfoCallback(const sensor_msgs::CameraInfoPtr & l
     ROS_INFO_STREAM("ki: "<<ki);
     ROS_INFO_STREAM("scaling_factor: "<<scaling_factor);
 
-    sensor_msgs::CameraInfoConstPtr right_camera_info=ros::topic::waitForMessage<sensor_msgs::CameraInfo>("/vizzy/r_camera/camera_info", ros::Duration(30));
+    left_image_sub=boost::shared_ptr<message_filters::Subscriber<Image> > (new message_filters::Subscriber<Image>(nh, "left_image", 10));
+    right_image_sub=boost::shared_ptr<message_filters::Subscriber<Image> > (new message_filters::Subscriber<Image>(nh, "right_image", 10));
 
-    image_pub_ = it_.advertise("/vizzy/disparity", 3);
-    tf::StampedTransform transform;
+    sync=boost::shared_ptr<Synchronizer<MySyncPolicy> > (new Synchronizer<MySyncPolicy>(MySyncPolicy(10), *left_image_sub, *right_image_sub));
+    sync->registerCallback(boost::bind(&FoveatedStereoNode::callback, this, _1, _2));
 
-    try
-    {
-        listener.waitForTransform(right_camera_frame, left_camera_frame, ros::Time(0), ros::Duration(10.0) );
-        listener.lookupTransform(right_camera_frame, left_camera_frame,
-                                 ros::Time(0), transform);
-    }
-    catch (tf::TransformException &ex)
-    {
-        ROS_ERROR("%s",ex.what());
-        ros::Duration(1.0).sleep();
-        exit(-1);
-    }
-
-    tf::Vector3 origin=transform.getOrigin();
-
-    //float baseline=origin.length(); // meters
     ROS_INFO("Getting cameras' parameters");
+    sensor_msgs::CameraInfoConstPtr right_camera_info=ros::topic::waitForMessage<sensor_msgs::CameraInfo>("/vizzy/r_camera/camera_info", ros::Duration(30));
 
     //set the camera intrinsic parameters
     left_cam_intrinsic = Mat::eye(3,3,CV_64F);
@@ -101,19 +87,18 @@ void FoveatedStereoNode::cameraInfoCallback(const sensor_msgs::CameraInfoPtr & l
     right_cam_intrinsic.at<double>(1,1) = right_camera_info->K.at(4);
     right_cam_intrinsic.at<double>(0,2) = right_camera_info->K.at(2);
     right_cam_intrinsic.at<double>(1,2) = right_camera_info->K.at(5);
+    int width=(int)left_camera_info->width;
+    int height=(int)left_camera_info->height;
 
     //stereo_calibration=boost::shared_ptr<stereo_calib> (new stereo_calib(fillStereoCalibParams(baseline)));
-    //float fx_=left_camera_info->K.at(0); // fx
-    //float fy_=left_camera_info->K.at(4); // fy
-    //float focal_distance=left_camera_info->K.at(4); // fy
 
-    //float focal_pixel = (image_width_in_pixels * 0.5) / tan(FOV * 0.5);
-    //float tan(FOV*0.5)=(left_camera_info->width * 0.5) /
-    std::cout << "yah" << std::endl;
-    ego_sphere=boost::shared_ptr<Stereo> (new Stereo((int)left_camera_info->width,
-                                                     (int)left_camera_info->height,
-                                                     cv::Point2i(left_camera_info->width/2.0,
-                                                                 left_camera_info->height/2.0),
+
+    std::cout <<"width:" << width << std::endl;
+    std::cout << "height:"<< height << std::endl;
+    ego_sphere=boost::shared_ptr<Stereo> (new Stereo(width,
+                                                     height,
+                                                     cv::Point2i(width/2.0,
+                                                                 height/2.0),
                                                      rings,
                                                      min_radius,
                                                      interp,
@@ -128,7 +113,7 @@ void FoveatedStereoNode::cameraInfoCallback(const sensor_msgs::CameraInfoPtr & l
                                                      beta,
                                                      scaling_factor)
                                           );
-    std::cout << "yeh" << std::endl;
+    image_pub_ = it_.advertise("/vizzy/disparity", 3);
 
     point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("stereo", 10);
     mean_point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("mean_pcl", 10);
@@ -145,15 +130,11 @@ void FoveatedStereoNode::cameraInfoCallback(const sensor_msgs::CameraInfoPtr & l
 
     marker_pub = nh.advertise<visualization_msgs::MarkerArray>("covariances", 1);
 
-    left_image_sub=boost::shared_ptr<message_filters::Subscriber<Image> > (new message_filters::Subscriber<Image>(nh, "left_image", 10));
-    right_image_sub=boost::shared_ptr<message_filters::Subscriber<Image> > (new message_filters::Subscriber<Image>(nh, "right_image", 10));
 
-    sync=boost::shared_ptr<Synchronizer<MySyncPolicy> > (new Synchronizer<MySyncPolicy>(MySyncPolicy(10), *left_image_sub, *right_image_sub));
-    sync->registerCallback(boost::bind(&FoveatedStereoNode::callback, this, _1, _2));
     ROS_INFO_STREAM("done");
 }
 
-stereo_calib_params FoveatedStereoNode::fillStereoCalibParams(float & baseline)
+/*stereo_calib_params FoveatedStereoNode::fillStereoCalibParams(float & baseline)
 {
     ROS_INFO("Getting cameras' paremeters");
     sensor_msgs::CameraInfoConstPtr left_camera_info=ros::topic::waitForMessage<sensor_msgs::CameraInfo>("/vizzy/l_camera/camera_info", ros::Duration(30));
@@ -187,7 +168,7 @@ stereo_calib_params FoveatedStereoNode::fillStereoCalibParams(float & baseline)
     ROS_INFO("Done.");
 
     return params;
-}
+}*/
 
 void FoveatedStereoNode::callback(const ImageConstPtr& left_image,
                                   const ImageConstPtr& right_image)

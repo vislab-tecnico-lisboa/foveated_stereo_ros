@@ -2,8 +2,8 @@
 
 EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle & private_node_handle_) :
     nh(nh_),
-    world_frame_id("base_link")
-    //ac("gaze", false)
+    world_frame_id("base_link"),
+    ac("gaze", false)
   //world_frame_id("map")
 {
     // Declare variables that can be modified by launch file or command line.
@@ -152,7 +152,7 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::Stereo:
     }
     publishAll(stereo_data->point_cloud.header.stamp);
 
-    /*if(ego_sphere->new_closest_point)
+    if(ego_sphere->new_closest_point)
     {
         ROS_INFO("Waiting for action server to start.");
         // wait for the action server to start
@@ -162,8 +162,8 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::Stereo:
         foveated_stereo_ros::GazeGoal goal;
         goal.fixation_point.header=stereo_data->point_cloud.header;
         goal.fixation_point.point.x = ego_sphere->closest_point(0);
-        goal.fixation_point.point.y = ego_sphere->closest_point(0);
-        goal.fixation_point.point.z = ego_sphere->closest_point(0);
+        goal.fixation_point.point.y = ego_sphere->closest_point(1);
+        goal.fixation_point.point.z = ego_sphere->closest_point(2);
 
         ac.sendGoal(goal);
 
@@ -177,7 +177,7 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::Stereo:
         }
         else
             ROS_INFO("Action did not finish before the time out.");
-    }*/
+    }
 
     double total_elapsed = (ros::WallTime::now() - startTime).toSec();
 

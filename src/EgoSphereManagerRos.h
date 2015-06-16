@@ -49,7 +49,7 @@ class EgoSphereManagerRos
     message_filters::Subscriber<foveated_stereo_ros::Stereo>* stereo_data_subscriber_;
     tf::MessageFilter<foveated_stereo_ros::Stereo>* tf_filter_;
 
-    //actionlib::SimpleActionClient<foveated_stereo_ros::GazeAction> ac;
+    actionlib::SimpleActionClient<foveated_stereo_ros::GazeAction> ac;
 public:
     typedef pcl::PointCloud<pcl::PointXYZRGB> PCLPointCloud;
     //typedef sync_policies::ApproximateTime<Image, Image> MySyncPolicy;

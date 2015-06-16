@@ -27,7 +27,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 find_package(PCL)
 find_package(OpenCV)
-find_package(CUDA)
+#find_package(CUDA)
 
 add_message_files(
   FILES
@@ -71,7 +71,7 @@ include_directories(include)
 include_directories(
   ${catkin_INCLUDE_DIRS}
   ${PCL_INCLUDE_DIRS}
-  ${CUDA_INCLUDE_DIRS}
+  #${CUDA_INCLUDE_DIRS}
 )
 
 include_directories(lib/foveated_stereo/cpp/cpp)
