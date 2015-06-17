@@ -89,10 +89,10 @@ void FoveatedStereoNode::cameraInfoCallback(const sensor_msgs::CameraInfoPtr & l
     private_node_handle.param("speckleRange", speckle_range, 16);
     private_node_handle.param("disp12MaxDiff", disp_12_max_diff, 0);
     private_node_handle.param("fullDP", full_dp, true);
+    private_node_handle.param("ignore_border_left", ignore_border_left, 10);
 
     ROS_INFO_STREAM("number_of_disparities: "<<number_of_disparities);
     ROS_INFO_STREAM("pre_filter_cap: "<<pre_filter_cap);
-    ROS_INFO_STREAM("min_radius: "<<min_radius);
     ROS_INFO_STREAM("sad_window_size: "<<sad_window_size);
     ROS_INFO_STREAM("P1: "<<P1);
     ROS_INFO_STREAM("P2: "<<P2);
@@ -101,6 +101,8 @@ void FoveatedStereoNode::cameraInfoCallback(const sensor_msgs::CameraInfoPtr & l
     ROS_INFO_STREAM("speckle_window_size: "<<speckle_window_size);
     ROS_INFO_STREAM("speckle_range: "<<speckle_range);
     ROS_INFO_STREAM("disp_12_max_diff: "<<disp_12_max_diff);
+    ROS_INFO_STREAM("full_dp: "<<full_dp);
+    ROS_INFO_STREAM("ignore_border_left: "<<ignore_border_left);
 
     left_image_sub=boost::shared_ptr<message_filters::Subscriber<Image> > (new message_filters::Subscriber<Image>(nh, "left_image", 10));
     right_image_sub=boost::shared_ptr<message_filters::Subscriber<Image> > (new message_filters::Subscriber<Image>(nh, "right_image", 10));
@@ -158,7 +160,9 @@ void FoveatedStereoNode::cameraInfoCallback(const sensor_msgs::CameraInfoPtr & l
                                                      speckle_window_size,
                                                      speckle_range,
                                                      disp_12_max_diff,
-                                                     full_dp
+                                                     full_dp,
+                                                     ignore_border_left
+
                                                      )
                                           );
     image_pub_ = it_.advertise("/vizzy/disparity", 3);
@@ -354,7 +358,7 @@ void FoveatedStereoNode::publishCovarianceMatrices(StereoData & sdd, const ros::
     int jump=5;
     for(int r=0; r<sdd.cov_3d.size();r=r+jump)
     {
-        for(int c=number_of_disparities; c<sdd.cov_3d[r].size();c=c+jump)
+        for(int c=ignore_border_left; c<sdd.cov_3d[r].size();c=c+jump)
         {
             if(sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[2]>=5.0) // Outliers
                 continue;
@@ -426,7 +430,7 @@ void FoveatedStereoNode::publishStereoData(StereoData & sdd, const ros::Time & t
     stereo_msg.header=point_cloud_msg.header;
     for(unsigned int r=0; r<sdd.cov_3d.size(); ++r)
     {
-        for(unsigned int c=number_of_disparities; c<sdd.cov_3d[r].size();++c)
+        for(unsigned int c=0; c<sdd.cov_3d[r].size();++c)
         {
             if(sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[2]>=5.0) // Outliers
                 continue;

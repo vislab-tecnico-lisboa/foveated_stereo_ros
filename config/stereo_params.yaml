@@ -1,11 +1,24 @@
 numberOfDisparities: 128
-preFilterCap: 63
+minDisparity: 0
 SADWindowSize: 3
+preFilterCap: 63
 P1: 768
 P2: 1536
-minDisparity: 0
 uniquenessRatio: 15
 speckleWindowSize: 50
 speckleRange: 16
 disp12MaxDiff: 1
 fullDP: true
+ignore_border_left: 30
+
+#numberOfDisparities: 80
+#minDisparity: 0
+#SADWindowSize: 5
+#preFilterCap: 0
+#P1: 0
+#P2: 0
+#uniquenessRatio: 0
+#speckleWindowSize: 0
+#speckleRange: 0
+#disp12MaxDiff: 0
+#fullDP: false
