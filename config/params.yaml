@@ -12,4 +12,4 @@ L: 4.0
 alpha: 0.25
 beta: 2.0
 ki: 3.0
-scaling_factor: 0.01
+scaling_factor: 0.001
