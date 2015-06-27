@@ -360,7 +360,7 @@ void FoveatedStereoNode::publishCovarianceMatrices(StereoData & sdd, const ros::
     {
         for(int c=ignore_border_left; c<sdd.cov_3d[r].size();c=c+jump)
         {
-            if(sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[2]>=5.0) // Outliers
+            if(isnan(sdd.mean_3d.at<cv::Vec3d>(r,c)[0])) // Outliers
                 continue;
 
             Eigen::Matrix<double,3,3> information_eigen;
@@ -371,7 +371,7 @@ void FoveatedStereoNode::publishCovarianceMatrices(StereoData & sdd, const ros::
             //double norm_=(information_matrix.norm()); // L2 norm
             double norm_=sqrt(eig.eigenvalues()(2)); // SPECTRAL NORM
 
-            if(norm_<uncertainty_lower_bound || norm_!=norm_)
+            if(log(norm_)<uncertainty_lower_bound || norm_!=norm_)
             {
                 continue;
             }
@@ -432,7 +432,7 @@ void FoveatedStereoNode::publishStereoData(StereoData & sdd, const ros::Time & t
     {
         for(unsigned int c=0; c<sdd.cov_3d[r].size();++c)
         {
-            if(sdd.point_cloud_cartesian.at<cv::Vec3d>(r,c)[2]>=5.0) // Outliers
+            if(isnan(sdd.mean_3d.at<cv::Vec3d>(r,c)[0])) // Outliers
                 continue;
 
             Eigen::Matrix<double,3,3> information_eigen;
@@ -443,7 +443,7 @@ void FoveatedStereoNode::publishStereoData(StereoData & sdd, const ros::Time & t
             //double norm_=(information_matrix.norm()); // L2 norm
             double norm_=sqrt(eig.eigenvalues()(2)); // SPECTRAL NORM
 
-            if(norm_<uncertainty_lower_bound || norm_!=norm_)
+            if(log(norm_)<uncertainty_lower_bound || norm_!=norm_)
             {
                 continue;
             }
