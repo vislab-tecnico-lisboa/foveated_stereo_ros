@@ -354,31 +354,24 @@ void FoveatedStereoNode::publishCovarianceMatrices(StereoData & sdd, const ros::
 {
 
     visualization_msgs::MarkerArray marker_array;
-    double scale=3.0;
+    double scale=1.0;
     int jump=5;
+
+    cv::Mat information_norms=sdd.getInformationsNorms();
+
     for(int r=0; r<sdd.cov_3d.size();r=r+jump)
     {
         for(int c=ignore_border_left; c<sdd.cov_3d[r].size();c=c+jump)
         {
-            if(isnan(sdd.mean_3d.at<cv::Vec3d>(r,c)[0])) // Outliers
-                continue;
-
-            Eigen::Matrix<double,3,3> information_eigen;
-            cv2eigen(sdd.information_3d[r][c],information_eigen);
-
-            Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eig(information_eigen.transpose()*information_eigen); // last one is the greatest eigen value
-
-            //double norm_=(information_matrix.norm()); // L2 norm
-            double norm_=sqrt(eig.eigenvalues()(2)); // SPECTRAL NORM
-
-            if(log(norm_)<uncertainty_lower_bound || norm_!=norm_)
+            if(log(information_norms.at<double>(r,c))<uncertainty_lower_bound || isnan(log(information_norms.at<double>(r,c))) || isnan(sdd.mean_3d.at<cv::Vec3d>(r,c)[0]))
             {
                 continue;
             }
 
             Eigen::Matrix<double,3,3> covariance_eigen;
             cv2eigen(sdd.cov_3d[r][c],covariance_eigen);
-            eig=Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d>(covariance_eigen); // last one is the greatest eigen value
+
+            Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eig(covariance_eigen); // last one is the greatest eigen value
 
             Eigen::Quaternion<double> q(-eig.eigenvectors());
             q.normalize();
