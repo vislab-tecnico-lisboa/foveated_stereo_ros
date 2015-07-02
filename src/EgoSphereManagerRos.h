@@ -60,6 +60,8 @@ public:
     ros::Publisher point_cloud_uncertainty_publisher;
     ros::Publisher marker_pub;
 
+    ros::Publisher ego_sphere_hash_table;
+
     boost::shared_ptr<SphericalShell<std::vector<boost::shared_ptr<MemoryPatch> > > > ego_sphere;
 
     EgoSphereManagerRos(ros::NodeHandle & nh_,ros::NodeHandle & private_node_handle_);
@@ -74,6 +76,8 @@ public:
     void insertScan(const PCLPointCloud& point_cloud, const std::vector<Eigen::Matrix3d> & covariances);
 
     ros::Time last;
+
+    void publishEgoStructure();
 };
 
 

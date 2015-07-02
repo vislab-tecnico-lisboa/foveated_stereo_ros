@@ -4,7 +4,7 @@
 	<!-- launch stereo_calibration -->
 	<node name="foveated_stereo_ros" pkg="foveated_stereo_ros" type="foveated_stereo_ros_node" respawn="false" output="screen">
   	<rosparam file="$(find foveated_stereo_ros)/config/params.yaml" command="load" />
-  		<rosparam file="$(find foveated_stereo_ros)/config/stereo_params.yaml" command="load" />
+  	<rosparam file="$(find foveated_stereo_ros)/config/stereo_params.yaml" command="load" />
 		<remap from="left_image" to="/vizzy/l_camera/image_raw"/>
 		<remap from="right_image" to="/vizzy/r_camera/image_raw"/>
 		<remap from="left_camera_info" to="/vizzy/l_camera/camera_info"/>
@@ -18,7 +18,7 @@
 	<!--<node name="gaze" pkg="foveated_stereo_ros" type="gaze" respawn="false" output="screen">
  		<rosparam command="load" file="$(find vizzy_moveit_config)/config/kinematics.yaml"/>
  		<rosparam command="load" file="$(find foveated_stereo_ros)/config/params.yaml"/>
-	</node>-->
+	</node>
 
 
 	<!-- nodelet manager -->

@@ -41,14 +41,27 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere", 2);
     point_cloud_uncertainty_publisher  = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere_uncertainty", 2);
     marker_pub = nh.advertise<visualization_msgs::MarkerArray>("covariances_debug", 1);
-
+    ego_sphere_hash_table  = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere_structure", 2);
 
     stereo_data_subscriber_ = new message_filters::Subscriber<foveated_stereo_ros::Stereo> (nh, "stereo_data", 2);
     tf_filter_ = new tf::MessageFilter<foveated_stereo_ros::Stereo> (*stereo_data_subscriber_, listener, world_frame_id, 2);
     tf_filter_->registerCallback(boost::bind(&EgoSphereManagerRos::insertCloudCallback, this, _1));
     last=ros::Time::now();
 
+
+
     return;
+}
+
+void EgoSphereManagerRos::publishEgoStructure()
+{
+    sensor_msgs::PointCloud2 ego_sphere_msg;
+
+    pcl::toROSMsg(*(ego_sphere->structure_cloud),ego_sphere_msg);
+
+    ego_sphere_msg.is_dense=false;
+    ego_sphere_msg.header.frame_id="eyes_center_vision_link";
+    ego_sphere_hash_table.publish(ego_sphere_msg);
 }
 
 EgoSphereManagerRos::~EgoSphereManagerRos()
@@ -152,7 +165,7 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::Stereo:
     }
     publishAll(stereo_data->point_cloud.header.stamp);
 
-    if(ego_sphere->new_closest_point)
+    /*if(ego_sphere->new_closest_point)
     {
         ROS_INFO("Waiting for action server to start.");
         // wait for the action server to start
@@ -177,7 +190,7 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::Stereo:
         }
         else
             ROS_INFO("Action did not finish before the time out.");
-    }
+    }*/
 
     double total_elapsed = (ros::WallTime::now() - startTime).toSec();
 
@@ -297,6 +310,7 @@ int main(int argc, char** argv)
     // Main loop.
     while (nh.ok())
     {
+        //ego_sphere.publishEgoStructure();
         ros::spinOnce();
         r.sleep();
     }
