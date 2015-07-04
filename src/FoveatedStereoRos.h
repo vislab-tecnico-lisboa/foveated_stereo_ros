@@ -84,7 +84,7 @@ public:
     boost::shared_ptr<Synchronizer<MySyncPolicy> >sync;
 
     boost::shared_ptr<stereo_calib> stereo_calibration;
-    boost::shared_ptr<FovealStereo> ego_sphere;
+    boost::shared_ptr<Stereo> ego_sphere;
 
     ~FoveatedStereoNode();
 
