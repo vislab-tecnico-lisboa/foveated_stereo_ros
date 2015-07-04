@@ -133,7 +133,7 @@ void FoveatedStereoNode::cameraInfoCallback(const sensor_msgs::CameraInfoPtr & l
 
     std::cout <<"width:" << width << std::endl;
     std::cout << "height:"<< height << std::endl;
-    ego_sphere=boost::shared_ptr<Stereo> (new Stereo(left_cam_intrinsic,
+    ego_sphere=boost::shared_ptr<FovealStereo> (new FovealStereo(left_cam_intrinsic,
                                                      right_cam_intrinsic,
                                                      width,
                                                      height,

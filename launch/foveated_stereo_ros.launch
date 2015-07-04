@@ -18,7 +18,7 @@
 	<!--<node name="gaze" pkg="foveated_stereo_ros" type="gaze" respawn="false" output="screen">
  		<rosparam command="load" file="$(find vizzy_moveit_config)/config/kinematics.yaml"/>
  		<rosparam command="load" file="$(find foveated_stereo_ros)/config/params.yaml"/>
-	</node>
+	</node>-->
 
 
 	<!-- nodelet manager -->
