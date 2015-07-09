@@ -1,5 +1,6 @@
-#ifndef FOVEATEDSTEREOROS_H
-#define FOVEATEDSTEREOROS_H
+#ifndef STEREOROS_H
+#define STEREOROS_H
+
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
@@ -17,8 +18,7 @@
 #include <tf/transform_listener.h>
 #include <sensor_msgs/image_encodings.h>
 #include <sensor_msgs/CameraInfo.h>
-#include <Stereo.h>
-#include "FovealStereo.h"
+#include "Stereo.h"
 #include <stereo_calib_lib.h>
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/image_encodings.h>
@@ -39,7 +39,7 @@ using namespace sensor_msgs;
 
 using namespace message_filters;
 
-class FoveatedStereoNode
+class StereoRosNode
 {
     int number_of_disparities;
     int ignore_border_left;
@@ -82,13 +82,13 @@ public:
     boost::shared_ptr<Synchronizer<MySyncPolicy> >sync;
 
     boost::shared_ptr<stereo_calib> stereo_calibration;
-    boost::shared_ptr<FovealStereo> foveal_stereo;
+    boost::shared_ptr<Stereo> stereo;
 
-    ~FoveatedStereoNode();
+    ~StereoRosNode();
 
-    FoveatedStereoNode(ros::NodeHandle & nh_,
-                       ros::NodeHandle & private_node_handle_
-                      );
+    StereoRosNode(ros::NodeHandle & nh_,
+                  ros::NodeHandle & private_node_handle_
+                  );
 
 
     stereo_calib_params fillStereoCalibParams(float & baseline);
@@ -103,4 +103,5 @@ public:
     void publishStereoData(StereoData & sdd, const ros::Time & time);
 
 };
-#endif // FOVEATEDSTEREOROS_H
+
+#endif // STEREOROS_H

@@ -80,6 +80,21 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/lib/foveated_stereo/cpp)
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/lib/stereo_calib_lib)
 
 ## Declare a cpp executable
+add_executable(conventional_stereo_ros_node src/StereoRos.cpp)
+
+## Specify libraries to link a library or executable target against
+target_link_libraries(conventional_stereo_ros_node
+   ${PCL_LIBRARIES}
+   ${catkin_LIBRARIES}
+   foveated_stereo_lib
+   STEREO_CALIB_LIB
+   ${OpenCV_LIBRARIES}
+)
+add_dependencies(conventional_stereo_ros_node foveated_stereo_ros_generate_messages_cpp)
+
+
+
+## Declare a cpp executable
 add_executable(foveated_stereo_ros_node src/FoveatedStereoRos.cpp)
 
 ## Specify libraries to link a library or executable target against
@@ -106,7 +121,24 @@ target_link_libraries(ego_sphere_manager_ros_node
 
 add_dependencies(ego_sphere_manager_ros_node foveated_stereo_ros_generate_messages_cpp)
 
-# Nodelet libraries
+# Nodelet library
+add_library(conventional_stereo_ros_nodelet src/FoveatedStereoRos.cpp src/FoveatedStereoRosNodelet.cpp)
+target_link_libraries(conventional_stereo_ros_nodelet
+   ${PCL_LIBRARIES}
+   ${catkin_LIBRARIES}
+   foveated_stereo_lib
+   STEREO_CALIB_LIB
+   ${OpenCV_LIBRARIES})
+
+install(TARGETS conventional_stereo_ros_nodelet
+        DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+)
+install(FILES foveated_stereo_nodelets.xml
+        DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+)
+
+
+# Nodelet library
 add_library(foveated_stereo_ros_nodelet src/FoveatedStereoRos.cpp src/FoveatedStereoRosNodelet.cpp)
 target_link_libraries(foveated_stereo_ros_nodelet    
    ${PCL_LIBRARIES}

@@ -2,7 +2,7 @@
 <!-- ROS head file to simulate vizzy in gazebo -->
 <launch>
 	<!-- launch stereo_calibration -->
-	<node name="foveated_stereo_ros" pkg="foveated_stereo_ros" type="conventional_stereo_ros_node" respawn="false" output="screen">
+	<node name="conventional_stereo_ros" pkg="foveated_stereo_ros" type="conventional_stereo_ros_node" respawn="false" output="screen">
   	<rosparam file="$(find foveated_stereo_ros)/config/params.yaml" command="load" />
   	<rosparam file="$(find foveated_stereo_ros)/config/stereo_params.yaml" command="load" />
 		<remap from="left_image" to="/vizzy/l_camera/image_raw"/>

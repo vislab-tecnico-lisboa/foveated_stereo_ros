@@ -7,9 +7,9 @@ sp: 0
 ego_frame: eyes_center_vision_link
 left_camera_frame: l_camera_vision_link
 right_camera_frame: r_camera_vision_link
-uncertainty_lower_bound: 1.0
+uncertainty_lower_bound: -10.0
 L: 4.0
 alpha: 0.25
 beta: 2.0
 ki: 3.0
-scaling_factor: 10.0
+scaling_factor: 1.0

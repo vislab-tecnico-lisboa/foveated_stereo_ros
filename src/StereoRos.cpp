@@ -1,23 +1,23 @@
-#include "FoveatedStereoRos.h"
+#include "StereoRos.h"
 using namespace sensor_msgs;
 
 using namespace message_filters;
 
-FoveatedStereoNode::~FoveatedStereoNode()
+StereoRosNode::~StereoRosNode()
 {}
 
-FoveatedStereoNode::FoveatedStereoNode(ros::NodeHandle & nh_, ros::NodeHandle & private_node_handle_) :
+StereoRosNode::StereoRosNode(ros::NodeHandle & nh_, ros::NodeHandle & private_node_handle_) :
     nh(nh_),
     private_node_handle(private_node_handle_),
     it_(nh_)
 {
 
-    left_camera_info_sub=nh_.subscribe("/vizzy/l_camera/camera_info",1,&FoveatedStereoNode::cameraInfoCallback, this);
+    left_camera_info_sub=nh_.subscribe("/vizzy/l_camera/camera_info",1,&StereoRosNode::cameraInfoCallback, this);
 
     return;
 }
 
-void FoveatedStereoNode::cameraInfoCallback(const sensor_msgs::CameraInfoPtr & left_camera_info)
+void StereoRosNode::cameraInfoCallback(const sensor_msgs::CameraInfoPtr & left_camera_info)
 {
     left_camera_info_sub.shutdown();
 
@@ -108,7 +108,7 @@ void FoveatedStereoNode::cameraInfoCallback(const sensor_msgs::CameraInfoPtr & l
     right_image_sub=boost::shared_ptr<message_filters::Subscriber<Image> > (new message_filters::Subscriber<Image>(nh, "right_image", 10));
 
     sync=boost::shared_ptr<Synchronizer<MySyncPolicy> > (new Synchronizer<MySyncPolicy>(MySyncPolicy(10), *left_image_sub, *right_image_sub));
-    sync->registerCallback(boost::bind(&FoveatedStereoNode::callback, this, _1, _2));
+    sync->registerCallback(boost::bind(&StereoRosNode::callback, this, _1, _2));
 
     ROS_INFO("Getting cameras' parameters");
     sensor_msgs::CameraInfoConstPtr right_camera_info=ros::topic::waitForMessage<sensor_msgs::CameraInfo>("/vizzy/r_camera/camera_info", ros::Duration(30));
@@ -129,7 +129,7 @@ void FoveatedStereoNode::cameraInfoCallback(const sensor_msgs::CameraInfoPtr & l
     int height=(int)left_camera_info->height;
 
     //stereo_calibration=boost::shared_ptr<stereo_calib> (new stereo_calib(fillStereoCalibParams(baseline)));
-    foveal_stereo=boost::shared_ptr<FovealStereo> (new FovealStereo(left_cam_intrinsic,
+    stereo=boost::shared_ptr<Stereo> (new Stereo(left_cam_intrinsic,
                                                      right_cam_intrinsic,
                                                      width,
                                                      height,
@@ -184,7 +184,7 @@ void FoveatedStereoNode::cameraInfoCallback(const sensor_msgs::CameraInfoPtr & l
     ROS_INFO_STREAM("done");
 }
 
-/*stereo_calib_params FoveatedStereoNode::fillStereoCalibParams(float & baseline)
+/*stereo_calib_params StereoRosNode::fillStereoCalibParams(float & baseline)
 {
     ROS_INFO("Getting cameras' paremeters");
     sensor_msgs::CameraInfoConstPtr left_camera_info=ros::topic::waitForMessage<sensor_msgs::CameraInfo>("/vizzy/l_camera/camera_info", ros::Duration(30));
@@ -220,7 +220,7 @@ void FoveatedStereoNode::cameraInfoCallback(const sensor_msgs::CameraInfoPtr & l
     return params;
 }*/
 
-void FoveatedStereoNode::callback(const ImageConstPtr& left_image,
+void StereoRosNode::callback(const ImageConstPtr& left_image,
                                   const ImageConstPtr& right_image)
 {
     ros::WallTime startTime = ros::WallTime::now();
@@ -297,7 +297,7 @@ void FoveatedStereoNode::callback(const ImageConstPtr& left_image,
     scd.t_left_cam_to_right_cam.at<double>(1,0) = r_l_eye_transform.getOrigin()[1];
     scd.t_left_cam_to_right_cam.at<double>(2,0) = r_l_eye_transform.getOrigin()[2];
 
-    StereoData stereo_data=foveal_stereo->computeStereo(left_image_mat,
+    StereoData stereo_data=stereo->computeStereo(left_image_mat,
                                                      right_image_mat,
                                                      scd.R_left_cam_to_right_cam,
                                                      scd.t_left_cam_to_right_cam,
@@ -316,7 +316,7 @@ void FoveatedStereoNode::callback(const ImageConstPtr& left_image,
 
 }
 
-void FoveatedStereoNode::publishPointClouds(StereoData & sdd, const ros::Time & time)
+void StereoRosNode::publishPointClouds(StereoData & sdd, const ros::Time & time)
 {
     sensor_msgs::PointCloud2 point_cloud_msg;
     pcl::toROSMsg(sdd.point_cloud, point_cloud_msg);
@@ -346,7 +346,7 @@ void FoveatedStereoNode::publishPointClouds(StereoData & sdd, const ros::Time & 
     }*/
 }
 
-void FoveatedStereoNode::publishCovarianceMatrices(StereoData & sdd, const ros::Time & time)
+void StereoRosNode::publishCovarianceMatrices(StereoData & sdd, const ros::Time & time)
 {
 
     visualization_msgs::MarkerArray marker_array;
@@ -408,7 +408,7 @@ void FoveatedStereoNode::publishCovarianceMatrices(StereoData & sdd, const ros::
     marker_pub.publish(marker_array);
 }
 
-void FoveatedStereoNode::publishStereoData(StereoData & sdd, const ros::Time & time)
+void StereoRosNode::publishStereoData(StereoData & sdd, const ros::Time & time)
 {
     foveated_stereo_ros::Stereo stereo_msg;
     sensor_msgs::PointCloud2 point_cloud_msg;
@@ -474,7 +474,7 @@ int main(int argc, char** argv)
 
     private_node_handle_.param("rate", rate, 100);
 
-    FoveatedStereoNode foveated_stereo_ros(nh,
+    StereoRosNode ego_sphere(nh,
                                   private_node_handle_);
 
     // Tell ROS how fast to run this node.
