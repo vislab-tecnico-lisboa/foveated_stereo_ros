@@ -55,11 +55,18 @@ protected:
 
     robot_model_loader::RobotModelLoader robot_model_loader;//("robot_description");
     moveit::core::RobotModelPtr robot_model;// = robot_model_loader.getModel();
-    const moveit::core::JointModelGroup* joint_model_group;//kinematic_model->getJointModelGroup("head");
-    moveit::planning_interface::MoveGroup* group;
 
-    std::vector<double> joint_values;
-    std::vector<std::string> joint_names;
+    const moveit::core::JointModelGroup* head_joint_model_group;//kinematic_model->getJointModelGroup("head");
+    moveit::planning_interface::MoveGroup* head_group;
+
+    const moveit::core::JointModelGroup* eyes_joint_model_group;//kinematic_model->getJointModelGroup("head");
+    moveit::planning_interface::MoveGroup* eyes_group;
+
+    std::vector<double> head_joint_values;
+    std::vector<std::string> head_joint_names;
+
+    std::vector<double> eyes_joint_values;
+    std::vector<std::string> eyes_joint_names;
 
 public:
     double half_base_line;

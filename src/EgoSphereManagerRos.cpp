@@ -10,14 +10,43 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     int egosphere_nodes;
     int spherical_angle_bins;
     double uncertainty_lower_bound;
-
+    double mahalanobis_distance_threshold;
     private_node_handle_.param("egosphere_nodes", egosphere_nodes, 1000);
     private_node_handle_.param("spherical_angle_bins", spherical_angle_bins, 1000);
     private_node_handle_.param("uncertainty_lower_bound", uncertainty_lower_bound, 0.0);
+    private_node_handle_.param("mahalanobis_distance_threshold",mahalanobis_distance_threshold,std::numeric_limits<double>::max());
+    XmlRpc::XmlRpcValue mean_list;
+    private_node_handle_.getParam("mean", mean_list);
+    ROS_ASSERT(mean_list.getType() == XmlRpc::XmlRpcValue::TypeArray);
+
+    cv::Mat mean_mat(3, 1, CV_64F);
+
+    for (int32_t i = 0; i < mean_list.size(); ++i)
+    {
+      ROS_ASSERT(mean_list[i].getType() == XmlRpc::XmlRpcValue::TypeDouble);
+      mean_mat.at<double>(i,0)=static_cast<double>(mean_list[i]);
+    }
+
+
+    XmlRpc::XmlRpcValue std_dev_list;
+    private_node_handle_.getParam("standard_deviation", std_dev_list);
+    ROS_ASSERT(std_dev_list.getType() == XmlRpc::XmlRpcValue::TypeArray);
+
+    cv::Mat standard_deviation_mat(3, 1, CV_64F);
+
+    for (int32_t i = 0; i < std_dev_list.size(); ++i)
+    {
+      ROS_ASSERT(std_dev_list[i].getType() == XmlRpc::XmlRpcValue::TypeDouble);
+      standard_deviation_mat.at<double>(i,0)=static_cast<double>(std_dev_list[i]);
+    }
+
 
     ROS_INFO_STREAM("egosphere_nodes: "<<egosphere_nodes);
     ROS_INFO_STREAM("spherical_angle_bins: "<<spherical_angle_bins);
     ROS_INFO_STREAM("uncertainty_lower_bound: "<<uncertainty_lower_bound);
+    ROS_INFO_STREAM("mahalanobis_distance_threshold: "<<mahalanobis_distance_threshold);
+    ROS_INFO_STREAM("mean: "<<mean_mat);
+    ROS_INFO_STREAM("standard_deviation: "<<standard_deviation_mat);
 
     tf::StampedTransform sensorToWorldTf;
 
@@ -37,7 +66,7 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
 
     pcl_ros::transformAsMatrix(sensorToWorldTf, sensorToWorld);
 
-    ego_sphere=boost::shared_ptr<SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > > (new SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > (egosphere_nodes, spherical_angle_bins, sensorToWorld.cast <double> (),uncertainty_lower_bound));
+    ego_sphere=boost::shared_ptr<SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > > (new SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > (egosphere_nodes, spherical_angle_bins, sensorToWorld.cast <double> (),uncertainty_lower_bound,mahalanobis_distance_threshold,mean_mat,standard_deviation_mat));
     point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere", 2);
     point_cloud_uncertainty_publisher  = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere_uncertainty", 2);
     marker_pub = nh.advertise<visualization_msgs::MarkerArray>("covariances_debug", 1);
@@ -165,11 +194,12 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::Stereo:
     }
     publishAll(stereo_data->point_cloud.header.stamp);
 
-    /*if(ego_sphere->new_closest_point)
+    if(ego_sphere->new_closest_point)
     {
         ROS_INFO("Waiting for action server to start.");
         // wait for the action server to start
-        ac.waitForServer(); //will wait for infinite time
+        ac.waitForServer(ros::Duration(2.0)); //will wait for infinite time
+        ROS_INFO("Started.");
 
         // send a goal to the action
         foveated_stereo_ros::GazeGoal goal;
@@ -181,7 +211,7 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::Stereo:
         ac.sendGoal(goal);
 
         //wait for the action to return
-        bool finished_before_timeout = ac.waitForResult(ros::Duration(30.0));
+        bool finished_before_timeout = ac.waitForResult(ros::Duration(2.0));
 
         if (finished_before_timeout)
         {
@@ -190,7 +220,7 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::Stereo:
         }
         else
             ROS_INFO("Action did not finish before the time out.");
-    }*/
+    }
 
     double total_elapsed = (ros::WallTime::now() - startTime).toSec();
 
@@ -310,7 +340,7 @@ int main(int argc, char** argv)
     // Main loop.
     while (nh.ok())
     {
-        //ego_sphere.publishEgoStructure();
+        ego_sphere.publishEgoStructure();
         ros::spinOnce();
         r.sleep();
     }

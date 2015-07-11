@@ -11,11 +11,11 @@
 		<remap from="right_camera_info" to="/vizzy/r_camera/camera_info"/>
 	</node>
 
-	<node name="ego_sphere_manager_ros" pkg="foveated_stereo_ros" type="ego_sphere_manager_ros_node" respawn="false" output="screen" >
+	<!--<node name="ego_sphere_manager_ros" pkg="foveated_stereo_ros" type="ego_sphere_manager_ros_node" respawn="false" output="screen" >
   		<rosparam file="$(find foveated_stereo_ros)/config/egosphere.yaml" command="load" />
 	</node>
 
-	<!--<node name="gaze" pkg="foveated_stereo_ros" type="gaze" respawn="false" output="screen">
+	<node name="gaze" pkg="foveated_stereo_ros" type="gaze" respawn="false" output="screen">
  		<rosparam command="load" file="$(find vizzy_moveit_config)/config/kinematics.yaml"/>
  		<rosparam command="load" file="$(find foveated_stereo_ros)/config/params.yaml"/>
 	</node>-->
