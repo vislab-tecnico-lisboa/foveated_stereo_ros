@@ -1,4 +1,4 @@
 Header header
-sensor_msgs/PointCloud2 point_cloud
+foveated_stereo_ros/PointClouds point_clouds
 foveated_stereo_ros/Covariance[] covariances
 foveated_stereo_ros/Information[] informations

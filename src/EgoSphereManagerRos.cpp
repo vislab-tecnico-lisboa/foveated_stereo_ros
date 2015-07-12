@@ -14,6 +14,8 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     private_node_handle_.param("egosphere_nodes", egosphere_nodes, 1000);
     private_node_handle_.param("spherical_angle_bins", spherical_angle_bins, 1000);
     private_node_handle_.param("uncertainty_lower_bound", uncertainty_lower_bound, 0.0);
+    private_node_handle_.param("active_vision",active_vision,false);
+
     private_node_handle_.param("mahalanobis_distance_threshold",mahalanobis_distance_threshold,std::numeric_limits<double>::max());
     XmlRpc::XmlRpcValue mean_list;
     private_node_handle_.getParam("mean", mean_list);
@@ -26,7 +28,6 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
       ROS_ASSERT(mean_list[i].getType() == XmlRpc::XmlRpcValue::TypeDouble);
       mean_mat.at<double>(i,0)=static_cast<double>(mean_list[i]);
     }
-
 
     XmlRpc::XmlRpcValue std_dev_list;
     private_node_handle_.getParam("standard_deviation", std_dev_list);
@@ -47,6 +48,7 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     ROS_INFO_STREAM("mahalanobis_distance_threshold: "<<mahalanobis_distance_threshold);
     ROS_INFO_STREAM("mean: "<<mean_mat);
     ROS_INFO_STREAM("standard_deviation: "<<standard_deviation_mat);
+    ROS_INFO_STREAM("active_vision: "<<active_vision);
 
     tf::StampedTransform sensorToWorldTf;
 
@@ -67,8 +69,10 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     pcl_ros::transformAsMatrix(sensorToWorldTf, sensorToWorld);
 
     ego_sphere=boost::shared_ptr<SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > > (new SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > (egosphere_nodes, spherical_angle_bins, sensorToWorld.cast <double> (),uncertainty_lower_bound,mahalanobis_distance_threshold,mean_mat,standard_deviation_mat));
-    point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere", 2);
-    point_cloud_uncertainty_publisher  = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere_uncertainty", 2);
+    rgb_point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere", 2);
+    uncertainty_point_cloud_publisher  = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere_uncertainty", 2);
+    point_clouds_publisher = nh.advertise<foveated_stereo_ros::PointClouds>("ego_point_clouds", 10);
+
     marker_pub = nh.advertise<visualization_msgs::MarkerArray>("covariances_debug", 1);
     ego_sphere_hash_table  = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere_structure", 2);
 
@@ -118,7 +122,9 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::Stereo:
     tf::StampedTransform sensorToWorldTf;
     try
     {
-        listener.lookupTransform(stereo_data->point_cloud.header.frame_id, world_frame_id, stereo_data->point_cloud.header.stamp, sensorToWorldTf);
+        listener.waitForTransform(stereo_data->point_clouds.rgb_point_cloud.header.frame_id, world_frame_id, ros::Time(0), ros::Duration(10.0) );
+
+        listener.lookupTransform(stereo_data->point_clouds.rgb_point_cloud.header.frame_id, world_frame_id, stereo_data->point_clouds.rgb_point_cloud.header.stamp, sensorToWorldTf);
     } catch(tf::TransformException& ex){
         ROS_ERROR_STREAM( "Transform error of sensor data: " << ex.what() << ", quitting callback");
         return;
@@ -151,7 +157,7 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::Stereo:
         pcl::PointIndices::Ptr inliers (new pcl::PointIndices ());
 
         PCLPointCloud pc; // input cloud for filtering and ground-detection
-        pcl::fromROSMsg(stereo_data->point_cloud, pc);
+        pcl::fromROSMsg(stereo_data->point_clouds.rgb_point_cloud, pc);
         pcl::removeNaNFromPointCloud(pc, pc, inliers->indices);
 
         std::vector<Eigen::Matrix3d> informations;
@@ -192,9 +198,9 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::Stereo:
 
 
     }
-    publishAll(stereo_data->point_cloud.header.stamp);
+    publishAll(stereo_data->point_clouds.rgb_point_cloud.header.stamp);
 
-    if(ego_sphere->new_closest_point)
+    if(active_vision&&ego_sphere->new_closest_point)
     {
         ROS_INFO("Waiting for action server to start.");
         // wait for the action server to start
@@ -203,7 +209,7 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::Stereo:
 
         // send a goal to the action
         foveated_stereo_ros::GazeGoal goal;
-        goal.fixation_point.header=stereo_data->point_cloud.header;
+        goal.fixation_point.header=stereo_data->point_clouds.rgb_point_cloud.header;
         goal.fixation_point.point.x = ego_sphere->closest_point(0);
         goal.fixation_point.point.y = ego_sphere->closest_point(1);
         goal.fixation_point.point.z = ego_sphere->closest_point(2);
@@ -240,26 +246,42 @@ void EgoSphereManagerRos::publishAll(const ros::Time& rostime)
 
     point_cloud.header.frame_id="eyes_center_vision_link";
 
-    sensor_msgs::PointCloud2 point_cloud_msg;
+    sensor_msgs::PointCloud2 rgb_point_cloud_msg;
 
-    pcl::toROSMsg(point_cloud,point_cloud_msg);
+    pcl::toROSMsg(point_cloud,rgb_point_cloud_msg);
 
-    point_cloud_msg.is_dense=false;
-    point_cloud_msg.header.stamp=rostime;
+    rgb_point_cloud_msg.is_dense=false;
+    rgb_point_cloud_msg.header.stamp=rostime;
 
-    point_cloud_publisher.publish(point_cloud_msg);
+    rgb_point_cloud_publisher.publish(rgb_point_cloud_msg);
+
+    pcl::PointCloud<pcl::PointXYZI> point_cloud_uncertainty_viz=ego_sphere->getPointCloudUncertaintyViz();
+    point_cloud_uncertainty_viz.header.frame_id="eyes_center_vision_link";
+    sensor_msgs::PointCloud2 uncertainty_point_cloud_viz_msg;
+    pcl::toROSMsg(point_cloud_uncertainty_viz, uncertainty_point_cloud_viz_msg);
+    uncertainty_point_cloud_viz_msg.is_dense=false;
+    uncertainty_point_cloud_viz_msg.header.stamp=rostime;
+    uncertainty_point_cloud_publisher.publish(uncertainty_point_cloud_viz_msg);
+
+    foveated_stereo_ros::PointClouds point_clouds_msg;
+
+    sensor_msgs::PointCloud2 rgb_point_cloud_msg_base;
+    pcl_ros::transformPointCloud("odom", rgb_point_cloud_msg, rgb_point_cloud_msg_base, listener);
 
     pcl::PointCloud<pcl::PointXYZI> point_cloud_uncertainty=ego_sphere->getPointCloudUncertainty();
     point_cloud_uncertainty.header.frame_id="eyes_center_vision_link";
+    sensor_msgs::PointCloud2 uncertainty_point_cloud_msg;
+    pcl::toROSMsg(point_cloud_uncertainty, uncertainty_point_cloud_msg);
+    uncertainty_point_cloud_msg.is_dense=false;
+    uncertainty_point_cloud_msg.header.stamp=rostime;
 
-    sensor_msgs::PointCloud2 point_cloud_uncertainty_msg;
+    sensor_msgs::PointCloud2 uncertainty_point_cloud_msg_base;
 
-    pcl::toROSMsg(point_cloud_uncertainty,point_cloud_uncertainty_msg);
+    pcl_ros::transformPointCloud("odom", uncertainty_point_cloud_msg, uncertainty_point_cloud_msg_base, listener);
 
-    point_cloud_uncertainty_msg.is_dense=false;
-    point_cloud_uncertainty_msg.header.stamp=rostime;
-
-    point_cloud_uncertainty_publisher.publish(point_cloud_uncertainty_msg);
+    point_clouds_msg.rgb_point_cloud=rgb_point_cloud_msg_base;
+    point_clouds_msg.uncertainty_point_cloud=uncertainty_point_cloud_msg_base;
+    point_clouds_publisher.publish(point_clouds_msg);
 }
 
 

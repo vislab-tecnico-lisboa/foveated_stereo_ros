@@ -1,0 +1,2 @@
+sensor_msgs/PointCloud2 rgb_point_cloud
+sensor_msgs/PointCloud2 uncertainty_point_cloud

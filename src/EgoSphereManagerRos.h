@@ -32,6 +32,7 @@
 #include <actionlib/client/simple_action_client.h>
 #include <actionlib/client/terminal_state.h>
 #include <foveated_stereo_ros/GazeAction.h>
+#include <pcl_ros/transforms.h>
 
 
 using namespace sensor_msgs;
@@ -50,14 +51,17 @@ class EgoSphereManagerRos
     tf::MessageFilter<foveated_stereo_ros::Stereo>* tf_filter_;
 
     actionlib::SimpleActionClient<foveated_stereo_ros::GazeAction> ac;
+    bool active_vision;
+
 public:
     typedef pcl::PointCloud<pcl::PointXYZRGB> PCLPointCloud;
     //typedef sync_policies::ApproximateTime<Image, Image> MySyncPolicy;
 
     ros::NodeHandle nh;
 
-    ros::Publisher point_cloud_publisher;
-    ros::Publisher point_cloud_uncertainty_publisher;
+    ros::Publisher rgb_point_cloud_publisher;
+    ros::Publisher uncertainty_point_cloud_publisher;
+    ros::Publisher point_clouds_publisher;
     ros::Publisher marker_pub;
 
     ros::Publisher ego_sphere_hash_table;

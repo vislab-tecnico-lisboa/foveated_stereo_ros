@@ -107,9 +107,6 @@ void StereoRosNode::cameraInfoCallback(const sensor_msgs::CameraInfoPtr & left_c
     left_image_sub=boost::shared_ptr<message_filters::Subscriber<Image> > (new message_filters::Subscriber<Image>(nh, "left_image", 10));
     right_image_sub=boost::shared_ptr<message_filters::Subscriber<Image> > (new message_filters::Subscriber<Image>(nh, "right_image", 10));
 
-    sync=boost::shared_ptr<Synchronizer<MySyncPolicy> > (new Synchronizer<MySyncPolicy>(MySyncPolicy(10), *left_image_sub, *right_image_sub));
-    sync->registerCallback(boost::bind(&StereoRosNode::callback, this, _1, _2));
-
     ROS_INFO("Getting cameras' parameters");
     sensor_msgs::CameraInfoConstPtr right_camera_info=ros::topic::waitForMessage<sensor_msgs::CameraInfo>("/vizzy/r_camera/camera_info", ros::Duration(30));
 
@@ -165,9 +162,10 @@ void StereoRosNode::cameraInfoCallback(const sensor_msgs::CameraInfoPtr & left_c
                                           );
     image_pub_ = it_.advertise("/vizzy/disparity", 3);
 
-    point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("stereo", 10);
+    rgb_point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("stereo", 10);
     mean_point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("mean_pcl", 10);
-    point_cloud_uncertainty_publisher = nh.advertise<sensor_msgs::PointCloud2>("uncertainty_pcl", 10);
+    uncertainty_point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("uncertainty_pcl", 10);
+    point_clouds_publisher = nh.advertise<foveated_stereo_ros::PointClouds>("point_clouds", 10);
 
     /*for(int i=0; i<9; ++i)
     {
@@ -180,7 +178,8 @@ void StereoRosNode::cameraInfoCallback(const sensor_msgs::CameraInfoPtr & left_c
 
     marker_pub = nh.advertise<visualization_msgs::MarkerArray>("covariances", 1);
 
-
+    sync=boost::shared_ptr<Synchronizer<MySyncPolicy> > (new Synchronizer<MySyncPolicy>(MySyncPolicy(10), *left_image_sub, *right_image_sub));
+    sync->registerCallback(boost::bind(&StereoRosNode::callback, this, _1, _2));
     ROS_INFO_STREAM("done");
 }
 
@@ -311,28 +310,74 @@ void StereoRosNode::callback(const ImageConstPtr& left_image,
     sensor_msgs::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", stereo_data.disparity_image).toImageMsg();
     image_pub_.publish(msg);
     publishStereoData(stereo_data, left_image->header.stamp);
-    publishPointClouds(stereo_data, left_image->header.stamp);
     publishCovarianceMatrices(stereo_data, left_image->header.stamp);
 
 }
 
-void StereoRosNode::publishPointClouds(StereoData & sdd, const ros::Time & time)
+void StereoRosNode::publishStereoData(StereoData & sdd, const ros::Time & time)
 {
-    sensor_msgs::PointCloud2 point_cloud_msg;
-    pcl::toROSMsg(sdd.point_cloud, point_cloud_msg);
-    point_cloud_msg.is_dense=false;
-    point_cloud_msg.header.stamp=time;
-    point_cloud_publisher.publish(point_cloud_msg);
+    sensor_msgs::PointCloud2 rgb_point_cloud_msg;
+    pcl::toROSMsg(sdd.point_cloud, rgb_point_cloud_msg);
+    rgb_point_cloud_msg.is_dense=false;
+    rgb_point_cloud_msg.header.stamp=time;
+    rgb_point_cloud_publisher.publish(rgb_point_cloud_msg);
 
-    pcl::toROSMsg(sdd.mean_point_cloud, point_cloud_msg);
-    point_cloud_msg.is_dense=false;
-    point_cloud_msg.header.stamp=time;
-    mean_point_cloud_publisher.publish(point_cloud_msg);
+    sensor_msgs::PointCloud2 mean_point_cloud_msg;
+    pcl::toROSMsg(sdd.mean_point_cloud, mean_point_cloud_msg);
+    mean_point_cloud_msg.is_dense=false;
+    mean_point_cloud_msg.header.stamp=time;
+    mean_point_cloud_publisher.publish(mean_point_cloud_msg);
 
-    pcl::toROSMsg(sdd.point_cloud_uncertainty, point_cloud_msg);
-    point_cloud_msg.is_dense=false;
-    point_cloud_msg.header.stamp=time;
-    point_cloud_uncertainty_publisher.publish(point_cloud_msg);
+    sensor_msgs::PointCloud2 uncertainty_point_cloud_viz_msg;
+    pcl::toROSMsg(sdd.point_cloud_uncertainty_viz, uncertainty_point_cloud_viz_msg);
+    uncertainty_point_cloud_viz_msg.is_dense=false;
+    uncertainty_point_cloud_viz_msg.header.stamp=time;
+    uncertainty_point_cloud_publisher.publish(uncertainty_point_cloud_viz_msg);
+
+    foveated_stereo_ros::PointClouds point_clouds_msg;
+
+    sensor_msgs::PointCloud2 rgb_point_cloud_msg_base;
+    try
+    {
+        listener.waitForTransform("odom", rgb_point_cloud_msg.header.frame_id, ros::Time(0), ros::Duration(10.0) );
+        bool check_=pcl_ros::transformPointCloud("odom", rgb_point_cloud_msg, rgb_point_cloud_msg_base, listener);
+        if(!check_)
+        {
+            return;
+        }
+    }
+    catch (tf::TransformException &ex)
+    {
+        ROS_ERROR("%s",ex.what());
+        ros::Duration(1.0).sleep();
+        return;
+    }
+
+    sensor_msgs::PointCloud2 uncertainty_point_cloud_msg;
+    pcl::toROSMsg(sdd.point_cloud_uncertainty, uncertainty_point_cloud_msg);
+    uncertainty_point_cloud_msg.is_dense=false;
+    uncertainty_point_cloud_msg.header.stamp=time;
+
+    sensor_msgs::PointCloud2 uncertainty_point_cloud_msg_base;
+    try
+    {
+        bool check_=listener.waitForTransform("odom", uncertainty_point_cloud_msg.header.frame_id, ros::Time(0), ros::Duration(10.0) );
+        pcl_ros::transformPointCloud("odom", uncertainty_point_cloud_msg, uncertainty_point_cloud_msg_base, listener);
+        if(!check_)
+        {
+            return;
+        }
+    }
+    catch (tf::TransformException &ex)
+    {
+        ROS_ERROR("%s",ex.what());
+        ros::Duration(1.0).sleep();
+        return;
+    }
+
+    point_clouds_msg.rgb_point_cloud=rgb_point_cloud_msg_base;
+    point_clouds_msg.uncertainty_point_cloud=uncertainty_point_cloud_msg_base;
+    point_clouds_publisher.publish(point_clouds_msg);
 
     /*for(int i=0; i<sdd.sigma_point_clouds.size();++i)
     {
@@ -344,8 +389,52 @@ void StereoRosNode::publishPointClouds(StereoData & sdd, const ros::Time & time)
 
         sigma_point_clouds_publishers[i].publish(point_cloud_msg);
     }*/
-}
 
+
+    foveated_stereo_ros::Stereo stereo_msg;
+    stereo_msg.point_clouds.rgb_point_cloud=rgb_point_cloud_msg;
+    stereo_msg.header=rgb_point_cloud_msg.header;
+    stereo_msg.point_clouds.uncertainty_point_cloud=uncertainty_point_cloud_msg;
+
+    for(unsigned int r=0; r<sdd.cov_3d.size(); ++r)
+    {
+        for(unsigned int c=0; c<sdd.cov_3d[r].size();++c)
+        {
+            foveated_stereo_ros::Covariance covariance_msg;
+            foveated_stereo_ros::Information information_msg;
+            if(isnan(sdd.mean_3d.at<cv::Vec3d>(r,c)[0])) // Outliers
+                continue;
+
+            Eigen::Matrix<double,3,3> information_eigen;
+            cv2eigen(sdd.information_3d[r][c],information_eigen);
+
+            Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eig(information_eigen.transpose()*information_eigen); // last one is the greatest eigen value
+
+            //double norm_=(information_matrix.norm()); // L2 norm
+            double norm_=sqrt(eig.eigenvalues()(2)); // SPECTRAL NORM
+
+            if(log(norm_)<uncertainty_lower_bound || norm_!=norm_)
+            {
+                continue;
+            }
+
+            for(int i=0; i<3; ++i)
+            {
+                for(int j=0; j<3; ++j)
+                {
+                    int index=j+i*3;
+                    covariance_msg.covariance[index]=sdd.cov_3d[r][c].at<double>(i,j);
+                    information_msg.information[index]=sdd.information_3d[r][c].at<double>(i,j);
+                }
+            }
+
+            stereo_msg.covariances.push_back(covariance_msg);
+            stereo_msg.informations.push_back(information_msg);
+        }
+    }
+
+    stereo_data_publisher.publish(stereo_msg);
+}
 void StereoRosNode::publishCovarianceMatrices(StereoData & sdd, const ros::Time & time)
 {
 
@@ -408,55 +497,6 @@ void StereoRosNode::publishCovarianceMatrices(StereoData & sdd, const ros::Time 
     marker_pub.publish(marker_array);
 }
 
-void StereoRosNode::publishStereoData(StereoData & sdd, const ros::Time & time)
-{
-    foveated_stereo_ros::Stereo stereo_msg;
-    sensor_msgs::PointCloud2 point_cloud_msg;
-    pcl::toROSMsg(sdd.point_cloud, point_cloud_msg);
-    point_cloud_msg.is_dense=false;
-    point_cloud_msg.header.stamp=time;
-    stereo_msg.point_cloud=point_cloud_msg;
-    stereo_msg.header=point_cloud_msg.header;
-    for(unsigned int r=0; r<sdd.cov_3d.size(); ++r)
-    {
-        for(unsigned int c=0; c<sdd.cov_3d[r].size();++c)
-        {
-            if(isnan(sdd.mean_3d.at<cv::Vec3d>(r,c)[0])) // Outliers
-                continue;
-
-            Eigen::Matrix<double,3,3> information_eigen;
-            cv2eigen(sdd.information_3d[r][c],information_eigen);
-
-            Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eig(information_eigen.transpose()*information_eigen); // last one is the greatest eigen value
-
-            //double norm_=(information_matrix.norm()); // L2 norm
-            double norm_=sqrt(eig.eigenvalues()(2)); // SPECTRAL NORM
-
-            if(log(norm_)<uncertainty_lower_bound || norm_!=norm_)
-            {
-                continue;
-            }
-
-            foveated_stereo_ros::Covariance covariance_msg;
-            foveated_stereo_ros::Information information_msg;
-
-            for(int i=0; i<3; ++i)
-            {
-                for(int j=0; j<3; ++j)
-                {
-                    int index=j+i*3;
-                    covariance_msg.covariance[index]=sdd.cov_3d[r][c].at<double>(i,j);
-                    information_msg.information[index]=sdd.information_3d[r][c].at<double>(i,j);
-                }
-            }
-
-            stereo_msg.covariances.push_back(covariance_msg);
-            stereo_msg.informations.push_back(information_msg);
-        }
-    }
-
-    stereo_data_publisher.publish(stereo_msg);
-}
 
 int main(int argc, char** argv)
 {

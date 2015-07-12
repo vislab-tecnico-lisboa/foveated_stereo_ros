@@ -33,6 +33,7 @@ add_message_files(
   FILES
   Covariance.msg
   Information.msg
+  PointClouds.msg
   Stereo.msg
 )
 

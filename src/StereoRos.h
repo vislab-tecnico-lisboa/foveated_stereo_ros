@@ -34,6 +34,7 @@
 #include <tf_conversions/tf_eigen.h>
 #include <foveated_stereo_ros/Stereo.h>
 #include <boost/thread.hpp>
+#include <pcl_ros/transforms.h>
 
 using namespace sensor_msgs;
 
@@ -59,9 +60,9 @@ class StereoRosNode
 
     ros::NodeHandle nh;
     ros::NodeHandle private_node_handle;
-    ros::Publisher point_cloud_publisher;
-    ros::Publisher point_cloud_uncertainty_publisher;
-
+    ros::Publisher point_clouds_publisher;
+    ros::Publisher rgb_point_cloud_publisher;
+    ros::Publisher uncertainty_point_cloud_publisher;
     ros::Publisher mean_point_cloud_publisher;
     std::vector<ros::Publisher> sigma_point_clouds_publishers;
     std::string ego_frame;
@@ -95,8 +96,6 @@ public:
 
     void callback(const ImageConstPtr& left_image,
                   const ImageConstPtr& right_image);
-
-    void publishPointClouds(StereoData & sdd, const ros::Time & time);
 
     void publishCovarianceMatrices(StereoData & sdd, const ros::Time & time);
 
