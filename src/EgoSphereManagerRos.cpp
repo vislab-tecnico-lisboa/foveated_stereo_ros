@@ -2,7 +2,6 @@
 
 EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle & private_node_handle_) :
     nh(nh_),
-    world_frame_id("base_link"),
     ac("gaze", false)
   //world_frame_id("map")
 {
@@ -11,6 +10,7 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     int spherical_angle_bins;
     double uncertainty_lower_bound;
     double mahalanobis_distance_threshold;
+    private_node_handle_.param<std::string>("world_frame",world_frame_id,"base_link");
     private_node_handle_.param("egosphere_nodes", egosphere_nodes, 1000);
     private_node_handle_.param("spherical_angle_bins", spherical_angle_bins, 1000);
     private_node_handle_.param("uncertainty_lower_bound", uncertainty_lower_bound, 0.0);
@@ -49,6 +49,7 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     ROS_INFO_STREAM("mean: "<<mean_mat);
     ROS_INFO_STREAM("standard_deviation: "<<standard_deviation_mat);
     ROS_INFO_STREAM("active_vision: "<<active_vision);
+    ROS_INFO_STREAM("world_frame_id: "<<world_frame_id);
 
     tf::StampedTransform sensorToWorldTf;
 
