@@ -5,7 +5,7 @@ namespace foveated_stereo_ros
     void FoveatedStereoRosNodelet::onInit()
     {
         NODELET_INFO("Initializing nodelet");
-        inst_.reset(new FoveatedStereoNode(getNodeHandle(), getPrivateNodeHandle()));
+        inst_.reset(new FoveatedStereoRos(getNodeHandle(), getPrivateNodeHandle()));
     }
 }
 

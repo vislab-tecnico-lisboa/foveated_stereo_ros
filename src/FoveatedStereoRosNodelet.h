@@ -12,7 +12,7 @@ public:
     FoveatedStereoRosNodelet(){}
     ~FoveatedStereoRosNodelet(){}
     virtual void onInit();
-    boost::shared_ptr<FoveatedStereoNode> inst_;
+    boost::shared_ptr<FoveatedStereoRos> inst_;
 
 };
 

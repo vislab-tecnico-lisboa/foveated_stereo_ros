@@ -40,8 +40,9 @@ using namespace sensor_msgs;
 
 using namespace message_filters;
 
-class StereoRosNode
+class StereoRos
 {
+protected:
     int number_of_disparities;
     int ignore_border_left;
     boost::mutex connect_mutex_;
@@ -72,8 +73,6 @@ class StereoRosNode
 
     cv::Mat left_cam_intrinsic, right_cam_intrinsic;
 
-    void cameraInfoCallback(const sensor_msgs::CameraInfoPtr & left_camera_info);
-
 public:
     typedef sync_policies::ApproximateTime<Image, Image> MySyncPolicy;
 
@@ -85,9 +84,9 @@ public:
     boost::shared_ptr<stereo_calib> stereo_calibration;
     boost::shared_ptr<Stereo> stereo;
 
-    ~StereoRosNode();
+    ~StereoRos();
 
-    StereoRosNode(ros::NodeHandle & nh_,
+    StereoRos(ros::NodeHandle & nh_,
                   ros::NodeHandle & private_node_handle_
                   );
 

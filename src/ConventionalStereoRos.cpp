@@ -1,18 +1,18 @@
-#include "FoveatedStereoRos.h"
+#include "ConventionalStereoRos.h"
 using namespace sensor_msgs;
 
 using namespace message_filters;
 
-FoveatedStereoRos::~FoveatedStereoRos()
+ConventionalStereoRos::~ConventionalStereoRos()
 {}
 
-FoveatedStereoRos::FoveatedStereoRos(ros::NodeHandle & nh_, ros::NodeHandle & private_node_handle_) : StereoRos(nh_, private_node_handle_)
+ConventionalStereoRos::ConventionalStereoRos(ros::NodeHandle & nh_, ros::NodeHandle & private_node_handle_) : StereoRos(nh_,private_node_handle_)
 {
-    left_camera_info_sub=nh_.subscribe("/vizzy/l_camera/camera_info",1,&FoveatedStereoRos::cameraInfoCallback, this);
+    left_camera_info_sub=nh_.subscribe("/vizzy/l_camera/camera_info",1,&ConventionalStereoRos::cameraInfoCallback, this);
     return;
 }
 
-void FoveatedStereoRos::cameraInfoCallback(const sensor_msgs::CameraInfoPtr & left_camera_info)
+void ConventionalStereoRos::cameraInfoCallback(const sensor_msgs::CameraInfoPtr & left_camera_info)
 {
     left_camera_info_sub.shutdown();
 
@@ -102,7 +102,6 @@ void FoveatedStereoRos::cameraInfoCallback(const sensor_msgs::CameraInfoPtr & le
     left_image_sub=boost::shared_ptr<message_filters::Subscriber<Image> > (new message_filters::Subscriber<Image>(nh, "left_image", 10));
     right_image_sub=boost::shared_ptr<message_filters::Subscriber<Image> > (new message_filters::Subscriber<Image>(nh, "right_image", 10));
 
-
     ROS_INFO("Getting cameras' parameters");
     sensor_msgs::CameraInfoConstPtr right_camera_info=ros::topic::waitForMessage<sensor_msgs::CameraInfo>("/vizzy/r_camera/camera_info", ros::Duration(30));
 
@@ -122,7 +121,7 @@ void FoveatedStereoRos::cameraInfoCallback(const sensor_msgs::CameraInfoPtr & le
     int height=(int)left_camera_info->height;
 
     //stereo_calibration=boost::shared_ptr<stereo_calib> (new stereo_calib(fillStereoCalibParams(baseline)));
-    foveal_stereo=boost::shared_ptr<FovealStereo> (new FovealStereo(left_cam_intrinsic,
+    stereo=boost::shared_ptr<ConventionalStereo> (new ConventionalStereo(left_cam_intrinsic,
                                                      right_cam_intrinsic,
                                                      width,
                                                      height,
@@ -162,6 +161,7 @@ void FoveatedStereoRos::cameraInfoCallback(const sensor_msgs::CameraInfoPtr & le
     mean_point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("mean_pcl", 10);
     uncertainty_point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("uncertainty_pcl", 10);
     point_clouds_publisher = nh.advertise<foveated_stereo_ros::PointClouds>("point_clouds", 10);
+
     /*for(int i=0; i<9; ++i)
     {
         std::stringstream ss;
@@ -174,47 +174,11 @@ void FoveatedStereoRos::cameraInfoCallback(const sensor_msgs::CameraInfoPtr & le
     marker_pub = nh.advertise<visualization_msgs::MarkerArray>("covariances", 1);
 
     sync=boost::shared_ptr<Synchronizer<MySyncPolicy> > (new Synchronizer<MySyncPolicy>(MySyncPolicy(10), *left_image_sub, *right_image_sub));
-    sync->registerCallback(boost::bind(&FoveatedStereoRos::callback, this, _1, _2));
+    sync->registerCallback(boost::bind(&ConventionalStereoRos::callback, this, _1, _2));
     ROS_INFO_STREAM("done");
 }
 
-/*stereo_calib_params FoveatedStereoRos::fillStereoCalibParams(float & baseline)
-{
-    ROS_INFO("Getting cameras' paremeters");
-    sensor_msgs::CameraInfoConstPtr left_camera_info=ros::topic::waitForMessage<sensor_msgs::CameraInfo>("/vizzy/l_camera/camera_info", ros::Duration(30));
-    sensor_msgs::CameraInfoConstPtr right_camera_info=ros::topic::waitForMessage<sensor_msgs::CameraInfo>("/vizzy/r_camera/camera_info", ros::Duration(30));
-
-    stereo_calib_params params;
-    params.left_cam_cx=left_camera_info->K.at(2);
-    params.left_cam_cy=left_camera_info->K.at(5);
-    params.left_cam_fx=left_camera_info->K.at(0);
-    params.left_cam_fy=left_camera_info->K.at(4);
-    params.left_cam_resx=left_camera_info->width;
-    params.left_cam_resy=left_camera_info->height;
-
-    params.right_cam_cx=right_camera_info->K.at(2);
-    params.right_cam_cy=right_camera_info->K.at(5);
-    params.right_cam_fx=right_camera_info->K.at(0);
-    params.right_cam_fy=right_camera_info->K.at(4);
-    params.right_cam_resx=right_camera_info->width;
-    params.right_cam_resy=right_camera_info->height;
-
-    params.baseline=baseline; // meters
-    params.encoders_measurements_noise=0.0000000175;
-    params.encoders_state_noise=1.0;
-    params.encoders_transition_noise=0.005;
-    params.features_measurements_noise=25;
-    params.matching_threshold=0.35;
-    params.max_number_of_features=250;
-    params.min_number_of_features=2;
-    params.number_fixed_state_params=5;
-    params.number_measurements=6;
-    ROS_INFO("Done.");
-
-    return params;
-}*/
-
-void FoveatedStereoRos::callback(const ImageConstPtr& left_image,
+void ConventionalStereoRos::callback(const ImageConstPtr& left_image,
                                   const ImageConstPtr& right_image)
 {
     ros::WallTime startTime = ros::WallTime::now();
@@ -226,13 +190,13 @@ void FoveatedStereoRos::callback(const ImageConstPtr& left_image,
     // 2. Get eye angles with respect to eyes center
     try
     {
-        listener.waitForTransform(ego_frame, left_camera_frame, ros::Time(0), ros::Duration(1.0) );
+        listener.waitForTransform(ego_frame, left_camera_frame, ros::Time(0), ros::Duration(10.0) );
         listener.lookupTransform(ego_frame, left_camera_frame,
                                  ros::Time(0), l_eye_transform);
         /*listener.waitForTransform(ego_frame, "/r_camera_vision_link", ros::Time(0), ros::Duration(10.0) );
             listener.lookupTransform(ego_frame, "/r_camera_vision_link",
                                      ros::Time(0), r_eye_transform);*/
-        listener.waitForTransform(right_camera_frame, left_camera_frame, ros::Time(0), ros::Duration(1.0) );
+        listener.waitForTransform(right_camera_frame, left_camera_frame, ros::Time(0), ros::Duration(10.0) );
         listener.lookupTransform(right_camera_frame, left_camera_frame,
                                  ros::Time(0), r_l_eye_transform);
     }
@@ -291,7 +255,7 @@ void FoveatedStereoRos::callback(const ImageConstPtr& left_image,
     scd.t_left_cam_to_right_cam.at<double>(1,0) = r_l_eye_transform.getOrigin()[1];
     scd.t_left_cam_to_right_cam.at<double>(2,0) = r_l_eye_transform.getOrigin()[2];
 
-    StereoData stereo_data=foveal_stereo->computeStereo(left_image_mat,
+    StereoData stereo_data=stereo->computeStereo(left_image_mat,
                                                      right_image_mat,
                                                      scd.R_left_cam_to_right_cam,
                                                      scd.t_left_cam_to_right_cam,
@@ -305,11 +269,7 @@ void FoveatedStereoRos::callback(const ImageConstPtr& left_image,
     sensor_msgs::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", stereo_data.disparity_image).toImageMsg();
     image_pub_.publish(msg);
     publishStereoData(stereo_data, left_image->header.stamp);
-    //publishCovarianceMatrices(stereo_data, left_image->header.stamp);
-
-    total_elapsed = (ros::WallTime::now() - startTime).toSec();
-
-    ROS_INFO(" TOTAL TIME AFTER SENDING DATA:  %f sec", total_elapsed);
+    publishCovarianceMatrices(stereo_data, left_image->header.stamp);
 
 }
 
@@ -329,7 +289,8 @@ int main(int argc, char** argv)
 
     private_node_handle_.param("rate", rate, 100);
 
-    FoveatedStereoRos foveated_stereo_ros(nh, private_node_handle_);
+    ConventionalStereoRos ego_sphere(nh,
+                                  private_node_handle_);
 
     // Tell ROS how fast to run this node.
     ros::Rate r(rate);
