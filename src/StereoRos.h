@@ -32,7 +32,7 @@
 #include "opencv2/core/eigen.hpp"
 
 #include <tf_conversions/tf_eigen.h>
-#include <foveated_stereo_ros/Stereo.h>
+#include <foveated_stereo_ros/StereoData.h>
 #include <boost/thread.hpp>
 #include <pcl_ros/transforms.h>
 

@@ -169,7 +169,7 @@ void ConventionalStereoRos::cameraInfoCallback(const sensor_msgs::CameraInfoPtr 
         std::string str = ss.str();
         //sigma_point_clouds_publishers.push_back(nh.advertise<sensor_msgs::PointCloud2>("sigma_point_clouds_"+str, 10));
     }*/
-    stereo_data_publisher = nh.advertise<foveated_stereo_ros::Stereo>("stereo_data", 1);
+    stereo_data_publisher = nh.advertise<foveated_stereo_ros::StereoData>("stereo_data", 1);
 
     marker_pub = nh.advertise<visualization_msgs::MarkerArray>("covariances", 1);
 

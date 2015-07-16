@@ -34,7 +34,8 @@ add_message_files(
   Covariance.msg
   Information.msg
   PointClouds.msg
-  Stereo.msg
+  StereoData.msg
+  EgoData.msg
 )
 
 add_action_files(
@@ -123,7 +124,7 @@ target_link_libraries(ego_sphere_manager_ros_node
 add_dependencies(ego_sphere_manager_ros_node foveated_stereo_ros_generate_messages_cpp)
 
 # Nodelet library
-add_library(conventional_stereo_ros_nodelet src/FoveatedStereoRos.cpp src/FoveatedStereoRosNodelet.cpp)
+add_library(conventional_stereo_ros_nodelet src/ConventionalStereoRos.cpp src/StereoRos.cpp src/ConventionalStereoRosNodelet.cpp)
 target_link_libraries(conventional_stereo_ros_nodelet
    ${PCL_LIBRARIES}
    ${catkin_LIBRARIES}
