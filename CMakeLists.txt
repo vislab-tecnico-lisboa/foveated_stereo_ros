@@ -42,6 +42,11 @@ add_action_files(
   FILES Gaze.action
 )
 
+add_service_files(
+   FILES
+   GazeTarget.srv
+)
+
 generate_messages(
   DEPENDENCIES
   std_msgs
