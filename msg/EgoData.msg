@@ -1,0 +1,2 @@
+foveated_stereo_ros/PointClouds sensor_point_clouds
+foveated_stereo_ros/PointClouds ego_point_clouds

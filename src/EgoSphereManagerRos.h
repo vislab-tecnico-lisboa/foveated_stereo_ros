@@ -26,14 +26,14 @@
 #include <pcl_ros/transforms.h>
 #include "structures.h"
 #include "EgoSphere.h"
-#include <foveated_stereo_ros/Stereo.h>
+#include <foveated_stereo_ros/StereoData.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <pcl/filters/extract_indices.h>
 #include <actionlib/client/simple_action_client.h>
 #include <actionlib/client/terminal_state.h>
-#include <foveated_stereo_ros/GazeAction.h>
+#include <move_robot_msgs/GazeAction.h>
 #include <pcl_ros/transforms.h>
-
+#include <foveated_stereo_ros/EgoData.h>
 
 using namespace sensor_msgs;
 using namespace message_filters;
@@ -41,16 +41,16 @@ using namespace message_filters;
 class EgoSphereManagerRos
 {
     std::string world_frame_id;
-
+    std::string ego_frame_id;
     tf::TransformListener listener;
     tf::StampedTransform l_eye_transform;
 
     image_transport::Publisher image_pub_;
 
-    message_filters::Subscriber<foveated_stereo_ros::Stereo>* stereo_data_subscriber_;
-    tf::MessageFilter<foveated_stereo_ros::Stereo>* tf_filter_;
+    message_filters::Subscriber<foveated_stereo_ros::StereoData>* stereo_data_subscriber_;
+    tf::MessageFilter<foveated_stereo_ros::StereoData>* tf_filter_;
 
-    actionlib::SimpleActionClient<foveated_stereo_ros::GazeAction> ac;
+    actionlib::SimpleActionClient<move_robot_msgs::GazeAction> ac;
     bool active_vision;
 
 public:
@@ -72,10 +72,9 @@ public:
 
     ~EgoSphereManagerRos();
 
-    void insertCloudCallback(const foveated_stereo_ros::Stereo::ConstPtr& stereo_data);
+    void insertCloudCallback(const foveated_stereo_ros::StereoData::ConstPtr& stereo_data);
 
-    void publishAll(const ros::Time& rostime);
-    void publishCovarianceMatrices(const ros::Time & time);
+    void publishAll(const foveated_stereo_ros::StereoDataConstPtr& stereo_data);
 
     void insertScan(const PCLPointCloud& point_cloud, const std::vector<Eigen::Matrix3d> & covariances);
 

@@ -127,7 +127,7 @@ void StereoRos::publishStereoData(StereoData & sdd, const ros::Time & time)
     }*/
 
 
-    foveated_stereo_ros::Stereo stereo_msg;
+    foveated_stereo_ros::StereoData stereo_msg;
     stereo_msg.point_clouds.rgb_point_cloud=rgb_point_cloud_msg;
     stereo_msg.header=rgb_point_cloud_msg.header;
     stereo_msg.point_clouds.uncertainty_point_cloud=uncertainty_point_cloud_msg;

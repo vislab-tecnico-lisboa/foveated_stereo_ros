@@ -1,5 +1,0 @@
-#goal definition
-geometry_msgs/Point fixation_point
----
-bool result
-std_msgs/Float64 absolute_error

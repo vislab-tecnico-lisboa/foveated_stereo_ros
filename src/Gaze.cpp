@@ -96,7 +96,7 @@ void Gaze::move(const Eigen::Vector3d & fixation_point)
     state_monitor->getCurrentState()->copyJointGroupPositions(head_joint_model_group, head_joint_values);
 }
 
-void Gaze::executeCB(const foveated_stereo_ros::GazeGoalConstPtr &goal)
+void Gaze::executeCB(const move_msgs::GazeGoalConstPtr &goal)
 {
     // helper variables
     ros::Rate r(1);

@@ -11,6 +11,8 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     double uncertainty_lower_bound;
     double mahalanobis_distance_threshold;
     private_node_handle_.param<std::string>("world_frame",world_frame_id,"base_link");
+    private_node_handle_.param<std::string>("ego_frame",ego_frame_id,"eyes_center_vision_link");
+
     private_node_handle_.param("egosphere_nodes", egosphere_nodes, 1000);
     private_node_handle_.param("spherical_angle_bins", spherical_angle_bins, 1000);
     private_node_handle_.param("uncertainty_lower_bound", uncertainty_lower_bound, 0.0);
@@ -49,35 +51,38 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     ROS_INFO_STREAM("standard_deviation: "<<standard_deviation_mat);
     ROS_INFO_STREAM("active_vision: "<<active_vision);
     ROS_INFO_STREAM("world_frame_id: "<<world_frame_id);
+    ROS_INFO_STREAM("ego_frame_id: "<<ego_frame_id);
 
     tf::StampedTransform sensorToWorldTf;
+    ROS_INFO_STREAM("Waiting for transform from world to ego frame...");
 
-    while(1)
+    while(ros::ok())
     {
         try
         {
-            listener.lookupTransform("eyes_center_vision_link",world_frame_id, ros::Time::now(), sensorToWorldTf);
+            listener.waitForTransform(ego_frame_id, world_frame_id, ros::Time(0), ros::Duration(10.0) );
+            listener.lookupTransform(ego_frame_id, world_frame_id, ros::Time::now(), sensorToWorldTf);
         } catch(tf::TransformException& ex){
-            //ROS_ERROR_STREAM( "Transform error of sensor data: " << ex.what() << ", quitting callback");
+            ROS_DEBUG_STREAM( "Transform lookup failed: " << ex.what());
             continue;
         }
         break;
     }
+    ROS_INFO_STREAM("Done.");
 
     Eigen::Matrix4f sensorToWorld;
-
     pcl_ros::transformAsMatrix(sensorToWorldTf, sensorToWorld);
 
     ego_sphere=boost::shared_ptr<SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > > (new SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > (egosphere_nodes, spherical_angle_bins, sensorToWorld.cast <double> (),uncertainty_lower_bound,mahalanobis_distance_threshold,mean_mat,standard_deviation_mat));
     rgb_point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere", 2);
     uncertainty_point_cloud_publisher  = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere_uncertainty", 2);
-    point_clouds_publisher = nh.advertise<foveated_stereo_ros::PointClouds>("ego_point_clouds", 10);
+    point_clouds_publisher = nh.advertise<foveated_stereo_ros::EgoData>("ego_point_clouds", 10);
 
     marker_pub = nh.advertise<visualization_msgs::MarkerArray>("covariances_debug", 1);
     ego_sphere_hash_table  = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere_structure", 2);
 
-    stereo_data_subscriber_ = new message_filters::Subscriber<foveated_stereo_ros::Stereo> (nh, "stereo_data", 2);
-    tf_filter_ = new tf::MessageFilter<foveated_stereo_ros::Stereo> (*stereo_data_subscriber_, listener, world_frame_id, 2);
+    stereo_data_subscriber_ = new message_filters::Subscriber<foveated_stereo_ros::StereoData> (nh, "stereo_data", 2);
+    tf_filter_ = new tf::MessageFilter<foveated_stereo_ros::StereoData> (*stereo_data_subscriber_, listener, world_frame_id, 2);
     tf_filter_->registerCallback(boost::bind(&EgoSphereManagerRos::insertCloudCallback, this, _1));
     last=ros::Time::now();
 
@@ -112,7 +117,7 @@ EgoSphereManagerRos::~EgoSphereManagerRos()
     }
 }
 
-void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::Stereo::ConstPtr& stereo_data)
+void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoData::ConstPtr& stereo_data)
 {
     ROS_INFO_STREAM("Ego Sphere new data in.");
 
@@ -195,10 +200,10 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::Stereo:
 
         ROS_INFO_STREAM("   total points inserted: " <<   pc.size());
 
+        publishAll(stereo_data);
 
 
     }
-    publishAll(stereo_data->point_clouds.rgb_point_cloud.header.stamp);
 
     if(active_vision&&ego_sphere->new_closest_point)
     {
@@ -208,7 +213,7 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::Stereo:
         ROS_INFO("Started.");
 
         // send a goal to the action
-        foveated_stereo_ros::GazeGoal goal;
+        move_robot_msgs::GazeGoal goal;
         goal.fixation_point.header=stereo_data->point_clouds.rgb_point_cloud.header;
         goal.fixation_point.point.x = ego_sphere->closest_point(0);
         goal.fixation_point.point.y = ego_sphere->closest_point(1);
@@ -240,104 +245,56 @@ void EgoSphereManagerRos::insertScan(const PCLPointCloud& point_cloud, const std
 
 }
 
-void EgoSphereManagerRos::publishAll(const ros::Time& rostime)
+void EgoSphereManagerRos::publishAll(const foveated_stereo_ros::StereoDataConstPtr& stereo_data)
 {
     pcl::PointCloud<pcl::PointXYZRGB> point_cloud=ego_sphere->getPointCloud();
-
-    point_cloud.header.frame_id="eyes_center_vision_link";
-
+    point_cloud.header.frame_id=ego_frame_id;
     sensor_msgs::PointCloud2 rgb_point_cloud_msg;
-
     pcl::toROSMsg(point_cloud,rgb_point_cloud_msg);
-
     rgb_point_cloud_msg.is_dense=false;
-    rgb_point_cloud_msg.header.stamp=rostime;
-
+    rgb_point_cloud_msg.header.stamp=stereo_data->header.stamp;
     rgb_point_cloud_publisher.publish(rgb_point_cloud_msg);
 
     pcl::PointCloud<pcl::PointXYZI> point_cloud_uncertainty_viz=ego_sphere->getPointCloudUncertaintyViz();
-    point_cloud_uncertainty_viz.header.frame_id="eyes_center_vision_link";
+    point_cloud_uncertainty_viz.header.frame_id=ego_frame_id;
     sensor_msgs::PointCloud2 uncertainty_point_cloud_viz_msg;
     pcl::toROSMsg(point_cloud_uncertainty_viz, uncertainty_point_cloud_viz_msg);
-    uncertainty_point_cloud_viz_msg.is_dense=false;
-    uncertainty_point_cloud_viz_msg.header.stamp=rostime;
+    uncertainty_point_cloud_viz_msg.header=stereo_data->point_clouds.uncertainty_point_cloud.header;
     uncertainty_point_cloud_publisher.publish(uncertainty_point_cloud_viz_msg);
 
-    foveated_stereo_ros::PointClouds point_clouds_msg;
+
+    foveated_stereo_ros::PointClouds ego_point_clouds_msg;
 
     sensor_msgs::PointCloud2 rgb_point_cloud_msg_base;
-    pcl_ros::transformPointCloud("odom", rgb_point_cloud_msg, rgb_point_cloud_msg_base, listener);
+    pcl_ros::transformPointCloud(world_frame_id, rgb_point_cloud_msg, rgb_point_cloud_msg_base, listener);
 
     pcl::PointCloud<pcl::PointXYZI> point_cloud_uncertainty=ego_sphere->getPointCloudUncertainty();
-    point_cloud_uncertainty.header.frame_id="eyes_center_vision_link";
+    point_cloud_uncertainty.header.frame_id=ego_frame_id;
     sensor_msgs::PointCloud2 uncertainty_point_cloud_msg;
     pcl::toROSMsg(point_cloud_uncertainty, uncertainty_point_cloud_msg);
-    uncertainty_point_cloud_msg.is_dense=false;
-    uncertainty_point_cloud_msg.header.stamp=rostime;
+    uncertainty_point_cloud_msg.header=stereo_data->point_clouds.uncertainty_point_cloud.header;
 
     sensor_msgs::PointCloud2 uncertainty_point_cloud_msg_base;
+    pcl_ros::transformPointCloud(world_frame_id, uncertainty_point_cloud_msg, uncertainty_point_cloud_msg_base, listener);
 
-    pcl_ros::transformPointCloud("odom", uncertainty_point_cloud_msg, uncertainty_point_cloud_msg_base, listener);
+    ego_point_clouds_msg.rgb_point_cloud=rgb_point_cloud_msg_base;
+    ego_point_clouds_msg.uncertainty_point_cloud=uncertainty_point_cloud_msg_base;
 
-    point_clouds_msg.rgb_point_cloud=rgb_point_cloud_msg_base;
-    point_clouds_msg.uncertainty_point_cloud=uncertainty_point_cloud_msg_base;
-    point_clouds_publisher.publish(point_clouds_msg);
+    foveated_stereo_ros::EgoData ego_data_msg;
+
+    sensor_msgs::PointCloud2 sensor_rgb_point_cloud_msg_base;
+    sensor_msgs::PointCloud2 sensor_uncertainty_point_cloud_msg_base;
+
+    pcl_ros::transformPointCloud(world_frame_id, stereo_data->point_clouds.rgb_point_cloud, sensor_rgb_point_cloud_msg_base, listener);
+    pcl_ros::transformPointCloud(world_frame_id, stereo_data->point_clouds.uncertainty_point_cloud, sensor_uncertainty_point_cloud_msg_base, listener);
+
+    ego_data_msg.sensor_point_clouds.rgb_point_cloud=sensor_rgb_point_cloud_msg_base;
+    ego_data_msg.sensor_point_clouds.uncertainty_point_cloud=sensor_uncertainty_point_cloud_msg_base;
+    ego_data_msg.ego_point_clouds=ego_point_clouds_msg;
+
+    point_clouds_publisher.publish(ego_data_msg);
 }
 
-
-void EgoSphereManagerRos::publishCovarianceMatrices(const ros::Time & time)
-{
-
-    /*visualization_msgs::MarkerArray marker_array;
-    double scale=0.5;
-    int index=0;
-    for(std::vector<boost::shared_ptr<MemoryPatch> >::iterator structure_it = ego_sphere->structure.begin(); structure_it != ego_sphere->structure.end(); ++structure_it)
-    {
-        double norm_=(*structure_it)->sensory_data.position.inv_cov.norm();
-        if(norm_<0.01)
-        {
-            continue;
-        }
-
-        Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eig((*structure_it)->sensory_data.position.information);
-        Eigen::Quaternion<double> q(-eig.eigenvectors());
-        q.normalize();
-
-        visualization_msgs::Marker marker;
-        // Set the frame ID and timestamp.  See the TF tutorials for information on these.
-        marker.header.frame_id = "eyes_center_vision_link";
-        marker.header.stamp = ros::Time::now();
-        marker.ns = "covariances";
-        marker.id = index++;
-        marker.type = visualization_msgs::Marker::SPHERE;
-        marker.action = visualization_msgs::Marker::ADD;
-
-        // Set the pose of the marker.  This is a full 6DOF pose relative to the frame/time specified in the header
-        marker.pose.position.x = (*structure_it)->sensory_data.position.mean[0];
-        marker.pose.position.y = (*structure_it)->sensory_data.position.mean[1];
-        marker.pose.position.z = (*structure_it)->sensory_data.position.mean[2];
-        marker.pose.orientation.x = q.x();
-        marker.pose.orientation.y = q.y();
-        marker.pose.orientation.z = q.z();
-        marker.pose.orientation.w = q.w();
-
-        // Set the scale of the marker -- 1x1x1 here means 1m on a side
-        marker.scale.x = scale*eig.eigenvalues()(0);
-        marker.scale.y = scale*eig.eigenvalues()(1);
-        marker.scale.z = scale*eig.eigenvalues()(2);
-
-        // Set the color -- be sure to set alpha to something non-zero!
-        marker.color.r = 0.0f;
-        marker.color.g = 1.0f;
-        marker.color.b = 0.0f;
-        marker.color.a = 1.0;
-
-        marker.lifetime = ros::Duration(1.2);
-        marker_array.markers.push_back(marker);
-
-    }
-    marker_pub.publish(marker_array);*/
-}
 int main(int argc, char** argv)
 {
     ros::init(argc, argv, "vision_node");

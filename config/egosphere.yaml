@@ -5,4 +5,5 @@ mahalanobis_distance_threshold: 3.0
 mean: [0.0, 0.0, 0.0]
 standard_deviation: [1.0, 1.0, 1.0]
 active_vision: false
-world_frame: odom
+world_frame: map
+ego_frame: eyes_center_vision_link

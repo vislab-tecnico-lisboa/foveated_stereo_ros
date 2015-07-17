@@ -19,10 +19,10 @@ find_package(catkin REQUIRED COMPONENTS
   message_generation
   nodelet
   actionlib_msgs
-
   moveit_core
   moveit_ros_planning
   moveit_ros_planning_interface
+  move_robot_msgs
 )
 
 find_package(PCL)
@@ -34,17 +34,8 @@ add_message_files(
   Covariance.msg
   Information.msg
   PointClouds.msg
-  Stereo.msg
-)
-
-add_action_files(
-  DIRECTORY action
-  FILES Gaze.action
-)
-
-add_service_files(
-   FILES
-   GazeTarget.srv
+  StereoData.msg
+  EgoData.msg
 )
 
 generate_messages(
@@ -98,8 +89,6 @@ target_link_libraries(conventional_stereo_ros_node
 )
 add_dependencies(conventional_stereo_ros_node foveated_stereo_ros_generate_messages_cpp)
 
-
-
 ## Declare a cpp executable
 add_executable(foveated_stereo_ros_node src/FoveatedStereoRos.cpp src/StereoRos.cpp)
 
@@ -128,7 +117,7 @@ target_link_libraries(ego_sphere_manager_ros_node
 add_dependencies(ego_sphere_manager_ros_node foveated_stereo_ros_generate_messages_cpp)
 
 # Nodelet library
-add_library(conventional_stereo_ros_nodelet src/FoveatedStereoRos.cpp src/FoveatedStereoRosNodelet.cpp)
+add_library(conventional_stereo_ros_nodelet src/ConventionalStereoRos.cpp src/StereoRos.cpp src/ConventionalStereoRosNodelet.cpp)
 target_link_libraries(conventional_stereo_ros_nodelet
    ${PCL_LIBRARIES}
    ${catkin_LIBRARIES}
@@ -176,17 +165,17 @@ install(FILES foveated_stereo_nodelets.xml
         DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
 
-add_executable(gaze src/Gaze.cpp)
+#add_executable(gaze src/Gaze.cpp)
 ## Specify libraries to link a library or executable target against
-target_link_libraries(gaze
-   ${catkin_LIBRARIES}
-)
+#target_link_libraries(gaze
+#   ${catkin_LIBRARIES}
+#)
 
-add_executable(gaze_client src/GazeClient.cpp)
+#add_executable(gaze_client src/GazeClient.cpp)
 ## Specify libraries to link a library or executable target against
-target_link_libraries(gaze_client
-   ${catkin_LIBRARIES}
-)
+#target_link_libraries(gaze_client
+#   ${catkin_LIBRARIES}
+#)
 
 #add_executable(teste src/test.cpp)
 ## Specify libraries to link a library or executable target against

@@ -24,7 +24,7 @@
 
 #include <ros/ros.h>
 #include <actionlib/server/simple_action_server.h>
-#include <foveated_stereo_ros/GazeAction.h>
+#include <move_msgs/GazeAction.h>
 #include <tf/transform_listener.h>
 
 #include <moveit/planning_scene_monitor/planning_scene_monitor.h>
@@ -42,11 +42,11 @@ protected:
     ros::NodeHandle private_node_handle;
 
     // NodeHandle instance must be created before this line. Otherwise strange error may occur.
-    actionlib::SimpleActionServer<foveated_stereo_ros::GazeAction> as_;
+    actionlib::SimpleActionServer<move_msgs::GazeAction> as_;
     std::string action_name_;
     // create messages that are used to published feedback/result
-    foveated_stereo_ros::GazeFeedback feedback_;
-    foveated_stereo_ros::GazeResult result_;
+    move_msgs::GazeFeedback feedback_;
+    move_msgs::GazeResult result_;
 
     ros::Publisher neck_pan_publisher;
     ros::Publisher neck_tilt_publisher;
@@ -73,7 +73,7 @@ public:
     Gaze(std::string name);
     void move(const Eigen::Vector3d &fixation_point);
 
-    void executeCB(const foveated_stereo_ros::GazeGoalConstPtr &goal);
+    void executeCB(const move_msgs::GazeGoalConstPtr &goal);
 };
 
 #endif // GAZE_H
