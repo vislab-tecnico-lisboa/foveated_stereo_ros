@@ -143,7 +143,7 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
     ROS_INFO_STREAM(" 1. transform time: " <<  (transform_time - startTime).toSec());
 
     // 1. Update or insert
-    if(ego_sphere->update(sensorToWorld.cast <double> ()))
+    if(ego_sphere->transform(sensorToWorld.cast <double> ()))
     {
         ///////////////////////
         // Update ego-sphere //
@@ -159,7 +159,7 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
         // Insert new data into the ego-sphere //
         /////////////////////////////////////////
 
-
+        // Filter data
         pcl::PointIndices::Ptr inliers (new pcl::PointIndices ());
 
         PCLPointCloud pc; // input cloud for filtering and ground-detection
@@ -217,7 +217,7 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
 
         for(int i=0; i<informations.size();++i)
         {
-            informations[i]=sensorToEgo.block(0,0,3,3).cast <double> ()*informations[i];
+            informations[i].noalias()=sensorToEgo.block(0,0,3,3).cast <double> ()*informations[i]*sensorToEgo.block(0,0,3,3).transpose().cast <double> ();
         }
 
 
@@ -251,7 +251,7 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
         ac.sendGoal(goal);
 
         //wait for the action to return
-        bool finished_before_timeout = ac.waitForResult(ros::Duration(2.0));
+        bool finished_before_timeout = ac.waitForResult(ros::Duration(10.0));
 
         if (finished_before_timeout)
         {
@@ -259,7 +259,9 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
             ROS_INFO("Action finished: %s",state.toString().c_str());
         }
         else
-            ROS_INFO("Action did not finish before the time out.");
+        {
+            ROS_ERROR("Action did not finish before the time out.");
+        }
     }
 
     double total_elapsed = (ros::WallTime::now() - startTime).toSec();

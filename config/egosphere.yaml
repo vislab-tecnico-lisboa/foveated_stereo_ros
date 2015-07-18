@@ -1,6 +1,6 @@
 spherical_angle_bins: 1000
 egosphere_nodes: 400000
-uncertainty_lower_bound: 10.0
+uncertainty_lower_bound: -1
 mahalanobis_distance_threshold: 3.0
 mean: [0.0, 0.0, 0.0]
 standard_deviation: [1.0, 1.0, 1.0]

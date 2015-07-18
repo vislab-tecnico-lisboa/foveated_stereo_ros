@@ -9,7 +9,8 @@ StereoRos::~StereoRos()
 StereoRos::StereoRos(ros::NodeHandle & nh_, ros::NodeHandle & private_node_handle_) :
     nh(nh_),
     private_node_handle(private_node_handle_),
-    it_(nh_)
+    it_(nh_),
+    listener(new tf::TransformListener(ros::Duration(2.0)))
 {
     return;
 }
@@ -79,11 +80,14 @@ void StereoRos::publishStereoData(StereoData & sdd, const ros::Time & time)
     stereo_msg.point_clouds.rgb_point_cloud=rgb_point_cloud_msg;
     stereo_msg.header=rgb_point_cloud_msg.header;
     stereo_msg.point_clouds.uncertainty_point_cloud=uncertainty_point_cloud_msg;
+    cv::Mat informations_determinants=sdd.getInformationsDeterminants();
 
-    for(unsigned int r=0; r<sdd.cov_3d.size(); ++r)
+    for(unsigned int r=0; r<sdd.information_3d.size(); ++r)
     {
-        for(unsigned int c=0; c<sdd.cov_3d[r].size();++c)
+        for(unsigned int c=0; c<sdd.information_3d[r].size();++c)
         {
+            if(isnan(informations_determinants.at<double>(r,c))||isnan(log(informations_determinants.at<double>(r,c)))||log(informations_determinants.at<double>(r,c))<information_lower_bound)
+                continue;
             //foveated_stereo_ros::Covariance covariance_msg;
             foveated_stereo_ros::Information information_msg;
 
@@ -128,13 +132,13 @@ void StereoRos::publishCovarianceMatrices(StereoData & sdd, const ros::Time & ti
     double scale=1.0;
     int jump=5;
 
-    cv::Mat information_norms=sdd.getInformationsDeterminants();
+    cv::Mat informations_determinants=sdd.getInformationsDeterminants();
 
-    for(int r=0; r<sdd.cov_3d.size();r=r+jump)
+    for(int r=0; r<sdd.information_3d.size();r=r+jump)
     {
-        for(int c=ignore_border_left; c<sdd.cov_3d[r].size();c=c+jump)
+        for(int c=ignore_border_left; c<sdd.information_3d[r].size();c=c+jump)
         {
-            if(log(information_norms.at<double>(r,c))<uncertainty_lower_bound || isnan(log(information_norms.at<double>(r,c))) || isnan(sdd.mean_3d.at<cv::Vec3d>(r,c)[0]))
+            if(isnan(informations_determinants.at<double>(r,c))||isnan(log(informations_determinants.at<double>(r,c)))||log(informations_determinants.at<double>(r,c))<information_lower_bound)
             {
                 continue;
             }

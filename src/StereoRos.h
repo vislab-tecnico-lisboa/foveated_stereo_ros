@@ -47,7 +47,7 @@ protected:
     int ignore_border_left;
     boost::mutex connect_mutex_;
     // For visualizing things in rviz
-    tf::TransformListener listener;
+    boost::shared_ptr<tf::TransformListener> listener;
     tf::StampedTransform l_eye_transform;
     tf::StampedTransform r_eye_transform;
     tf::StampedTransform r_l_eye_transform;
@@ -68,7 +68,7 @@ protected:
     std::string ego_frame;
     std::string left_camera_frame;
     std::string right_camera_frame;
-    double uncertainty_lower_bound;
+    double information_lower_bound;
 
     cv::Mat left_cam_intrinsic, right_cam_intrinsic;
 

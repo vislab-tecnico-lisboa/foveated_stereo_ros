@@ -38,7 +38,7 @@ void FoveatedStereoRos::cameraInfoCallback(const sensor_msgs::CameraInfoPtr & le
     private_node_handle.param<std::string>("ego_frame", ego_frame, "ego_frame");
     private_node_handle.param<std::string>("left_camera_frame", left_camera_frame, "left_camera_frame");
     private_node_handle.param<std::string>("right_camera_frame", right_camera_frame, "right_camera_frame");
-    private_node_handle.param("uncertainty_lower_bound", uncertainty_lower_bound, 0.0);
+    private_node_handle.param("information_lower_bound", information_lower_bound, 0.0);
     private_node_handle.param("L", L, 1.0);
     private_node_handle.param("alpha", alpha, 1.0);
     private_node_handle.param("beta", beta, 2.0);
@@ -55,7 +55,7 @@ void FoveatedStereoRos::cameraInfoCallback(const sensor_msgs::CameraInfoPtr & le
     ROS_INFO_STREAM("ego_frame: "<<ego_frame);
     ROS_INFO_STREAM("left_camera_frame: "<<left_camera_frame);
     ROS_INFO_STREAM("right_camera_frame: "<<right_camera_frame);
-    ROS_INFO_STREAM("uncertainty_lower_bound: "<<uncertainty_lower_bound);
+    ROS_INFO_STREAM("information_lower_bound: "<<information_lower_bound);
     ROS_INFO_STREAM("L: "<<L);
     ROS_INFO_STREAM("alpha: "<<alpha);
     ROS_INFO_STREAM("beta: "<<beta);
@@ -135,7 +135,7 @@ void FoveatedStereoRos::cameraInfoCallback(const sensor_msgs::CameraInfoPtr & le
                                                      sectors,
                                                      sp,
                                                      ego_frame,
-                                                     uncertainty_lower_bound,
+                                                     information_lower_bound,
                                                      L,
                                                      alpha,
                                                      ki,
@@ -180,6 +180,7 @@ void FoveatedStereoRos::cameraInfoCallback(const sensor_msgs::CameraInfoPtr & le
 void FoveatedStereoRos::callback(const ImageConstPtr& left_image,
                                   const ImageConstPtr& right_image)
 {
+    ROS_INFO("Stereo callback...");
     ros::WallTime startTime = ros::WallTime::now();
 
     // 1. Get uncalibrated color images
@@ -189,11 +190,11 @@ void FoveatedStereoRos::callback(const ImageConstPtr& left_image,
     // 2. Get eye angles with respect to eyes center
     try
     {
-        listener.waitForTransform(ego_frame, left_camera_frame, ros::Time(0), ros::Duration(10.0));
-        listener.lookupTransform(ego_frame, left_camera_frame,
+        listener->waitForTransform(ego_frame, left_camera_frame, ros::Time(0), ros::Duration(1.0));
+        listener->lookupTransform(ego_frame, left_camera_frame,
                                  ros::Time(0), l_eye_transform);
-        listener.waitForTransform(right_camera_frame, left_camera_frame, ros::Time(0), ros::Duration(10.0));
-        listener.lookupTransform(right_camera_frame, left_camera_frame,
+        listener->waitForTransform(right_camera_frame, left_camera_frame, ros::Time(0), ros::Duration(1.0));
+        listener->lookupTransform(right_camera_frame, left_camera_frame,
                                  ros::Time(0), r_l_eye_transform);
     }
     catch (tf::TransformException &ex)
