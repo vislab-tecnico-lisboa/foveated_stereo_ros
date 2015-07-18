@@ -87,7 +87,7 @@ target_link_libraries(conventional_stereo_ros_node
    STEREO_CALIB_LIB
    ${OpenCV_LIBRARIES}
 )
-add_dependencies(conventional_stereo_ros_node foveated_stereo_ros_generate_messages_cpp)
+add_dependencies(conventional_stereo_ros_node foveated_stereo_ros_gencpp)
 
 ## Declare a cpp executable
 add_executable(foveated_stereo_ros_node src/FoveatedStereoRos.cpp src/StereoRos.cpp)
@@ -100,7 +100,7 @@ target_link_libraries(foveated_stereo_ros_node
    STEREO_CALIB_LIB
    ${OpenCV_LIBRARIES}
 )
-add_dependencies(foveated_stereo_ros_node foveated_stereo_ros_generate_messages_cpp)
+add_dependencies(foveated_stereo_ros_node foveated_stereo_ros_gencpp)
 
 ## Declare a cpp executable
 add_executable(ego_sphere_manager_ros_node src/EgoSphereManagerRos.cpp)
@@ -114,7 +114,7 @@ target_link_libraries(ego_sphere_manager_ros_node
    ${OpenCV_LIBRARIES}
 )
 
-add_dependencies(ego_sphere_manager_ros_node foveated_stereo_ros_generate_messages_cpp)
+add_dependencies(ego_sphere_manager_ros_node foveated_stereo_ros_gencpp)
 
 # Nodelet library
 add_library(conventional_stereo_ros_nodelet src/ConventionalStereoRos.cpp src/StereoRos.cpp src/ConventionalStereoRosNodelet.cpp)
@@ -141,6 +141,7 @@ target_link_libraries(foveated_stereo_ros_nodelet
    foveated_stereo_lib
    STEREO_CALIB_LIB
    ${OpenCV_LIBRARIES})
+add_dependencies(foveated_stereo_ros_nodelet foveated_stereo_ros_gencpp)
 
 install(TARGETS foveated_stereo_ros_nodelet
         DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
@@ -157,7 +158,7 @@ target_link_libraries(ego_sphere_manager_ros_nodedelet
    foveated_stereo_lib
    STEREO_CALIB_LIB
    ${OpenCV_LIBRARIES})
-
+add_dependencies(ego_sphere_manager_ros_nodedelet foveated_stereo_ros_gencpp)
 install(TARGETS ego_sphere_manager_ros_nodedelet
         DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 )

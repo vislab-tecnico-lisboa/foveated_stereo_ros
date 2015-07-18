@@ -70,50 +70,42 @@ void StereoRos::publishStereoData(StereoData & sdd, const ros::Time & time)
     uncertainty_point_cloud_viz_msg.header.stamp=time;
     uncertainty_point_cloud_publisher.publish(uncertainty_point_cloud_viz_msg);
 
-    foveated_stereo_ros::PointClouds point_clouds_msg;
-
-    sensor_msgs::PointCloud2 rgb_point_cloud_msg_base;
-    try
-    {
-        listener.waitForTransform("odom", rgb_point_cloud_msg.header.frame_id, ros::Time(0), ros::Duration(10.0) );
-        bool check_=pcl_ros::transformPointCloud("odom", rgb_point_cloud_msg, rgb_point_cloud_msg_base, listener);
-        if(!check_)
-        {
-            return;
-        }
-    }
-    catch (tf::TransformException &ex)
-    {
-        ROS_ERROR("%s",ex.what());
-        ros::Duration(1.0).sleep();
-        return;
-    }
-
     sensor_msgs::PointCloud2 uncertainty_point_cloud_msg;
     pcl::toROSMsg(sdd.point_cloud_uncertainty, uncertainty_point_cloud_msg);
     uncertainty_point_cloud_msg.is_dense=false;
     uncertainty_point_cloud_msg.header.stamp=time;
 
-    sensor_msgs::PointCloud2 uncertainty_point_cloud_msg_base;
-    try
+    foveated_stereo_ros::StereoData stereo_msg;
+    stereo_msg.point_clouds.rgb_point_cloud=rgb_point_cloud_msg;
+    stereo_msg.header=rgb_point_cloud_msg.header;
+    stereo_msg.point_clouds.uncertainty_point_cloud=uncertainty_point_cloud_msg;
+
+    for(unsigned int r=0; r<sdd.cov_3d.size(); ++r)
     {
-        bool check_=listener.waitForTransform("odom", uncertainty_point_cloud_msg.header.frame_id, ros::Time(0), ros::Duration(10.0) );
-        pcl_ros::transformPointCloud("odom", uncertainty_point_cloud_msg, uncertainty_point_cloud_msg_base, listener);
-        if(!check_)
+        for(unsigned int c=0; c<sdd.cov_3d[r].size();++c)
         {
-            return;
+            //foveated_stereo_ros::Covariance covariance_msg;
+            foveated_stereo_ros::Information information_msg;
+
+            Eigen::Matrix<double,3,3> information_eigen;
+            cv2eigen(sdd.information_3d[r][c],information_eigen);
+
+            for(int i=0; i<3; ++i)
+            {
+                for(int j=0; j<3; ++j)
+                {
+                    int index=j+i*3;
+                    //covariance_msg.covariance[index]=sdd.cov_3d[r][c].at<double>(i,j);
+                    information_msg.information[index]=sdd.information_3d[r][c].at<double>(i,j);
+                }
+            }
+
+            //stereo_msg.covariances.push_back(covariance_msg);
+            stereo_msg.informations.push_back(information_msg);
         }
     }
-    catch (tf::TransformException &ex)
-    {
-        ROS_ERROR("%s",ex.what());
-        ros::Duration(1.0).sleep();
-        return;
-    }
 
-    point_clouds_msg.rgb_point_cloud=rgb_point_cloud_msg_base;
-    point_clouds_msg.uncertainty_point_cloud=uncertainty_point_cloud_msg_base;
-    point_clouds_publisher.publish(point_clouds_msg);
+
 
     /*for(int i=0; i<sdd.sigma_point_clouds.size();++i)
     {
@@ -127,48 +119,6 @@ void StereoRos::publishStereoData(StereoData & sdd, const ros::Time & time)
     }*/
 
 
-    foveated_stereo_ros::StereoData stereo_msg;
-    stereo_msg.point_clouds.rgb_point_cloud=rgb_point_cloud_msg;
-    stereo_msg.header=rgb_point_cloud_msg.header;
-    stereo_msg.point_clouds.uncertainty_point_cloud=uncertainty_point_cloud_msg;
-
-    for(unsigned int r=0; r<sdd.cov_3d.size(); ++r)
-    {
-        for(unsigned int c=0; c<sdd.cov_3d[r].size();++c)
-        {
-            foveated_stereo_ros::Covariance covariance_msg;
-            foveated_stereo_ros::Information information_msg;
-            if(isnan(sdd.mean_3d.at<cv::Vec3d>(r,c)[0])) // Outliers
-                continue;
-
-            Eigen::Matrix<double,3,3> information_eigen;
-            cv2eigen(sdd.information_3d[r][c],information_eigen);
-
-            Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eig(information_eigen.transpose()*information_eigen); // last one is the greatest eigen value
-
-            //double norm_=(information_matrix.norm()); // L2 norm
-            double norm_=sqrt(eig.eigenvalues()(2)); // SPECTRAL NORM
-
-            if(log(norm_)<uncertainty_lower_bound || norm_!=norm_)
-            {
-                continue;
-            }
-
-            for(int i=0; i<3; ++i)
-            {
-                for(int j=0; j<3; ++j)
-                {
-                    int index=j+i*3;
-                    covariance_msg.covariance[index]=sdd.cov_3d[r][c].at<double>(i,j);
-                    information_msg.information[index]=sdd.information_3d[r][c].at<double>(i,j);
-                }
-            }
-
-            stereo_msg.covariances.push_back(covariance_msg);
-            stereo_msg.informations.push_back(information_msg);
-        }
-    }
-
     stereo_data_publisher.publish(stereo_msg);
 }
 void StereoRos::publishCovarianceMatrices(StereoData & sdd, const ros::Time & time)
@@ -178,7 +128,7 @@ void StereoRos::publishCovarianceMatrices(StereoData & sdd, const ros::Time & ti
     double scale=1.0;
     int jump=5;
 
-    cv::Mat information_norms=sdd.getInformationsNorms();
+    cv::Mat information_norms=sdd.getInformationsDeterminants();
 
     for(int r=0; r<sdd.cov_3d.size();r=r+jump)
     {

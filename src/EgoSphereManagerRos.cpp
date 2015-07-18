@@ -54,14 +54,14 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     ROS_INFO_STREAM("ego_frame_id: "<<ego_frame_id);
 
     tf::StampedTransform sensorToWorldTf;
-    ROS_INFO_STREAM("Waiting for transform from world to ego frame...");
+    ROS_INFO_STREAM("Waiting for transform from world ("<<world_frame_id<<") to ego frame ("<<ego_frame_id<<")...");
 
     while(ros::ok())
     {
         try
         {
             listener.waitForTransform(ego_frame_id, world_frame_id, ros::Time(0), ros::Duration(10.0) );
-            listener.lookupTransform(ego_frame_id, world_frame_id, ros::Time::now(), sensorToWorldTf);
+            listener.lookupTransform(ego_frame_id, world_frame_id, ros::Time(0), sensorToWorldTf);
         } catch(tf::TransformException& ex){
             ROS_DEBUG_STREAM( "Transform lookup failed: " << ex.what());
             continue;
@@ -127,9 +127,9 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
     tf::StampedTransform sensorToWorldTf;
     try
     {
-        listener.waitForTransform(stereo_data->point_clouds.rgb_point_cloud.header.frame_id, world_frame_id, ros::Time(0), ros::Duration(10.0) );
+        listener.waitForTransform(ego_frame_id, world_frame_id, stereo_data->point_clouds.rgb_point_cloud.header.stamp, ros::Duration(10.0) );
 
-        listener.lookupTransform(stereo_data->point_clouds.rgb_point_cloud.header.frame_id, world_frame_id, stereo_data->point_clouds.rgb_point_cloud.header.stamp, sensorToWorldTf);
+        listener.lookupTransform(ego_frame_id, world_frame_id, stereo_data->point_clouds.rgb_point_cloud.header.stamp, sensorToWorldTf);
     } catch(tf::TransformException& ex){
         ROS_ERROR_STREAM( "Transform error of sensor data: " << ex.what() << ", quitting callback");
         return;
@@ -159,6 +159,7 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
         // Insert new data into the ego-sphere //
         /////////////////////////////////////////
 
+
         pcl::PointIndices::Ptr inliers (new pcl::PointIndices ());
 
         PCLPointCloud pc; // input cloud for filtering and ground-detection
@@ -167,8 +168,9 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
 
         std::vector<Eigen::Matrix3d> informations;
         informations.reserve(stereo_data->informations.size());
-        for(int c=0; c<stereo_data->informations.size();++c)
+        for(int inlier_index=0; inlier_index<inliers->indices.size();++inlier_index)
         {
+            int c=inliers->indices[inlier_index];
             Eigen::Matrix3d information;
             for(int i=0; i<3; ++i)
             {
@@ -193,16 +195,43 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
 
         ROS_INFO_STREAM(" 2. filtering time: " <<  (filtering_time - transform_time).toSec());
 
+
+
+        tf::StampedTransform sensorToEgoTf;
+        try
+        {
+            listener.waitForTransform(ego_frame_id, stereo_data->point_clouds.rgb_point_cloud.header.frame_id, stereo_data->point_clouds.rgb_point_cloud.header.stamp, ros::Duration(10.0) );
+
+            listener.lookupTransform(ego_frame_id, stereo_data->point_clouds.rgb_point_cloud.header.frame_id, stereo_data->point_clouds.rgb_point_cloud.header.stamp, sensorToEgoTf);
+        } catch(tf::TransformException& ex){
+            ROS_ERROR_STREAM( "Transform error of sensor data: " << ex.what() << ", quitting callback");
+            return;
+        }
+
+
+        Eigen::Matrix4f sensorToEgo;
+        pcl_ros::transformAsMatrix(sensorToEgoTf, sensorToEgo);
+
+        pcl::transformPointCloud (pc, pc, sensorToEgo);
+        ros::WallTime transform_data_time = ros::WallTime::now();
+
+        for(int i=0; i<informations.size();++i)
+        {
+            informations[i]=sensorToEgo.block(0,0,3,3).cast <double> ()*informations[i];
+        }
+
+
+        ROS_INFO_STREAM(" 2. transform data time: " <<  (transform_data_time - filtering_time).toSec());
+
+
         insertScan(pc,informations);
 
         ros::WallTime insert_time = ros::WallTime::now();
-        ROS_INFO_STREAM(" 2. insertion time: " <<  (insert_time - filtering_time).toSec());
+        ROS_INFO_STREAM(" 2. insertion time: " <<  (insert_time - transform_data_time).toSec());
 
         ROS_INFO_STREAM("   total points inserted: " <<   pc.size());
 
         publishAll(stereo_data);
-
-
     }
 
     if(active_vision&&ego_sphere->new_closest_point)

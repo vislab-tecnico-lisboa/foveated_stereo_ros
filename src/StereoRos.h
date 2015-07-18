@@ -61,7 +61,6 @@ protected:
 
     ros::NodeHandle nh;
     ros::NodeHandle private_node_handle;
-    ros::Publisher point_clouds_publisher;
     ros::Publisher rgb_point_cloud_publisher;
     ros::Publisher uncertainty_point_cloud_publisher;
     ros::Publisher mean_point_cloud_publisher;

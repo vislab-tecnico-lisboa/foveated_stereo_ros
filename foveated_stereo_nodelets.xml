@@ -7,6 +7,15 @@
   </class>
 </library>
 
+<library path="lib/libconventional_stereo_ros_nodelet">
+  <class name="foveated_stereo_ros/ConventionalStereoRosNodelet" type="foveated_stereo_ros::ConventionalStereoRosNodelet" base_class_type="nodelet::Nodelet">
+    <description>
+      foveated stereo nodelet.
+    </description>
+  </class>
+</library>
+
+
 <library path="lib/libego_sphere_manager_ros_nodedelet">
   <class name="foveated_stereo_ros/EgoSphereManagerRosNodelet" type="foveated_stereo_ros::EgoSphereManagerRosNodelet" base_class_type="nodelet::Nodelet">
     <description>

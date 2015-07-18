@@ -10,16 +10,13 @@ private:
     void cameraInfoCallback(const sensor_msgs::CameraInfoPtr & left_camera_info);
 public:
 
-    boost::shared_ptr<FovealStereo> foveal_stereo;
+    boost::shared_ptr<FovealStereo> stereo;
 
     ~FoveatedStereoRos();
 
-    FoveatedStereoRos(ros::NodeHandle & nh_,
-                       ros::NodeHandle & private_node_handle_
-                      );
+    FoveatedStereoRos(ros::NodeHandle & nh_, ros::NodeHandle & private_node_handle_);
 
-    void callback(const ImageConstPtr& left_image,
-                  const ImageConstPtr& right_image);
-
+    void callback(const ImageConstPtr& left_image, const ImageConstPtr& right_image);
 };
+
 #endif // FOVEATEDSTEREOROS_H

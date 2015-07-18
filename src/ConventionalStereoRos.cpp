@@ -160,8 +160,6 @@ void ConventionalStereoRos::cameraInfoCallback(const sensor_msgs::CameraInfoPtr 
     rgb_point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("stereo", 10);
     mean_point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("mean_pcl", 10);
     uncertainty_point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("uncertainty_pcl", 10);
-    point_clouds_publisher = nh.advertise<foveated_stereo_ros::PointClouds>("point_clouds", 10);
-
     /*for(int i=0; i<9; ++i)
     {
         std::stringstream ss;
@@ -190,13 +188,10 @@ void ConventionalStereoRos::callback(const ImageConstPtr& left_image,
     // 2. Get eye angles with respect to eyes center
     try
     {
-        listener.waitForTransform(ego_frame, left_camera_frame, ros::Time(0), ros::Duration(10.0) );
+        listener.waitForTransform(ego_frame, left_camera_frame, ros::Time(0), ros::Duration(10.0));
         listener.lookupTransform(ego_frame, left_camera_frame,
                                  ros::Time(0), l_eye_transform);
-        /*listener.waitForTransform(ego_frame, "/r_camera_vision_link", ros::Time(0), ros::Duration(10.0) );
-            listener.lookupTransform(ego_frame, "/r_camera_vision_link",
-                                     ros::Time(0), r_eye_transform);*/
-        listener.waitForTransform(right_camera_frame, left_camera_frame, ros::Time(0), ros::Duration(10.0) );
+        listener.waitForTransform(right_camera_frame, left_camera_frame, ros::Time(0), ros::Duration(10.0));
         listener.lookupTransform(right_camera_frame, left_camera_frame,
                                  ros::Time(0), r_l_eye_transform);
     }
@@ -269,8 +264,11 @@ void ConventionalStereoRos::callback(const ImageConstPtr& left_image,
     sensor_msgs::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", stereo_data.disparity_image).toImageMsg();
     image_pub_.publish(msg);
     publishStereoData(stereo_data, left_image->header.stamp);
-    publishCovarianceMatrices(stereo_data, left_image->header.stamp);
+    //publishCovarianceMatrices(stereo_data, left_image->header.stamp);
 
+    total_elapsed = (ros::WallTime::now() - startTime).toSec();
+
+    ROS_INFO(" TOTAL TIME AFTER SENDING DATA:  %f sec", total_elapsed);
 }
 
 int main(int argc, char** argv)
@@ -289,8 +287,7 @@ int main(int argc, char** argv)
 
     private_node_handle_.param("rate", rate, 100);
 
-    ConventionalStereoRos ego_sphere(nh,
-                                  private_node_handle_);
+    ConventionalStereoRos stereo_ros(nh, private_node_handle_);
 
     // Tell ROS how fast to run this node.
     ros::Rate r(rate);

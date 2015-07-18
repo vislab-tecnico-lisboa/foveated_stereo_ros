@@ -14,12 +14,9 @@ public:
 
     ~ConventionalStereoRos();
 
-    ConventionalStereoRos(ros::NodeHandle & nh_,
-                  ros::NodeHandle & private_node_handle_
-                  );
+    ConventionalStereoRos(ros::NodeHandle & nh_, ros::NodeHandle & private_node_handle_);
 
-    void callback(const ImageConstPtr& left_image,
-                  const ImageConstPtr& right_image);
+    void callback(const ImageConstPtr& left_image, const ImageConstPtr& right_image);
 };
 
-#endif // STEREOROS_H
+#endif // CONVENTIONALSTEREOROS_H

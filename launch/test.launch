@@ -1,43 +1,10 @@
 <?xml version="1.0"?>
 <!-- ROS head file to simulate vizzy in gazebo   -->
 <launch>
-  <!-- robot configuration parameters -->
-	<arg name="robot" default="vizzy"/> <!-- full, lower_body, foot -->
-
-  <!-- simulation parameters and robot configuration parameters -->
-	<arg name="use_yarp" default="false"/>
-  <arg name="navigation" default="false"/>
-  <arg name="slam" default="false"/>
-  <!--<arg name="pose" default="-x -3.65 -y 17.7 -z 0.20 -R 0.0 -P 0.0 -Y 1.57"/>-->
-  <arg name="pose" default="-x 0.0 -y 0.0 -z 0.23 -R 0.0 -P 0.0 -Y 1.57"/>
-  <arg name="paused" default="false"/>
-  <arg name="use_sim_time" default="true"/>
-  <arg name="gui" default="true"/>
-  <arg name="world" default="vizzy_test_world.world" />
-  <arg name="yarp" default="false"/>
-  <arg name="map_frame" default="map" />
-  <arg name="tf_prefix" default="" />
-  <arg name="base_frame_id" default="$(arg tf_prefix)/base_footprint" />
-  <arg name="odom_frame_id" default="$(arg tf_prefix)/odom" />
-  <arg name="map_topic" default="/map" />
-
-
-  <!-- Load the URDF into the ROS Parameter Server -->
-  <param name="robot_description" command="$(find xacro)/xacro.py $(find vizzy_description)/robots/vizzy.urdf.xacro use_yarp:=$(arg use_yarp)" />
-	 
-	<!-- launch stereo_calibration -->
-	<node name="foveated_stereo_ros" pkg="foveated_stereo_ros" type="foveated_stereo_ros_node" respawn="false" output="screen">
-  	<rosparam file="$(find foveated_stereo_ros)/config/params.yaml" command="load" />
-		<remap from="left_image" to="/vizzy/l_camera/image_raw"/>
-		<remap from="right_image" to="/vizzy/r_camera/image_raw"/>
-		<remap from="left_camera_info" to="/vizzy/l_camera/camera_info"/>
-		<remap from="right_camera_info" to="/vizzy/r_camera/camera_info"/>
+<node name="ego_sphere_manager_ros" pkg="foveated_stereo_ros" type="ego_sphere_manager_ros_node" respawn="false" output="screen" >
+  		<rosparam file="$(find foveated_stereo_ros)/config/egosphere.yaml" command="load" />
 	</node>
 
-	<node pkg="rosbag" type="play" name="player" output="screen" args="--clock /home/rui/rosbags/stereo/vizzy_staring_at_door.bag --loop"/>
 
-  <!-- launch vizualization on rviz -->
-  <group unless="$(arg navigation)">
-    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find vizzy_launch)/rviz/vizzy.rviz" />
-  </group>
+
 </launch>
