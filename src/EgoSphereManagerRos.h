@@ -40,6 +40,7 @@ using namespace message_filters;
 
 class EgoSphereManagerRos
 {
+    Eigen::Vector3d fixation_point;
     std::string world_frame_id;
     std::string ego_frame_id;
     tf::TransformListener listener;

@@ -2,7 +2,9 @@
 
 EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle & private_node_handle_) :
     nh(nh_),
-    ac("gaze", false)
+    ac("gaze", false),
+    fixation_point(Eigen::Vector3d::Constant(std::numeric_limits<double>::max()))
+
   //world_frame_id("map")
 {
     // Declare variables that can be modified by launch file or command line.
@@ -27,8 +29,8 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
 
     for (int32_t i = 0; i < mean_list.size(); ++i)
     {
-      ROS_ASSERT(mean_list[i].getType() == XmlRpc::XmlRpcValue::TypeDouble);
-      mean_mat.at<double>(i,0)=static_cast<double>(mean_list[i]);
+        ROS_ASSERT(mean_list[i].getType() == XmlRpc::XmlRpcValue::TypeDouble);
+        mean_mat.at<double>(i,0)=static_cast<double>(mean_list[i]);
     }
 
     XmlRpc::XmlRpcValue std_dev_list;
@@ -39,8 +41,8 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
 
     for (int32_t i = 0; i < std_dev_list.size(); ++i)
     {
-      ROS_ASSERT(std_dev_list[i].getType() == XmlRpc::XmlRpcValue::TypeDouble);
-      standard_deviation_mat.at<double>(i,0)=static_cast<double>(std_dev_list[i]);
+        ROS_ASSERT(std_dev_list[i].getType() == XmlRpc::XmlRpcValue::TypeDouble);
+        standard_deviation_mat.at<double>(i,0)=static_cast<double>(std_dev_list[i]);
     }
 
     ROS_INFO_STREAM("egosphere_nodes: "<<egosphere_nodes);
@@ -86,8 +88,8 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     tf_filter_->registerCallback(boost::bind(&EgoSphereManagerRos::insertCloudCallback, this, _1));
     last=ros::Time::now();
 
-
-
+    //GIVE TIME TO MATLAB
+    //sleep(5.0);
     return;
 }
 
@@ -232,37 +234,71 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
         ROS_INFO_STREAM("   total points inserted: " <<   pc.size());
 
         publishAll(stereo_data);
+
+        if(active_vision)
+        {
+            //ego_sphere->getClosestPoint();
+            ROS_INFO("Waiting for action server to start.");
+            // wait for the action server to start
+            ac.waitForServer(ros::Duration(2.0)); //will wait for infinite time
+            ROS_INFO("Started.");
+
+            // send a goal to the action
+            move_robot_msgs::GazeGoal goal;
+            goal.fixation_point.header.frame_id=ego_frame_id;
+            goal.fixation_point.header.stamp=ros::Time::now();
+
+            if(ego_sphere->new_closest_point)
+            {
+                fixation_point(0)=ego_sphere->closest_point(0);
+                fixation_point(1)=ego_sphere->closest_point(1);
+                fixation_point(2)=ego_sphere->closest_point(2);
+
+                goal.fixation_point.point.x = fixation_point(0);
+                goal.fixation_point.point.y = fixation_point(1);
+                goal.fixation_point.point.z = fixation_point(2);
+            }
+            else
+            {
+                Eigen::Vector3d random_point;
+                Mat aux(1, 1, CV_64F);
+
+                // Generate random patch on the sphere surface
+                cv::randn(aux, 0, 0.1);
+                random_point(0,0)=aux.at<double>(0,0);
+
+                cv::randn(aux, 0, 0.1);
+                random_point(1,0)=aux.at<double>(0,0);
+
+                cv::randn(aux, 0, 0.1);
+                random_point(2,0)=aux.at<double>(0,0);
+                fixation_point(0)=ego_sphere->closest_point(0)+random_point(0,0);
+                fixation_point(1)=ego_sphere->closest_point(1)+random_point(1,0);
+                fixation_point(2)=ego_sphere->closest_point(2)+random_point(2,0);
+
+                goal.fixation_point.point.x = fixation_point(0);
+                goal.fixation_point.point.y = fixation_point(1);
+                goal.fixation_point.point.z = fixation_point(2);
+            }
+
+
+            ac.sendGoal(goal);
+
+            //wait for the action to return
+            bool finished_before_timeout = ac.waitForResult(ros::Duration(7.0));
+
+            if (finished_before_timeout)
+            {
+                actionlib::SimpleClientGoalState state = ac.getState();
+                ROS_INFO("Action finished: %s",state.toString().c_str());
+            }
+            else
+            {
+                ROS_ERROR("Action did not finish before the time out.");
+            }
+        }
     }
 
-    if(active_vision&&ego_sphere->new_closest_point)
-    {
-        ROS_INFO("Waiting for action server to start.");
-        // wait for the action server to start
-        ac.waitForServer(ros::Duration(2.0)); //will wait for infinite time
-        ROS_INFO("Started.");
-
-        // send a goal to the action
-        move_robot_msgs::GazeGoal goal;
-        goal.fixation_point.header=stereo_data->point_clouds.rgb_point_cloud.header;
-        goal.fixation_point.point.x = ego_sphere->closest_point(0);
-        goal.fixation_point.point.y = ego_sphere->closest_point(1);
-        goal.fixation_point.point.z = ego_sphere->closest_point(2);
-
-        ac.sendGoal(goal);
-
-        //wait for the action to return
-        bool finished_before_timeout = ac.waitForResult(ros::Duration(10.0));
-
-        if (finished_before_timeout)
-        {
-            actionlib::SimpleClientGoalState state = ac.getState();
-            ROS_INFO("Action finished: %s",state.toString().c_str());
-        }
-        else
-        {
-            ROS_ERROR("Action did not finish before the time out.");
-        }
-    }
 
     double total_elapsed = (ros::WallTime::now() - startTime).toSec();
 
@@ -322,6 +358,24 @@ void EgoSphereManagerRos::publishAll(const foveated_stereo_ros::StereoDataConstP
     ego_data_msg.sensor_point_clouds.rgb_point_cloud=sensor_rgb_point_cloud_msg_base;
     ego_data_msg.sensor_point_clouds.uncertainty_point_cloud=sensor_uncertainty_point_cloud_msg_base;
     ego_data_msg.ego_point_clouds=ego_point_clouds_msg;
+
+    geometry_msgs::PointStamped fixation_point_ego;
+    fixation_point_ego.header.frame_id=ego_frame_id;
+    fixation_point_ego.point.x = fixation_point(0);
+    fixation_point_ego.point.y = fixation_point(1);
+    fixation_point_ego.point.z = fixation_point(2);
+    geometry_msgs::PointStamped fixation_point_world;
+
+    try
+    {
+        listener.waitForTransform(world_frame_id, ego_frame_id, ros::Time(0), ros::Duration(10.0) );
+        listener.transformPoint(world_frame_id, ros::Time(0),fixation_point_ego,ego_frame_id,fixation_point_world);
+    } catch(tf::TransformException& ex){
+        ROS_DEBUG_STREAM( "Transform lookup failed: " << ex.what());
+        exit(-1);
+    }
+
+    ego_data_msg.fixation_point=fixation_point_world;
 
     point_clouds_publisher.publish(ego_data_msg);
 }
