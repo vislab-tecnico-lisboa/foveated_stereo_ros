@@ -1,6 +1,11 @@
 <?xml version="1.0"?>
 <!-- ROS head file to simulate vizzy in gazebo -->
 <launch>
+  <arg name="vizzy_machine_name" default="vizzy-desktop"/>
+  <arg name="vizzy_machine_address" default="10.1.3.1"/>
+  <arg name="env-loader" default="/opt/ros/hydro/env.sh"/>
+
+
   <arg name="left_image" default="/vizzy/l_camera/image_raw"/>
   <arg name="right_image" default="/vizzy/r_camera/image_raw"/>
   <arg name="left_camera_info" default="/vizzy/l_camera/camera_info"/>
@@ -22,19 +27,19 @@
 
 	<!-- nodelet manager -->
 
-       <node pkg="nodelet" type="nodelet" name="active_stereo_manager"
+       <node machine="$(arg vizzy_machine_name)" pkg="nodelet" type="nodelet" name="active_stereo_manager"
         	args="manager"
 	    	respawn="true" output="screen"/>
 
-  	<node pkg="nodelet" type="nodelet" name="foveated_stereo_ros"
+  	<node machine="$(arg vizzy_machine_name)" pkg="nodelet" type="nodelet" name="foveated_stereo_ros"
         	args="load foveated_stereo_ros/FoveatedStereoRosNodelet active_stereo_manager"
 	    	respawn="true" output="screen" >
   		<rosparam file="$(find foveated_stereo_ros)/config/params.yaml" command="load" />
   		<rosparam file="$(find foveated_stereo_ros)/config/stereo_params.yaml" command="load" />
 		<remap from="left_image" to="$(arg left_image)"/>
 		<remap from="right_image" to="$(arg right_image)"/>
-		<remap from="left_camera_info" to="$(arg left_image)"/>
-		<remap from="right_camera_info" to="$(arg left_image)"/>
+		<remap from="left_camera_info" to="$(arg left_camera_info)"/>
+		<remap from="right_camera_info" to="$(arg right_camera_info)"/>
 	</node>
 
   	<node pkg="nodelet" type="nodelet" name="egosphere"
