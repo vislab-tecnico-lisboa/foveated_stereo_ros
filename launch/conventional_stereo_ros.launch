@@ -24,11 +24,11 @@
   </node>-->
 
   <!-- nodelet manager -->
-  <node pkg="nodelet" type="nodelet" name="active_stereo_manager"
+  <node machine="$(arg vizzy_machine_name)" pkg="nodelet" type="nodelet" name="active_stereo_manager"
         	args="manager"
 	    	respawn="true" output="screen"/>
 
-  	<node pkg="nodelet" type="nodelet" name="conventional_stereo_ros"
+  	<node machine="$(arg vizzy_machine_name)" pkg="nodelet" type="nodelet" name="conventional_stereo_ros"
         	args="load foveated_stereo_ros/ConventionalStereoRosNodelet active_stereo_manager"
 	    	respawn="true" output="screen" >
   		<rosparam file="$(find foveated_stereo_ros)/config/params.yaml" command="load" />
@@ -39,12 +39,12 @@
 		<remap from="right_camera_info" to="/vizzy/r_camera/camera_info"/>
 	</node>
 
-  	<node pkg="nodelet" type="nodelet" name="egosphere"
+  	<node machine="$(arg vizzy_machine_name)" pkg="nodelet" type="nodelet" name="egosphere"
         	args="load foveated_stereo_ros/EgoSphereManagerRosNodelet active_stereo_manager"
 	    	respawn="true" output="screen">
   		<rosparam file="$(find foveated_stereo_ros)/config/egosphere.yaml" command="load" />
 	</node>
 
-  <include file="$(find move_robot)/launch/gaze.launch"/>-->
+  <include file="$(find move_robot)/launch/gaze.launch"/>
 
 </launch>
