@@ -1,5 +1,5 @@
-numberOfDisparities: 80
-minDisparity: 0
+numberOfDisparities: 128
+minDisparity: 32
 SADWindowSize: 3
 preFilterCap: 63
 P1: 768
@@ -9,7 +9,7 @@ speckleWindowSize: 50
 speckleRange: 16
 disp12MaxDiff: 1
 fullDP: true
-ignore_border_left: 30
+ignore_border_left: 0
 
 
 #numberOfDisparities: 80
