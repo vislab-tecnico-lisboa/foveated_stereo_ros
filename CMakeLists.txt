@@ -151,15 +151,15 @@ install(FILES foveated_stereo_nodelets.xml
 )
 
 # Nodelet library
-add_library(ego_sphere_manager_ros_nodedelet src/EgoSphereManagerRos.cpp src/EgoSphereManagerRosNodelet.cpp)
-target_link_libraries(ego_sphere_manager_ros_nodedelet
+add_library(ego_sphere_manager_ros_nodelet src/EgoSphereManagerRos.cpp src/EgoSphereManagerRosNodelet.cpp)
+target_link_libraries(ego_sphere_manager_ros_nodelet
    ${PCL_LIBRARIES}
    ${catkin_LIBRARIES}
    foveated_stereo_lib
    STEREO_CALIB_LIB
    ${OpenCV_LIBRARIES})
-add_dependencies(ego_sphere_manager_ros_nodedelet foveated_stereo_ros_gencpp)
-install(TARGETS ego_sphere_manager_ros_nodedelet
+add_dependencies(ego_sphere_manager_ros_nodelet foveated_stereo_ros_gencpp)
+install(TARGETS ego_sphere_manager_ros_nodelet
         DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 )
 install(FILES foveated_stereo_nodelets.xml

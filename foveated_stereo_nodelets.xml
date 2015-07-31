@@ -16,7 +16,7 @@
 </library>
 
 
-<library path="lib/libego_sphere_manager_ros_nodedelet">
+<library path="lib/libego_sphere_manager_ros_nodelet">
   <class name="foveated_stereo_ros/EgoSphereManagerRosNodelet" type="foveated_stereo_ros::EgoSphereManagerRosNodelet" base_class_type="nodelet::Nodelet">
     <description>
       ego sphere nodelet.
