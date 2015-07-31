@@ -10,7 +10,7 @@
   <arg name="left_camera_info" default="/vizzy/l_camera/camera_info"/>
   <arg name="right_camera_info" default="/vizzy/r_camera/camera_info"/>
   <!-- launch stereo_calibration -->
-  <node machine="$(arg vizzy_machine_name)" name="foveated_stereo_ros" pkg="foveated_stereo_ros" type="conventional_stereo_ros_node" respawn="false" output="screen">
+  <!--<node machine="$(arg vizzy_machine_name)" name="foveated_stereo_ros" pkg="foveated_stereo_ros" type="conventional_stereo_ros_node" respawn="false" output="screen">
     <rosparam file="$(find foveated_stereo_ros)/config/params.yaml" command="load" />
     <rosparam file="$(find foveated_stereo_ros)/config/stereo_params.yaml" command="load" />
     <remap from="left_image" to="$(arg left_image)"/>
@@ -21,10 +21,10 @@
 
   <node machine="$(arg vizzy_machine_name)" name="ego_sphere_manager_ros" pkg="foveated_stereo_ros" type="ego_sphere_manager_ros_node" respawn="false" output="screen" >
     <rosparam file="$(find foveated_stereo_ros)/config/egosphere.yaml" command="load" />
-  </node>
+  </node>-->
 
   <!-- nodelet manager -->
-  <!--<node pkg="nodelet" type="nodelet" name="active_stereo_manager"
+  <node pkg="nodelet" type="nodelet" name="active_stereo_manager"
         	args="manager"
 	    	respawn="true" output="screen"/>
 
