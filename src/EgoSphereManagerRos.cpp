@@ -230,7 +230,6 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
         ROS_INFO_STREAM(" 4. insertion time: " <<  (insert_time - transform_data_time).toSec());
 
         ROS_INFO_STREAM("   total points inserted: " <<   pc.size());
-
         publishAll(stereo_data);
 
         if(active_vision)
