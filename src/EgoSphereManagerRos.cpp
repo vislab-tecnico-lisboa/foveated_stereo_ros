@@ -130,7 +130,6 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
     try
     {
         listener.waitForTransform(ego_frame_id, world_frame_id, stereo_data->point_clouds.rgb_point_cloud.header.stamp, ros::Duration(10.0) );
-
         listener.lookupTransform(ego_frame_id, world_frame_id, stereo_data->point_clouds.rgb_point_cloud.header.stamp, sensorToWorldTf);
     } catch(tf::TransformException& ex){
         ROS_ERROR_STREAM( "Transform error of sensor data: " << ex.what() << ", quitting callback");
@@ -197,13 +196,10 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
 
         ROS_INFO_STREAM(" 2. filtering time: " <<  (filtering_time - transform_time).toSec());
 
-
-
         tf::StampedTransform sensorToEgoTf;
         try
         {
             listener.waitForTransform(ego_frame_id, stereo_data->point_clouds.rgb_point_cloud.header.frame_id, stereo_data->point_clouds.rgb_point_cloud.header.stamp, ros::Duration(10.0) );
-
             listener.lookupTransform(ego_frame_id, stereo_data->point_clouds.rgb_point_cloud.header.frame_id, stereo_data->point_clouds.rgb_point_cloud.header.stamp, sensorToEgoTf);
         } catch(tf::TransformException& ex){
             ROS_ERROR_STREAM( "Transform error of sensor data: " << ex.what() << ", quitting callback");
@@ -223,13 +219,15 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
         }
 
 
-        ROS_INFO_STREAM(" 2. transform data time: " <<  (transform_data_time - filtering_time).toSec());
+        ROS_INFO_STREAM(" 3. transform data time: " <<  (transform_data_time - filtering_time).toSec());
 
+        std::cout << pc.points.size() << std::endl;
+        std::cout << informations.size() << std::endl;
 
         insertScan(pc,informations);
 
         ros::WallTime insert_time = ros::WallTime::now();
-        ROS_INFO_STREAM(" 2. insertion time: " <<  (insert_time - transform_data_time).toSec());
+        ROS_INFO_STREAM(" 4. insertion time: " <<  (insert_time - transform_data_time).toSec());
 
         ROS_INFO_STREAM("   total points inserted: " <<   pc.size());
 
@@ -299,7 +297,6 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
         }
     }
 
-
     double total_elapsed = (ros::WallTime::now() - startTime).toSec();
 
     ROS_INFO(" TOTAL TIME:  %f sec", total_elapsed);
@@ -309,7 +306,6 @@ void EgoSphereManagerRos::insertScan(const PCLPointCloud& point_cloud, const std
 {
     //ego_sphere->insert(point_cloud);
     ego_sphere->insertHashTable(point_cloud, covariances);
-
 }
 
 void EgoSphereManagerRos::publishAll(const foveated_stereo_ros::StereoDataConstPtr& stereo_data)
