@@ -7,7 +7,7 @@ sp: 0
 ego_frame: eyes_center_vision_link
 left_camera_frame: l_camera_vision_link
 right_camera_frame: r_camera_vision_link
-information_lower_bound: -1
+information_lower_bound: -2
 L: 4.0
 alpha: 0.25
 beta: 2.0

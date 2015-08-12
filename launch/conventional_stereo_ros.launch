@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <!-- ROS head file to simulate vizzy in gazebo -->
 <launch>
-  <arg name="vizzy_machine_name" default="vizzy-desktop"/>
+
   <!--<arg name="vizzy_machine_address" default="10.0.29.186"/>-->
   <!--<arg name="env-loader" default="/opt/ros/indigo/env.sh"/>-->
   <!--<machine name="$(arg vizzy_machine_name)" address="$(arg vizzy_machine_address)" env-loader="$(arg env-loader)" user="vizzy"/>-->
@@ -24,11 +24,11 @@
   </node>-->
 
   <!-- nodelet manager -->
-  <node machine="$(arg vizzy_machine_name)" pkg="nodelet" type="nodelet" name="active_stereo_manager"
+  <node pkg="nodelet" type="nodelet" name="active_stereo_manager"
         	args="manager"
 	    	respawn="true" output="screen"/>
 
-  	<node machine="$(arg vizzy_machine_name)" pkg="nodelet" type="nodelet" name="conventional_stereo_ros"
+  	<node pkg="nodelet" type="nodelet" name="conventional_stereo_ros"
         	args="load foveated_stereo_ros/ConventionalStereoRosNodelet active_stereo_manager"
 	    	respawn="true" output="screen" >
   		<rosparam file="$(find foveated_stereo_ros)/config/params.yaml" command="load" />
@@ -39,7 +39,7 @@
 		<remap from="right_camera_info" to="/vizzy/r_camera/camera_info"/>
 	</node>
 
-  	<node machine="$(arg vizzy_machine_name)" pkg="nodelet" type="nodelet" name="egosphere"
+  	<node pkg="nodelet" type="nodelet" name="egosphere"
         	args="load foveated_stereo_ros/EgoSphereManagerRosNodelet active_stereo_manager"
 	    	respawn="true" output="screen">
   		<rosparam file="$(find foveated_stereo_ros)/config/egosphere.yaml" command="load" />

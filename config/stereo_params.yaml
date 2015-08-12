@@ -1,5 +1,5 @@
-numberOfDisparities: 128
-minDisparity: 32
+numberOfDisparities: 64
+minDisparity: 0
 SADWindowSize: 3
 preFilterCap: 63
 P1: 768

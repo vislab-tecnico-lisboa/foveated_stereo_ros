@@ -76,7 +76,7 @@ public:
     void insertCloudCallback(const foveated_stereo_ros::StereoData::ConstPtr& stereo_data);
 
     void publishAll(const foveated_stereo_ros::StereoDataConstPtr& stereo_data);
-
+    void publishCovarianceMatrices();
     void insertScan(const PCLPointCloud& point_cloud, const std::vector<Eigen::Matrix3d> & covariances);
 
     ros::Time last;

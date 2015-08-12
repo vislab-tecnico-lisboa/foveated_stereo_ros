@@ -234,7 +234,7 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
         ROS_INFO_STREAM("   total points inserted: " <<   pc.size());
 
         publishAll(stereo_data);
-
+        publishCovarianceMatrices();
         if(active_vision)
         {
             //ego_sphere->getClosestPoint();
@@ -285,7 +285,7 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
             ac.sendGoal(goal);
 
             //wait for the action to return
-            bool finished_before_timeout = ac.waitForResult(ros::Duration(7.0));
+            bool finished_before_timeout = ac.waitForResult(ros::Duration(15.0));
 
             if (finished_before_timeout)
             {
@@ -378,6 +378,58 @@ void EgoSphereManagerRos::publishAll(const foveated_stereo_ros::StereoDataConstP
     ego_data_msg.fixation_point=fixation_point_world;
 
     point_clouds_publisher.publish(ego_data_msg);
+}
+
+void EgoSphereManagerRos::publishCovarianceMatrices()
+{
+    std::vector<Eigen::Matrix<double, 3, 3> > covs=ego_sphere->getCovariances();
+    pcl::PointCloud<pcl::PointXYZ> point_cloud=ego_sphere->getMeans();
+
+    visualization_msgs::MarkerArray marker_array;
+    double scale=0.01;
+    int jump=1;
+
+    for(int r=0; r<covs.size();r=r+jump)
+    {
+
+        Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eig(covs[r]); // last one is the greatest eigen value
+
+        Eigen::Quaternion<double> q(-eig.eigenvectors());
+        q.normalize();
+
+        visualization_msgs::Marker marker;
+        // Set the frame ID and timestamp.  See the TF tutorials for information on these.
+        marker.header.frame_id = ego_frame_id;
+        marker.header.stamp = ros::Time::now();
+        marker.ns = "covariances";
+        marker.id = r;
+        marker.type = visualization_msgs::Marker::SPHERE;
+        marker.action = visualization_msgs::Marker::ADD;
+
+        // Set the pose of the marker.  This is a full 6DOF pose relative to the frame/time specified in the header
+        marker.pose.position.x = point_cloud.points[r].x;
+        marker.pose.position.y = point_cloud.points[r].y;
+        marker.pose.position.z = point_cloud.points[r].z;
+        marker.pose.orientation.x = q.x();
+        marker.pose.orientation.y = q.y();
+        marker.pose.orientation.z = q.z();
+        marker.pose.orientation.w = q.w();
+
+        // Set the scale of the marker -- 1x1x1 here means 1m on a side
+        marker.scale.x = scale*eig.eigenvalues()(0);
+        marker.scale.y = scale*eig.eigenvalues()(1);
+        marker.scale.z = scale*eig.eigenvalues()(2);
+
+        // Set the color -- be sure to set alpha to something non-zero!
+        marker.color.r = 0.0f;
+        marker.color.g = 1.0f;
+        marker.color.b = 0.0f;
+        marker.color.a = 1.0;
+
+        marker.lifetime = ros::Duration(5.0);
+        marker_array.markers.push_back(marker);
+    }
+    marker_pub.publish(marker_array);
 }
 
 int main(int argc, char** argv)
