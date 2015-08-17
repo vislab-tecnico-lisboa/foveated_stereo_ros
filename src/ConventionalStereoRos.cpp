@@ -233,7 +233,7 @@ void ConventionalStereoRos::callback(const ImageConstPtr& left_image,
     cv::Mat left_to_center = Mat::eye(4,4,CV_64F);
     cv::eigen2cv(left_to_center_eigen.matrix(),left_to_center);
 
-    stereo_calib_data scd;//=stereo_calibration->get_calibrated_transformations(l_eye_angle,r_eye_angle);
+    complete_stereo_calib_data scd;//=stereo_calibration->get_calibrated_transformations(l_eye_angle,r_eye_angle);
     scd.R_left_cam_to_right_cam=Mat(3,3,CV_64F);
     scd.t_left_cam_to_right_cam=Mat(3,1,CV_64F);
 
