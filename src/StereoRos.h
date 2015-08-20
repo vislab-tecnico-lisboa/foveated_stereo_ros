@@ -19,7 +19,7 @@
 #include <sensor_msgs/image_encodings.h>
 #include <sensor_msgs/CameraInfo.h>
 #include "Stereo.h"
-#include <stereo_calib_lib.h>
+#include <complete_stereo_calib_lib.h>
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/image_encodings.h>
 
@@ -80,7 +80,7 @@ public:
 
     boost::shared_ptr<Synchronizer<MySyncPolicy> >sync;
 
-    boost::shared_ptr<stereo_calib> stereo_calibration;
+    boost::shared_ptr<complete_stereo_calib> stereo_calibration;
     boost::shared_ptr<Stereo> stereo;
 
     ~StereoRos();

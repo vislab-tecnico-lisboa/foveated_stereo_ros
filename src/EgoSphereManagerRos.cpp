@@ -75,7 +75,7 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     Eigen::Matrix4f sensorToWorld;
     pcl_ros::transformAsMatrix(sensorToWorldTf, sensorToWorld);
 
-    ego_sphere=boost::shared_ptr<SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > > (new SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > (egosphere_nodes, spherical_angle_bins, sensorToWorld.cast <double> (),uncertainty_lower_bound,mahalanobis_distance_threshold,mean_mat,standard_deviation_mat));
+    ego_sphere = boost::shared_ptr<SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > > (new SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > (egosphere_nodes, spherical_angle_bins, sensorToWorld.cast <double> (),uncertainty_lower_bound,mahalanobis_distance_threshold,mean_mat,standard_deviation_mat));
     rgb_point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere", 2);
     uncertainty_point_cloud_publisher  = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere_uncertainty", 2);
     point_clouds_publisher = nh.advertise<foveated_stereo_ros::EgoData>("ego_point_clouds", 10);
@@ -222,9 +222,7 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
             informations[i].noalias()=sensorToEgo.block(0,0,3,3).cast <double> ()*informations[i]*sensorToEgo.block(0,0,3,3).transpose().cast <double> ();
         }
 
-
         ROS_INFO_STREAM(" 2. transform data time: " <<  (transform_data_time - filtering_time).toSec());
-
 
         insertScan(pc,informations);
 

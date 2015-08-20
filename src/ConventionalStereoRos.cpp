@@ -122,39 +122,39 @@ void ConventionalStereoRos::cameraInfoCallback(const sensor_msgs::CameraInfoPtr 
 
     //stereo_calibration=boost::shared_ptr<stereo_calib> (new stereo_calib(fillStereoCalibParams(baseline)));
     stereo=boost::shared_ptr<ConventionalStereo> (new ConventionalStereo(left_cam_intrinsic,
-                                                     right_cam_intrinsic,
-                                                     width,
-                                                     height,
-                                                     cv::Point2i(width/2.0,
-                                                                 height/2.0),
-                                                     rings,
-                                                     min_radius,
-                                                     interp,
-                                                     full,
-                                                     sectors,
-                                                     sp,
-                                                     ego_frame,
-                                                     information_lower_bound,
-                                                     L,
-                                                     alpha,
-                                                     ki,
-                                                     beta,
-                                                     scaling_factor,
-                                                     number_of_disparities,
-                                                     pre_filter_cap,
-                                                     sad_window_size,
-                                                     P1,
-                                                     P2,
-                                                     min_disparity,
-                                                     uniqueness_ratio,
-                                                     speckle_window_size,
-                                                     speckle_range,
-                                                     disp_12_max_diff,
-                                                     full_dp,
-                                                     ignore_border_left
+                                                                         right_cam_intrinsic,
+                                                                         width,
+                                                                         height,
+                                                                         cv::Point2i(width/2.0,
+                                                                                     height/2.0),
+                                                                         rings,
+                                                                         min_radius,
+                                                                         interp,
+                                                                         full,
+                                                                         sectors,
+                                                                         sp,
+                                                                         ego_frame,
+                                                                         information_lower_bound,
+                                                                         L,
+                                                                         alpha,
+                                                                         ki,
+                                                                         beta,
+                                                                         scaling_factor,
+                                                                         number_of_disparities,
+                                                                         pre_filter_cap,
+                                                                         sad_window_size,
+                                                                         P1,
+                                                                         P2,
+                                                                         min_disparity,
+                                                                         uniqueness_ratio,
+                                                                         speckle_window_size,
+                                                                         speckle_range,
+                                                                         disp_12_max_diff,
+                                                                         full_dp,
+                                                                         ignore_border_left
 
-                                                     )
-                                          );
+                                                                         )
+                                                  );
     image_pub_ = it_.advertise("/vizzy/disparity", 3);
 
     rgb_point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("stereo", 10);
@@ -177,7 +177,7 @@ void ConventionalStereoRos::cameraInfoCallback(const sensor_msgs::CameraInfoPtr 
 }
 
 void ConventionalStereoRos::callback(const ImageConstPtr& left_image,
-                                  const ImageConstPtr& right_image)
+                                     const ImageConstPtr& right_image)
 {
     ROS_INFO("Stereo callback...");
     ros::WallTime startTime = ros::WallTime::now();
@@ -191,10 +191,10 @@ void ConventionalStereoRos::callback(const ImageConstPtr& left_image,
     {
         listener->waitForTransform(ego_frame, left_camera_frame, ros::Time(0), ros::Duration(1.0));
         listener->lookupTransform(ego_frame, left_camera_frame,
-                                 ros::Time(0), l_eye_transform);
+                                  ros::Time(0), l_eye_transform);
         listener->waitForTransform(right_camera_frame, left_camera_frame, ros::Time(0), ros::Duration(1.0));
         listener->lookupTransform(right_camera_frame, left_camera_frame,
-                                 ros::Time(0), r_l_eye_transform);
+                                  ros::Time(0), r_l_eye_transform);
     }
     catch (tf::TransformException &ex)
     {
@@ -203,37 +203,43 @@ void ConventionalStereoRos::callback(const ImageConstPtr& left_image,
         return;
     }
 
-    /*double roll, pitch, yaw;
-        tf::Matrix3x3(tf::Quaternion(
-                          l_eye_transform.getRotation().getX(),
-                          l_eye_transform.getRotation().getY(),
-                          l_eye_transform.getRotation().getZ(),
-                          l_eye_transform.getRotation().getW()
-                          )).getRPY(roll, pitch, yaw);
-        double l_eye_angle=-yaw;
 
-        tf::Matrix3x3(tf::Quaternion(
-                          r_eye_transform.getRotation().getX(),
-                          r_eye_transform.getRotation().getY(),
-                          r_eye_transform.getRotation().getZ(),
-                          r_eye_transform.getRotation().getW()
-                          )).getRPY(roll, pitch, yaw);
-        double r_eye_angle=-yaw;
-        //ROS_INFO_STREAM("l_eye_angle:"<<l_eye_angle <<"   r_eye_angle:"<<r_eye_angle);
 
-        // 3. calibrate given angles
-        stereo_calibration->calibrate(left_image_mat,
-                                      right_image_mat,
-                                      l_eye_angle,
-                                      r_eye_angle);
-        */
+    Mat stereo_encoders = Mat::zeros(6,1,CV_64F);
+    double roll, pitch, yaw;
+    tf::Matrix3x3(tf::Quaternion(
+                      l_eye_transform.getRotation().getX(),
+                      l_eye_transform.getRotation().getY(),
+                      l_eye_transform.getRotation().getZ(),
+                      l_eye_transform.getRotation().getW()
+                      )).getRPY(roll, pitch, yaw);
+    double l_eye_angle=-yaw;
+
+    tf::Matrix3x3(tf::Quaternion(
+                      r_eye_transform.getRotation().getX(),
+                      r_eye_transform.getRotation().getY(),
+                      r_eye_transform.getRotation().getZ(),
+                      r_eye_transform.getRotation().getW()
+                      )).getRPY(roll, pitch, yaw);
+    double r_eye_angle=-yaw;
+    //ROS_INFO_STREAM("l_eye_angle:"<<l_eye_angle <<"   r_eye_angle:"<<r_eye_angle);
+
+    // 3. calibrate given angles
+    stereo_calibration->calibrate(left_image_mat,
+                                  right_image_mat,
+                                  stereo_encoders);
+
+
+
+
+
     Eigen::Affine3d left_to_center_eigen;
 
     tf::transformTFToEigen (l_eye_transform, left_to_center_eigen );
     cv::Mat left_to_center = Mat::eye(4,4,CV_64F);
     cv::eigen2cv(left_to_center_eigen.matrix(),left_to_center);
 
-    complete_stereo_calib_data scd;//=stereo_calibration->get_calibrated_transformations(l_eye_angle,r_eye_angle);
+    stereo_calib_data scd;//=stereo_calibration->get_calibrated_transformations(l_eye_angle,r_eye_angle);
     scd.R_left_cam_to_right_cam=Mat(3,3,CV_64F);
     scd.t_left_cam_to_right_cam=Mat(3,1,CV_64F);
 
@@ -252,11 +258,11 @@ void ConventionalStereoRos::callback(const ImageConstPtr& left_image,
     scd.t_left_cam_to_right_cam.at<double>(2,0) = r_l_eye_transform.getOrigin()[2];
 
     StereoData stereo_data=stereo->computeStereo(left_image_mat,
-                                                     right_image_mat,
-                                                     scd.R_left_cam_to_right_cam,
-                                                     scd.t_left_cam_to_right_cam,
-                                                     left_to_center
-                                                     );//*/
+                                                 right_image_mat,
+                                                 scd.R_left_cam_to_right_cam,
+                                                 scd.t_left_cam_to_right_cam,
+                                                 left_to_center
+                                                 );//*/
 
     double total_elapsed = (ros::WallTime::now() - startTime).toSec();
 
