@@ -1,4 +1,3 @@
 [submodule "lib/foveated_stereo"]
 	path = lib/foveated_stereo
 	url = https://github.com/vislab-tecnico-lisboa/foveated_stereo.git
-
