@@ -26,7 +26,7 @@ find_package(catkin REQUIRED COMPONENTS
 )
 
 find_package(PCL)
-find_package(OpenCV REQUIRED)
+find_package(OpenCV 2.4.10 REQUIRED)
 #find_package(CUDA)
 
 add_message_files(

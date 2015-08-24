@@ -1,3 +1,6 @@
 [submodule "lib/foveated_stereo"]
 	path = lib/foveated_stereo
 	url = https://github.com/vislab-tecnico-lisboa/foveated_stereo.git
+[submodule "lib/stereo_calib_lib"]
+	path = lib/stereo_calib_lib
+	url = https://github.com/nmoutinho/stereo_calib_lib.git
