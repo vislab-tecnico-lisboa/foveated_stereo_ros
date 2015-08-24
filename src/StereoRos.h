@@ -57,6 +57,7 @@ protected:
 
     image_transport::ImageTransport it_;
     image_transport::Publisher image_pub_;
+    //image_transport::Publisher image_pub_nuno;
     ros::Publisher marker_pub;
     ros::Publisher stereo_data_publisher;
 

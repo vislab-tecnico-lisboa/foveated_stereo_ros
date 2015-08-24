@@ -8,7 +8,7 @@ ConventionalStereoRos::~ConventionalStereoRos()
 
 ConventionalStereoRos::ConventionalStereoRos(ros::NodeHandle & nh_, ros::NodeHandle & private_node_handle_) : StereoRos(nh_,private_node_handle_)
 {
-    left_camera_info_sub=nh_.subscribe("/vizzy/l_camera/camera_info",1,&ConventionalStereoRos::cameraInfoCallback, this);
+    left_camera_info_sub=nh_.subscribe("left_camera_info",1,&ConventionalStereoRos::cameraInfoCallback, this);
     return;
 }
 
@@ -102,7 +102,7 @@ void ConventionalStereoRos::cameraInfoCallback(const sensor_msgs::CameraInfoPtr 
     right_image_sub=boost::shared_ptr<message_filters::Subscriber<Image> > (new message_filters::Subscriber<Image>(nh, "right_image", 10));
 
     ROS_INFO("Getting cameras' parameters");
-    sensor_msgs::CameraInfoConstPtr right_camera_info=ros::topic::waitForMessage<sensor_msgs::CameraInfo>("/vizzy/r_camera/camera_info", ros::Duration(30));
+    sensor_msgs::CameraInfoConstPtr right_camera_info=ros::topic::waitForMessage<sensor_msgs::CameraInfo>("right_camera_info", ros::Duration(30));
 
     //set the cameras intrinsic parameters
     left_cam_intrinsic = Mat::eye(3,3,CV_64F);
@@ -133,7 +133,8 @@ void ConventionalStereoRos::cameraInfoCallback(const sensor_msgs::CameraInfoPtr 
         return;
     }
 
-    double resize_factor = 2.0;
+    double resize_factor = 1.0;
+
     double baseline = (double)r_l_eye_transform.getOrigin().length();
 
     std::cout << "baseline:" << baseline<< std::endl;
@@ -178,6 +179,7 @@ void ConventionalStereoRos::cameraInfoCallback(const sensor_msgs::CameraInfoPtr 
 
 
     image_pub_ = it_.advertise("/vizzy/disparity", 3);
+    //image_pub_nuno = it_.advertise("/vizzy/disparity_nuno", 3);
     rgb_point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("stereo", 10);
     mean_point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("mean_pcl", 10);
     uncertainty_point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("uncertainty_pcl", 10);
@@ -255,7 +257,14 @@ void ConventionalStereoRos::callback(const ImageConstPtr& left_image,
     complete_stereo_calib_data scd;
     scd =  stereo_calibration->get_calibrated_transformations(stereo_encoders);
 
-    Eigen::Affine3d left_to_center_eigen;
+    //obtain and show the disparity map
+    complete_stereo_disparity_data csdd = stereo_calibration->complete_stereo_calib::get_disparity_map(left_image_mat, right_image_mat, stereo_encoders);
+    
+
+
+     //    imshow("disparity", csdd.disparity_image);
+    //waitKey(1);
+    /*Eigen::Affine3d left_to_center_eigen;
 
     tf::transformTFToEigen (l_eye_transform, left_to_center_eigen );
     cv::Mat left_to_center = Mat::eye(4,4,CV_64F);
@@ -276,7 +285,16 @@ void ConventionalStereoRos::callback(const ImageConstPtr& left_image,
 
     scd.t_left_cam_to_right_cam.at<double>(0,0) = r_l_eye_transform.getOrigin()[0];
     scd.t_left_cam_to_right_cam.at<double>(1,0) = r_l_eye_transform.getOrigin()[1];
-    scd.t_left_cam_to_right_cam.at<double>(2,0) = r_l_eye_transform.getOrigin()[2];
+    scd.t_left_cam_to_right_cam.at<double>(2,0) = r_l_eye_transform.getOrigin()[2];*/
+
+    //obtain and show the disparity map
+    /*complete_stereo_disparity_data csdd = scd.complete_stereo_calib::get_disparity_map(left_rz, right_rz, stereo_encoders);
+        imshow("disparity", csdd.disparity_image);
+    waitKey(1)*/
+
+    //show the transformation between the left and right images
+    //cout << "Transformation from left to right camera: " << cscd.transformation_left_cam_to_right_cam << endl;
+
 
     StereoData stereo_data=stereo->computeStereo(left_image_mat,
                                                  right_image_mat,
@@ -284,13 +302,18 @@ void ConventionalStereoRos::callback(const ImageConstPtr& left_image,
                                                  scd.t_left_cam_to_right_cam,
                                                  scd.transformation_left_cam_to_baseline_center
                                                  );//*/
-
+	
     double total_elapsed = (ros::WallTime::now() - startTime).toSec();
 
     ROS_INFO(" TOTAL TIME STEREO:  %f sec", total_elapsed);
 
+    //sensor_msgs::ImagePtr msg2 = cv_bridge::CvImage(std_msgs::Header(), "mono8", csdd.disparity_image).toImageMsg();
+    //image_pub_nuno.publish(msg2);
+
     sensor_msgs::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", stereo_data.disparity_image).toImageMsg();
     image_pub_.publish(msg);
+
+
     publishStereoData(stereo_data, left_image->header.stamp);
     //publishCovarianceMatrices(stereo_data, left_image->header.stamp);
 

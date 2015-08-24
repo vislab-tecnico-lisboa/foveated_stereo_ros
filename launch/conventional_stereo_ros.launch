@@ -5,12 +5,12 @@
   <!--<arg name="vizzy_machine_address" default="10.0.29.186"/>-->
   <!--<arg name="env-loader" default="/opt/ros/indigo/env.sh"/>-->
   <!--<machine name="$(arg vizzy_machine_name)" address="$(arg vizzy_machine_address)" env-loader="$(arg env-loader)" user="vizzy"/>-->
-  <arg name="left_image" default="/vizzy/l_camera/image_rect_color/compressed"/>
-  <arg name="right_image" default="/vizzy/r_camera/image_rect_color/compressed"/>
+  <arg name="left_image" default="/vizzy/l_camera/image_rect_color"/>
+  <arg name="right_image" default="/vizzy/r_camera/image_rect_color"/>
   <arg name="left_camera_info" default="/vizzy/l_camera/camera_info"/>
   <arg name="right_camera_info" default="/vizzy/r_camera/camera_info"/>
   <!-- launch stereo_calibration -->
-  <!--<node machine="$(arg vizzy_machine_name)" name="foveated_stereo_ros" pkg="foveated_stereo_ros" type="conventional_stereo_ros_node" respawn="false" output="screen">
+  <node  name="foveated_stereo_ros" pkg="foveated_stereo_ros" type="conventional_stereo_ros_node" respawn="false" output="screen">
     <rosparam file="$(find foveated_stereo_ros)/config/params.yaml" command="load" />
     <rosparam file="$(find foveated_stereo_ros)/config/stereo_params.yaml" command="load" />
     <remap from="left_image" to="$(arg left_image)"/>
@@ -19,12 +19,12 @@
     <remap from="right_camera_info" to="$(arg right_camera_info)"/>
   </node>
 
-  <node machine="$(arg vizzy_machine_name)" name="ego_sphere_manager_ros" pkg="foveated_stereo_ros" type="ego_sphere_manager_ros_node" respawn="false" output="screen" >
+  <!--<node machine="$(arg vizzy_machine_name)" name="ego_sphere_manager_ros" pkg="foveated_stereo_ros" type="ego_sphere_manager_ros_node" respawn="false" output="screen" >
     <rosparam file="$(find foveated_stereo_ros)/config/egosphere.yaml" command="load" />
   </node>-->
 
   <!-- nodelet manager -->
-  <node pkg="nodelet" type="nodelet" name="active_stereo_manager"
+  <!-- <node pkg="nodelet" type="nodelet" name="active_stereo_manager"
         	args="manager"
 	    	respawn="true" output="screen"/>
 
@@ -33,10 +33,10 @@
 	    	respawn="true" output="screen" >
   		<rosparam file="$(find foveated_stereo_ros)/config/params.yaml" command="load" />
   		<rosparam file="$(find foveated_stereo_ros)/config/stereo_params.yaml" command="load" />
-		<remap from="left_image" to="/vizzy/l_camera/image_raw"/>
-		<remap from="right_image" to="/vizzy/r_camera/image_raw"/>
-		<remap from="left_camera_info" to="/vizzy/l_camera/camera_info"/>
-		<remap from="right_camera_info" to="/vizzy/r_camera/camera_info"/>
+		<remap from="left_image" to="$(arg left_image)"/>
+		<remap from="right_image" to="$(arg right_image)"/>
+		<remap from="left_camera_info" to="$(arg left_camera_info)"/>
+		<remap from="right_camera_info" to="$(arg right_camera_info)"/>
 	</node>
 
   	<node pkg="nodelet" type="nodelet" name="egosphere"
@@ -45,6 +45,6 @@
   		<rosparam file="$(find foveated_stereo_ros)/config/egosphere.yaml" command="load" />
 	</node>
 
-  <include file="$(find move_robot)/launch/gaze.launch"/>
+  <include file="$(find move_robot)/launch/gaze.launch"/>-->
 
 </launch>
