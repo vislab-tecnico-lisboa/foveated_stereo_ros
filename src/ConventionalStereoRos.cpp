@@ -8,7 +8,7 @@ ConventionalStereoRos::~ConventionalStereoRos()
 
 ConventionalStereoRos::ConventionalStereoRos(ros::NodeHandle & nh_, ros::NodeHandle & private_node_handle_) : StereoRos(nh_,private_node_handle_)
 {
-    left_camera_info_sub=nh_.subscribe("/vizzy/l_camera/camera_info",1,&ConventionalStereoRos::cameraInfoCallback, this);
+    left_camera_info_sub=nh_.subscribe("left_camera_info",1,&ConventionalStereoRos::cameraInfoCallback, this);
     return;
 }
 
@@ -44,7 +44,6 @@ void ConventionalStereoRos::cameraInfoCallback(const sensor_msgs::CameraInfoPtr 
     private_node_handle.param("beta", beta, 2.0);
     private_node_handle.param("ki", ki, 1.0);
     private_node_handle.param("scaling_factor", scaling_factor, 1.0);
-
 
     ROS_INFO_STREAM("sectors: "<<sectors);
     ROS_INFO_STREAM("rings: "<<rings);
@@ -103,9 +102,9 @@ void ConventionalStereoRos::cameraInfoCallback(const sensor_msgs::CameraInfoPtr 
     right_image_sub=boost::shared_ptr<message_filters::Subscriber<Image> > (new message_filters::Subscriber<Image>(nh, "right_image", 10));
 
     ROS_INFO("Getting cameras' parameters");
-    sensor_msgs::CameraInfoConstPtr right_camera_info=ros::topic::waitForMessage<sensor_msgs::CameraInfo>("/vizzy/r_camera/camera_info", ros::Duration(30));
+    sensor_msgs::CameraInfoConstPtr right_camera_info=ros::topic::waitForMessage<sensor_msgs::CameraInfo>("right_camera_info", ros::Duration(30));
 
-    //set the camera intrinsic parameters
+    //set the cameras intrinsic parameters
     left_cam_intrinsic = Mat::eye(3,3,CV_64F);
     left_cam_intrinsic.at<double>(0,0) = left_camera_info->K.at(0);
     left_cam_intrinsic.at<double>(1,1) = left_camera_info->K.at(4);
@@ -117,46 +116,70 @@ void ConventionalStereoRos::cameraInfoCallback(const sensor_msgs::CameraInfoPtr 
     right_cam_intrinsic.at<double>(1,1) = right_camera_info->K.at(4);
     right_cam_intrinsic.at<double>(0,2) = right_camera_info->K.at(2);
     right_cam_intrinsic.at<double>(1,2) = right_camera_info->K.at(5);
-    int width=(int)left_camera_info->width;
-    int height=(int)left_camera_info->height;
+    unsigned int width=(unsigned int)left_camera_info->width;
+    unsigned int height=(unsigned int)left_camera_info->height;
 
-    //stereo_calibration=boost::shared_ptr<stereo_calib> (new stereo_calib(fillStereoCalibParams(baseline)));
+
+    try
+    {
+        listener->waitForTransform(left_camera_frame, right_camera_frame, ros::Time(0), ros::Duration(1.0));
+        listener->lookupTransform(left_camera_frame, right_camera_frame,
+                                  ros::Time(0), r_l_eye_transform);
+    }
+    catch (tf::TransformException &ex)
+    {
+        ROS_ERROR("%s",ex.what());
+        ros::Duration(1.0).sleep();
+        return;
+    }
+
+    double resize_factor = 1.0;
+
+    double baseline = (double)r_l_eye_transform.getOrigin().length();
+
+    std::cout << "baseline:" << baseline<< std::endl;
+                 //exit(-1);
+
+    stereo_calibration=boost::shared_ptr<complete_stereo_calib> (new complete_stereo_calib(fillStereoCalibParams(width,height,left_cam_intrinsic,right_cam_intrinsic,baseline,resize_factor)));
     stereo=boost::shared_ptr<ConventionalStereo> (new ConventionalStereo(left_cam_intrinsic,
-                                                     right_cam_intrinsic,
-                                                     width,
-                                                     height,
-                                                     cv::Point2i(width/2.0,
-                                                                 height/2.0),
-                                                     rings,
-                                                     min_radius,
-                                                     interp,
-                                                     full,
-                                                     sectors,
-                                                     sp,
-                                                     ego_frame,
-                                                     information_lower_bound,
-                                                     L,
-                                                     alpha,
-                                                     ki,
-                                                     beta,
-                                                     scaling_factor,
-                                                     number_of_disparities,
-                                                     pre_filter_cap,
-                                                     sad_window_size,
-                                                     P1,
-                                                     P2,
-                                                     min_disparity,
-                                                     uniqueness_ratio,
-                                                     speckle_window_size,
-                                                     speckle_range,
-                                                     disp_12_max_diff,
-                                                     full_dp,
-                                                     ignore_border_left
+                                                                         right_cam_intrinsic,
+                                                                         width,
+                                                                         height,
+                                                                         cv::Point2i(width/2.0,
+                                                                                     height/2.0),
+                                                                         rings,
+                                                                         min_radius,
+                                                                         interp,
+                                                                         full,
+                                                                         sectors,
+                                                                         sp,
+                                                                         ego_frame,
+                                                                         information_lower_bound,
+                                                                         L,
+                                                                         alpha,
+                                                                         ki,
+                                                                         beta,
+                                                                         scaling_factor,
+                                                                         number_of_disparities,
+                                                                         pre_filter_cap,
+                                                                         sad_window_size,
+                                                                         P1,
+                                                                         P2,
+                                                                         min_disparity,
+                                                                         uniqueness_ratio,
+                                                                         speckle_window_size,
+                                                                         speckle_range,
+                                                                         disp_12_max_diff,
+                                                                         full_dp,
+                                                                         ignore_border_left
 
-                                                     )
-                                          );
+                                                                         )
+                                                  );
+
+
+
     image_pub_ = it_.advertise("/vizzy/disparity", 3);
-
+    //image_pub_nuno = it_.advertise("/vizzy/disparity_nuno", 3);
     rgb_point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("stereo", 10);
     mean_point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("mean_pcl", 10);
     uncertainty_point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("uncertainty_pcl", 10);
@@ -177,7 +200,7 @@ void ConventionalStereoRos::cameraInfoCallback(const sensor_msgs::CameraInfoPtr 
 }
 
 void ConventionalStereoRos::callback(const ImageConstPtr& left_image,
-                                  const ImageConstPtr& right_image)
+                                     const ImageConstPtr& right_image)
 {
     ROS_INFO("Stereo callback...");
     ros::WallTime startTime = ros::WallTime::now();
@@ -191,10 +214,10 @@ void ConventionalStereoRos::callback(const ImageConstPtr& left_image,
     {
         listener->waitForTransform(ego_frame, left_camera_frame, ros::Time(0), ros::Duration(1.0));
         listener->lookupTransform(ego_frame, left_camera_frame,
-                                 ros::Time(0), l_eye_transform);
+                                  ros::Time(0), l_eye_transform);
         listener->waitForTransform(right_camera_frame, left_camera_frame, ros::Time(0), ros::Duration(1.0));
         listener->lookupTransform(right_camera_frame, left_camera_frame,
-                                 ros::Time(0), r_l_eye_transform);
+                                  ros::Time(0), r_l_eye_transform);
     }
     catch (tf::TransformException &ex)
     {
@@ -203,37 +226,50 @@ void ConventionalStereoRos::callback(const ImageConstPtr& left_image,
         return;
     }
 
+
+    Mat stereo_encoders = Mat::zeros(6,1,CV_64F);
     /*double roll, pitch, yaw;
-        tf::Matrix3x3(tf::Quaternion(
-                          l_eye_transform.getRotation().getX(),
-                          l_eye_transform.getRotation().getY(),
-                          l_eye_transform.getRotation().getZ(),
-                          l_eye_transform.getRotation().getW()
-                          )).getRPY(roll, pitch, yaw);
-        double l_eye_angle=-yaw;
+    tf::Matrix3x3(tf::Quaternion(
+                      l_eye_transform.getRotation().getX(),
+                      l_eye_transform.getRotation().getY(),
+                      l_eye_transform.getRotation().getZ(),
+                      l_eye_transform.getRotation().getW()
+                      )).getRPY(roll, pitch, yaw);
+    double l_eye_angle=-yaw;
 
-        tf::Matrix3x3(tf::Quaternion(
-                          r_eye_transform.getRotation().getX(),
-                          r_eye_transform.getRotation().getY(),
-                          r_eye_transform.getRotation().getZ(),
-                          r_eye_transform.getRotation().getW()
-                          )).getRPY(roll, pitch, yaw);
-        double r_eye_angle=-yaw;
-        //ROS_INFO_STREAM("l_eye_angle:"<<l_eye_angle <<"   r_eye_angle:"<<r_eye_angle);
+    tf::Matrix3x3(tf::Quaternion(
+                      r_eye_transform.getRotation().getX(),
+                      r_eye_transform.getRotation().getY(),
+                      r_eye_transform.getRotation().getZ(),
+                      r_eye_transform.getRotation().getW()
+                      )).getRPY(roll, pitch, yaw);
+    double r_eye_angle=-yaw;
+    */
+    // 3. calibrate given angles
+    ROS_INFO("Calibrate stereo...");
+    stereo_calibration->calibrate(left_image_mat,
+                                  right_image_mat,
+                                  stereo_encoders);
 
-        // 3. calibrate given angles
-        stereo_calibration->calibrate(left_image_mat,
-                                      right_image_mat,
-                                      l_eye_angle,
-                                      r_eye_angle);
-        */
-    Eigen::Affine3d left_to_center_eigen;
+    ROS_INFO("Done.");
+
+    //get the calibrated transformations between the two cameras
+    complete_stereo_calib_data scd;
+    scd =  stereo_calibration->get_calibrated_transformations(stereo_encoders);
+
+    //obtain and show the disparity map
+    complete_stereo_disparity_data csdd = stereo_calibration->complete_stereo_calib::get_disparity_map(left_image_mat, right_image_mat, stereo_encoders);
+    
+
+
+     //    imshow("disparity", csdd.disparity_image);
+    //waitKey(1);
+    /*Eigen::Affine3d left_to_center_eigen;
 
     tf::transformTFToEigen (l_eye_transform, left_to_center_eigen );
     cv::Mat left_to_center = Mat::eye(4,4,CV_64F);
     cv::eigen2cv(left_to_center_eigen.matrix(),left_to_center);
 
-    stereo_calib_data scd;//=stereo_calibration->get_calibrated_transformations(l_eye_angle,r_eye_angle);
     scd.R_left_cam_to_right_cam=Mat(3,3,CV_64F);
     scd.t_left_cam_to_right_cam=Mat(3,1,CV_64F);
 
@@ -249,21 +285,35 @@ void ConventionalStereoRos::callback(const ImageConstPtr& left_image,
 
     scd.t_left_cam_to_right_cam.at<double>(0,0) = r_l_eye_transform.getOrigin()[0];
     scd.t_left_cam_to_right_cam.at<double>(1,0) = r_l_eye_transform.getOrigin()[1];
-    scd.t_left_cam_to_right_cam.at<double>(2,0) = r_l_eye_transform.getOrigin()[2];
+    scd.t_left_cam_to_right_cam.at<double>(2,0) = r_l_eye_transform.getOrigin()[2];*/
+
+    //obtain and show the disparity map
+    /*complete_stereo_disparity_data csdd = scd.complete_stereo_calib::get_disparity_map(left_rz, right_rz, stereo_encoders);
+        imshow("disparity", csdd.disparity_image);
+    waitKey(1)*/
+
+    //show the transformation between the left and right images
+    //cout << "Transformation from left to right camera: " << cscd.transformation_left_cam_to_right_cam << endl;
+
 
     StereoData stereo_data=stereo->computeStereo(left_image_mat,
-                                                     right_image_mat,
-                                                     scd.R_left_cam_to_right_cam,
-                                                     scd.t_left_cam_to_right_cam,
-                                                     left_to_center
-                                                     );//*/
-
+                                                 right_image_mat,
+                                                 scd.R_left_cam_to_right_cam,
+                                                 scd.t_left_cam_to_right_cam,
+                                                 scd.transformation_left_cam_to_baseline_center
+                                                 );//*/
+	
     double total_elapsed = (ros::WallTime::now() - startTime).toSec();
 
     ROS_INFO(" TOTAL TIME STEREO:  %f sec", total_elapsed);
 
+    //sensor_msgs::ImagePtr msg2 = cv_bridge::CvImage(std_msgs::Header(), "mono8", csdd.disparity_image).toImageMsg();
+    //image_pub_nuno.publish(msg2);
+
     sensor_msgs::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", stereo_data.disparity_image).toImageMsg();
     image_pub_.publish(msg);
+
+
     publishStereoData(stereo_data, left_image->header.stamp);
     //publishCovarianceMatrices(stereo_data, left_image->header.stamp);
 

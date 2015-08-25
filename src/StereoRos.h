@@ -19,7 +19,10 @@
 #include <sensor_msgs/image_encodings.h>
 #include <sensor_msgs/CameraInfo.h>
 #include "Stereo.h"
-#include <stereo_calib_lib.h>
+#include <complete_stereo_calib_lib.h>
+#include "images/imagesBase.h"
+
+
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/image_encodings.h>
 
@@ -54,6 +57,7 @@ protected:
 
     image_transport::ImageTransport it_;
     image_transport::Publisher image_pub_;
+    //image_transport::Publisher image_pub_nuno;
     ros::Publisher marker_pub;
     ros::Publisher stereo_data_publisher;
 
@@ -80,7 +84,7 @@ public:
 
     boost::shared_ptr<Synchronizer<MySyncPolicy> >sync;
 
-    boost::shared_ptr<stereo_calib> stereo_calibration;
+    boost::shared_ptr<complete_stereo_calib> stereo_calibration;
     boost::shared_ptr<Stereo> stereo;
 
     ~StereoRos();
@@ -90,7 +94,7 @@ public:
                   );
 
 
-    stereo_calib_params fillStereoCalibParams(float & baseline);
+    complete_stereo_calib_params fillStereoCalibParams(const unsigned int & width, const unsigned int & height, const cv::Mat & left_cam_intrinsic, const cv::Mat & right_cam_intrinsic, const double & baseline, const double & resize_factor);
 
     void callback(const ImageConstPtr& left_image,
                   const ImageConstPtr& right_image);

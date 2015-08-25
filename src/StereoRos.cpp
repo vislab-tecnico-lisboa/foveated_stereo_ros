@@ -1,6 +1,5 @@
 #include "StereoRos.h"
 using namespace sensor_msgs;
-
 using namespace message_filters;
 
 StereoRos::~StereoRos()
@@ -15,41 +14,31 @@ StereoRos::StereoRos(ros::NodeHandle & nh_, ros::NodeHandle & private_node_handl
     return;
 }
 
-/*stereo_calib_params StereoRos::fillStereoCalibParams(float & baseline)
+complete_stereo_calib_params StereoRos::fillStereoCalibParams(const unsigned int & width, const unsigned int & height, const cv::Mat & left_cam_intrinsic, const cv::Mat & right_cam_intrinsic, const double & baseline, const double & resize_factor)
 {
-    ROS_INFO("Getting cameras' paremeters");
-    sensor_msgs::CameraInfoConstPtr left_camera_info=ros::topic::waitForMessage<sensor_msgs::CameraInfo>("/vizzy/l_camera/camera_info", ros::Duration(30));
-    sensor_msgs::CameraInfoConstPtr right_camera_info=ros::topic::waitForMessage<sensor_msgs::CameraInfo>("/vizzy/r_camera/camera_info", ros::Duration(30));
+    ROS_INFO("Filling stereo params for online calibration...");
 
-    stereo_calib_params params;
-    params.left_cam_cx=left_camera_info->K.at(2);
-    params.left_cam_cy=left_camera_info->K.at(5);
-    params.left_cam_fx=left_camera_info->K.at(0);
-    params.left_cam_fy=left_camera_info->K.at(4);
-    params.left_cam_resx=left_camera_info->width;
-    params.left_cam_resy=left_camera_info->height;
+    complete_stereo_calib_params params;
+    params.baseline = baseline;//in mm
 
-    params.right_cam_cx=right_camera_info->K.at(2);
-    params.right_cam_cy=right_camera_info->K.at(5);
-    params.right_cam_fx=right_camera_info->K.at(0);
-    params.right_cam_fy=right_camera_info->K.at(4);
-    params.right_cam_resx=right_camera_info->width;
-    params.right_cam_resy=right_camera_info->height;
+    //set the parameters for the stereo calibration system
+    params.left_cam_resx = width/resize_factor;
+    params.left_cam_resy = height/resize_factor;
+    params.left_cam_cx = left_cam_intrinsic.at<double>(0,2)/resize_factor;
+    params.left_cam_cy = left_cam_intrinsic.at<double>(1,2)/resize_factor;
+    params.left_cam_fx = left_cam_intrinsic.at<double>(0,0)/resize_factor;
+    params.left_cam_fy = left_cam_intrinsic.at<double>(1,1)/resize_factor;
+    params.right_cam_resx = width/resize_factor;
+    params.right_cam_resy = height/resize_factor;
+    params.right_cam_cx = right_cam_intrinsic.at<double>(0,2)/resize_factor;
+    params.right_cam_cy = right_cam_intrinsic.at<double>(1,2)/resize_factor;
+    params.right_cam_fx = right_cam_intrinsic.at<double>(0,0)/resize_factor;
+    params.right_cam_fy = right_cam_intrinsic.at<double>(1,1)/resize_factor;
 
-    params.baseline=baseline; // meters
-    params.encoders_measurements_noise=0.0000000175;
-    params.encoders_state_noise=1.0;
-    params.encoders_transition_noise=0.005;
-    params.features_measurements_noise=25;
-    params.matching_threshold=0.35;
-    params.max_number_of_features=250;
-    params.min_number_of_features=2;
-    params.number_fixed_state_params=5;
-    params.number_measurements=6;
     ROS_INFO("Done.");
 
     return params;
-}*/
+}
 
 void StereoRos::publishStereoData(StereoData & sdd, const ros::Time & time)
 {

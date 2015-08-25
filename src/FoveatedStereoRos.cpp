@@ -118,6 +118,7 @@ void FoveatedStereoRos::cameraInfoCallback(const sensor_msgs::CameraInfoPtr & le
     right_cam_intrinsic.at<double>(1,1) = right_camera_info->K.at(4);
     right_cam_intrinsic.at<double>(0,2) = right_camera_info->K.at(2);
     right_cam_intrinsic.at<double>(1,2) = right_camera_info->K.at(5);
+
     int width=(int)left_camera_info->width;
     int height=(int)left_camera_info->height;
 
@@ -234,7 +235,7 @@ void FoveatedStereoRos::callback(const ImageConstPtr& left_image,
     cv::Mat left_to_center = Mat::eye(4,4,CV_64F);
     cv::eigen2cv(left_to_center_eigen.matrix(),left_to_center);
 
-    stereo_calib_data scd;//=stereo_calibration->get_calibrated_transformations(l_eye_angle,r_eye_angle);
+    complete_stereo_calib_data scd;//=stereo_calibration->get_calibrated_transformations(l_eye_angle,r_eye_angle);
     scd.R_left_cam_to_right_cam=Mat(3,3,CV_64F);
     scd.t_left_cam_to_right_cam=Mat(3,1,CV_64F);
 
