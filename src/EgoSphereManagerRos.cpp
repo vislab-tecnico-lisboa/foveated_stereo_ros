@@ -368,8 +368,8 @@ void EgoSphereManagerRos::publishAll(const foveated_stereo_ros::StereoDataConstP
 
     try
     {
-        listener.waitForTransform(world_frame_id, ego_frame_id, ros::Time(0), ros::Duration(10.0) );
-        listener.transformPoint(world_frame_id, ros::Time(0),fixation_point_ego,ego_frame_id,fixation_point_world);
+        listener.waitForTransform(world_frame_id, ego_frame_id, stereo_data->header.stamp, ros::Duration(10.0) );
+        listener.transformPoint(world_frame_id, stereo_data->header.stamp,fixation_point_ego,ego_frame_id,fixation_point_world);
     } catch(tf::TransformException& ex){
         ROS_DEBUG_STREAM( "Transform lookup failed: " << ex.what());
         exit(-1);
