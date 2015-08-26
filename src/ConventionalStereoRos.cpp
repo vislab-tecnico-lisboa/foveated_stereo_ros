@@ -19,9 +19,6 @@ void ConventionalStereoRos::cameraInfoCallback(const sensor_msgs::CameraInfoPtr 
 {
     left_camera_info_sub.shutdown();
     cameraInfoCommon(left_camera_info);
-    std::cout << "width:" <<width << std::endl;
-    std::cout << "height:" <<height << std::endl;
-
     stereo=boost::shared_ptr<ConventionalStereo> (new ConventionalStereo(left_cam_intrinsic,
                                                                          right_cam_intrinsic,
                                                                          width,
@@ -79,9 +76,6 @@ void ConventionalStereoRos::callback(const ImageConstPtr& left_image,
     double total_elapsed = (ros::WallTime::now() - startTime).toSec();
 
     ROS_INFO(" TOTAL TIME STEREO:  %f sec", total_elapsed);
-
-    //sensor_msgs::ImagePtr msg2 = cv_bridge::CvImage(std_msgs::Header(), "mono8", csdd.disparity_image).toImageMsg();
-    //disparity_image_publishernuno.publish(msg2);
 
     sensor_msgs::ImagePtr msg = cv_bridge::CvImage(std_msgs::Header(), "mono8", stereo_data.disparity_image).toImageMsg();
     disparity_image_publisher.publish(msg);

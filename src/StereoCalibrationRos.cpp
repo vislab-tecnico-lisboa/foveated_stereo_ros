@@ -11,15 +11,20 @@ StereoCalibrationRos::StereoCalibrationRos(ros::NodeHandle & nh_, ros::NodeHandl
 
 {
     ROS_INFO("Initializing...");
-
-    private_node_handle.param<std::string>("left_camera_frame", left_camera_frame, "left_camera_frame");
-    private_node_handle.param<std::string>("right_camera_frame", right_camera_frame, "right_camera_frame");
-
     std::string left_camera_info_topic;
     std::string right_camera_info_topic;
+    std::string joint_states_topic;
+    private_node_handle.param<std::string>("left_camera_frame", left_camera_frame, "left_camera_frame");
+    private_node_handle.param<std::string>("right_camera_frame", right_camera_frame, "right_camera_frame");
+    private_node_handle.param<std::string>("left_camera_info_topic", left_camera_info_topic, "left_camera_info_topic");
+    private_node_handle.param<std::string>("right_camera_info_topic", right_camera_info_topic, "right_camera_info_topic");
+    private_node_handle.param<std::string>("joint_states_topic", joint_states_topic, "joint_states_topic");
 
-    private_node_handle.param<std::string>("left_camera_info_topic", left_camera_info_topic, "left_camera_frame");
-    private_node_handle.param<std::string>("right_camera_info_topic", right_camera_info_topic, "right_camera_frame");
+    ROS_INFO_STREAM("left_camera_frame:"<<left_camera_frame);
+    ROS_INFO_STREAM("right_camera_frame:"<<right_camera_frame);
+    ROS_INFO_STREAM("left_camera_info_topic:"<<left_camera_info_topic);
+    ROS_INFO_STREAM("right_camera_info_topic:"<<right_camera_info_topic);
+    ROS_INFO_STREAM("joint_states_topic:"<<joint_states_topic);
 
     sensor_msgs::CameraInfoConstPtr left_camera_info=ros::topic::waitForMessage<sensor_msgs::CameraInfo>(left_camera_info_topic, ros::Duration(30));
     sensor_msgs::CameraInfoConstPtr right_camera_info=ros::topic::waitForMessage<sensor_msgs::CameraInfo>(right_camera_info_topic, ros::Duration(30));
@@ -67,7 +72,6 @@ StereoCalibrationRos::StereoCalibrationRos(ros::NodeHandle & nh_, ros::NodeHandl
     left_to_center_pub=nh.advertise<geometry_msgs::TransformStamped>("left_to_center_tf", 1);
 
     ROS_INFO("Done.");
-
 }
 
 complete_stereo_calib_params StereoCalibrationRos::fillStereoCalibParams(const unsigned int & width, const unsigned int & height, const cv::Mat & left_cam_intrinsic, const cv::Mat & right_cam_intrinsic, const double & baseline, const double & resize_factor)
