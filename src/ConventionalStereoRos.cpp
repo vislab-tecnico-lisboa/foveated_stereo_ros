@@ -98,9 +98,6 @@ void ConventionalStereoRos::cameraInfoCallback(const sensor_msgs::CameraInfoPtr 
     ROS_INFO_STREAM("full_dp: "<<full_dp);
     ROS_INFO_STREAM("ignore_border_left: "<<ignore_border_left);
 
-    left_image_sub=boost::shared_ptr<message_filters::Subscriber<Image> > (new message_filters::Subscriber<Image>(nh, "left_image", 10));
-    right_image_sub=boost::shared_ptr<message_filters::Subscriber<Image> > (new message_filters::Subscriber<Image>(nh, "right_image", 10));
-
     ROS_INFO("Getting cameras' parameters");
     sensor_msgs::CameraInfoConstPtr right_camera_info=ros::topic::waitForMessage<sensor_msgs::CameraInfo>("right_camera_info", ros::Duration(30));
 
@@ -194,6 +191,9 @@ void ConventionalStereoRos::cameraInfoCallback(const sensor_msgs::CameraInfoPtr 
 
     marker_pub = nh.advertise<visualization_msgs::MarkerArray>("covariances", 1);
 
+    left_image_sub=boost::shared_ptr<message_filters::Subscriber<Image> > (new message_filters::Subscriber<Image>(nh, "left_image", 10));
+    right_image_sub=boost::shared_ptr<message_filters::Subscriber<Image> > (new message_filters::Subscriber<Image>(nh, "right_image", 10));
+
     sync=boost::shared_ptr<Synchronizer<MySyncPolicy> > (new Synchronizer<MySyncPolicy>(MySyncPolicy(10), *left_image_sub, *right_image_sub));
     sync->registerCallback(boost::bind(&ConventionalStereoRos::callback, this, _1, _2));
     ROS_INFO_STREAM("done");
@@ -257,43 +257,6 @@ void ConventionalStereoRos::callback(const ImageConstPtr& left_image,
     complete_stereo_calib_data scd;
     scd =  stereo_calibration->get_calibrated_transformations(stereo_encoders);
 
-    //obtain and show the disparity map
-    complete_stereo_disparity_data csdd = stereo_calibration->complete_stereo_calib::get_disparity_map(left_image_mat, right_image_mat, stereo_encoders);
-    
-
-
-     //    imshow("disparity", csdd.disparity_image);
-    //waitKey(1);
-    /*Eigen::Affine3d left_to_center_eigen;
-
-    tf::transformTFToEigen (l_eye_transform, left_to_center_eigen );
-    cv::Mat left_to_center = Mat::eye(4,4,CV_64F);
-    cv::eigen2cv(left_to_center_eigen.matrix(),left_to_center);
-
-    scd.R_left_cam_to_right_cam=Mat(3,3,CV_64F);
-    scd.t_left_cam_to_right_cam=Mat(3,1,CV_64F);
-
-    scd.R_left_cam_to_right_cam.at<double>(0,0)=r_l_eye_transform.getBasis().getColumn(0)[0];
-    scd.R_left_cam_to_right_cam.at<double>(1,0)=r_l_eye_transform.getBasis().getColumn(0)[1];
-    scd.R_left_cam_to_right_cam.at<double>(2,0)=r_l_eye_transform.getBasis().getColumn(0)[2];
-    scd.R_left_cam_to_right_cam.at<double>(0,1)=r_l_eye_transform.getBasis().getColumn(1)[0];
-    scd.R_left_cam_to_right_cam.at<double>(1,1)=r_l_eye_transform.getBasis().getColumn(1)[1];
-    scd.R_left_cam_to_right_cam.at<double>(2,1)=r_l_eye_transform.getBasis().getColumn(1)[2];
-    scd.R_left_cam_to_right_cam.at<double>(0,2)=r_l_eye_transform.getBasis().getColumn(2)[0];
-    scd.R_left_cam_to_right_cam.at<double>(1,2)=r_l_eye_transform.getBasis().getColumn(2)[1];
-    scd.R_left_cam_to_right_cam.at<double>(2,2)=r_l_eye_transform.getBasis().getColumn(2)[2];
-
-    scd.t_left_cam_to_right_cam.at<double>(0,0) = r_l_eye_transform.getOrigin()[0];
-    scd.t_left_cam_to_right_cam.at<double>(1,0) = r_l_eye_transform.getOrigin()[1];
-    scd.t_left_cam_to_right_cam.at<double>(2,0) = r_l_eye_transform.getOrigin()[2];*/
-
-    //obtain and show the disparity map
-    /*complete_stereo_disparity_data csdd = scd.complete_stereo_calib::get_disparity_map(left_rz, right_rz, stereo_encoders);
-        imshow("disparity", csdd.disparity_image);
-    waitKey(1)*/
-
-    //show the transformation between the left and right images
-    //cout << "Transformation from left to right camera: " << cscd.transformation_left_cam_to_right_cam << endl;
 
 
     StereoData stereo_data=stereo->computeStereo(left_image_mat,

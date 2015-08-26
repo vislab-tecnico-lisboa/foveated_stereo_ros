@@ -8,6 +8,7 @@
 #include <sensor_msgs/CameraInfo.h>
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/PointCloud.h>
+#include <sensor_msgs/image_encodings.h>
 
 #include <cv_bridge/cv_bridge.h>
 #include <pcl/point_cloud.h>
@@ -16,15 +17,11 @@
 #include <pcl_conversions/pcl_conversions.h>
 
 #include <tf/transform_listener.h>
-#include <sensor_msgs/image_encodings.h>
-#include <sensor_msgs/CameraInfo.h>
-#include "Stereo.h"
-#include <complete_stereo_calib_lib.h>
-#include "images/imagesBase.h"
+
+
 
 
 #include <cv_bridge/cv_bridge.h>
-#include <sensor_msgs/image_encodings.h>
 
 #include <image_transport/image_transport.h>
 #include <iostream>
@@ -39,6 +36,9 @@
 #include <boost/thread.hpp>
 #include <pcl_ros/transforms.h>
 
+#include "Stereo.h"
+#include <complete_stereo_calib_lib.h>
+#include "images/imagesBase.h"
 using namespace sensor_msgs;
 
 using namespace message_filters;

@@ -7,10 +7,12 @@
 #include <complete_stereo_calib_lib.h>
 #include <sensor_msgs/CameraInfo.h>
 #include <sensor_msgs/Image.h>
+#include <sensor_msgs/JointState.h>
 #include <tf/transform_listener.h>
 #include <cv_bridge/cv_bridge.h>
 #include <image_transport/image_transport.h>
-
+#include <iostream>
+using namespace cv;
 class StereoCalibrationRos
 {
     ros::NodeHandle nh;
@@ -18,113 +20,103 @@ class StereoCalibrationRos
     boost::shared_ptr<tf::TransformListener> listener;
     boost::shared_ptr<complete_stereo_calib> stereo_calibration;
     image_transport::Publisher image_pub_;
+    typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::JointState> MySyncPolicy;
 
+    boost::shared_ptr<message_filters::Subscriber<sensor_msgs::Image> > left_image_sub;
+    boost::shared_ptr<message_filters::Subscriber<sensor_msgs::Image> > right_image_sub;
+    boost::shared_ptr<message_filters::Subscriber<sensor_msgs::JointState> > joint_state_sub;
+
+    boost::shared_ptr<message_filters::Synchronizer<MySyncPolicy> >sync;
+
+    ros::Publisher right_to_left_pub;
 public:
+
     StereoCalibrationRos();
 
+    StereoCalibrationRos(ros::NodeHandle & nh_, ros::NodeHandle & private_node_handle_);
+
     void callback(const sensor_msgs::ImageConstPtr& left_image,
-                                         const sensor_msgs::ImageConstPtr& right_image)
-    {
-        ROS_INFO("Stereo calibration callback...");
-        ros::WallTime startTime = ros::WallTime::now();
+                  const sensor_msgs::ImageConstPtr& right_image,
+                  const sensor_msgs::JointStateConstPtr& joint_states);
 
-        // 1. Get uncalibrated color images
-        cv::Mat left_image_mat =cv_bridge::toCvCopy(left_image, "bgr8")->image;
-        cv::Mat right_image_mat =cv_bridge::toCvCopy(right_image, "bgr8")->image;
 
-        // 2. Get eye angles with respect to eyes center
-        /*try
-        {
-            listener->waitForTransform(ego_frame, left_camera_frame, ros::Time(0), ros::Duration(1.0));
-            listener->lookupTransform(ego_frame, left_camera_frame,
-                                      ros::Time(0), l_eye_transform);
-            listener->waitForTransform(right_camera_frame, left_camera_frame, ros::Time(0), ros::Duration(1.0));
-            listener->lookupTransform(right_camera_frame, left_camera_frame,
-                                      ros::Time(0), r_l_eye_transform);
+    cv::Mat Quaternion(double rx, double ry, double rz){
+        //quaternion vec
+        Mat Q(4,1,CV_64F);
+
+        //Teta = ||w*dT||
+        double teta=sqrt((rx*rx)+(ry*ry)+(rz*rz));
+
+
+        Mat U(3,1,CV_64F);
+
+        if (teta<1e-6){
+            Q.at<double>(0,0)=1;
+            Q.at<double>(1,0)=0;
+            Q.at<double>(2,0)=0;
+            Q.at<double>(3,0)=0;
+            return Q;
         }
-        catch (tf::TransformException &ex)
-        {
-            ROS_ERROR("%s",ex.what());
-            ros::Duration(1.0).sleep();
-            return;
-        }*/
 
+        U.at<double>(0,0)=(rx)/teta;
+        U.at<double>(1,0)=(ry)/teta;
+        U.at<double>(2,0)=(rz)/teta;
 
-        cv::Mat stereo_encoders = cv::Mat::zeros(6,1,CV_64F);
-        /*double roll, pitch, yaw;
-        tf::Matrix3x3(tf::Quaternion(
-                          l_eye_transform.getRotation().getX(),
-                          l_eye_transform.getRotation().getY(),
-                          l_eye_transform.getRotation().getZ(),
-                          l_eye_transform.getRotation().getW()
-                          )).getRPY(roll, pitch, yaw);
-        double l_eye_angle=-yaw;
+        Q.at<double>(0,0) = cos(teta/2);
+        Q.at<double>(1,0) = sin(teta/2)*U.at<double>(0,0);
+        Q.at<double>(2,0) = sin(teta/2)*U.at<double>(1,0);
+        Q.at<double>(3,0) = sin(teta/2)*U.at<double>(2,0);
 
-        tf::Matrix3x3(tf::Quaternion(
-                          r_eye_transform.getRotation().getX(),
-                          r_eye_transform.getRotation().getY(),
-                          r_eye_transform.getRotation().getZ(),
-                          r_eye_transform.getRotation().getW()
-                          )).getRPY(roll, pitch, yaw);
-        double r_eye_angle=-yaw;
-        */
-        // 3. calibrate given angles
-        ROS_INFO("Calibrate stereo...");
-        stereo_calibration->calibrate(left_image_mat,
-                                      right_image_mat,
-                                      stereo_encoders);
-
-        ROS_INFO("Done.");
-
-        //get the calibrated transformations between the two cameras
-        complete_stereo_calib_data scd;
-        scd =  stereo_calibration->get_calibrated_transformations(stereo_encoders);
-
-        //obtain and show the disparity map
-        complete_stereo_disparity_data csdd = stereo_calibration->complete_stereo_calib::get_disparity_map(left_image_mat, right_image_mat, stereo_encoders);
-
-
-
-         //    imshow("disparity", csdd.disparity_image);
-        //waitKey(1);
-        /*Eigen::Affine3d left_to_center_eigen;
-
-        tf::transformTFToEigen (l_eye_transform, left_to_center_eigen );
-        cv::Mat left_to_center = Mat::eye(4,4,CV_64F);
-        cv::eigen2cv(left_to_center_eigen.matrix(),left_to_center);
-
-        scd.R_left_cam_to_right_cam=Mat(3,3,CV_64F);
-        scd.t_left_cam_to_right_cam=Mat(3,1,CV_64F);
-
-        scd.R_left_cam_to_right_cam.at<double>(0,0)=r_l_eye_transform.getBasis().getColumn(0)[0];
-        scd.R_left_cam_to_right_cam.at<double>(1,0)=r_l_eye_transform.getBasis().getColumn(0)[1];
-        scd.R_left_cam_to_right_cam.at<double>(2,0)=r_l_eye_transform.getBasis().getColumn(0)[2];
-        scd.R_left_cam_to_right_cam.at<double>(0,1)=r_l_eye_transform.getBasis().getColumn(1)[0];
-        scd.R_left_cam_to_right_cam.at<double>(1,1)=r_l_eye_transform.getBasis().getColumn(1)[1];
-        scd.R_left_cam_to_right_cam.at<double>(2,1)=r_l_eye_transform.getBasis().getColumn(1)[2];
-        scd.R_left_cam_to_right_cam.at<double>(0,2)=r_l_eye_transform.getBasis().getColumn(2)[0];
-        scd.R_left_cam_to_right_cam.at<double>(1,2)=r_l_eye_transform.getBasis().getColumn(2)[1];
-        scd.R_left_cam_to_right_cam.at<double>(2,2)=r_l_eye_transform.getBasis().getColumn(2)[2];
-
-        scd.t_left_cam_to_right_cam.at<double>(0,0) = r_l_eye_transform.getOrigin()[0];
-        scd.t_left_cam_to_right_cam.at<double>(1,0) = r_l_eye_transform.getOrigin()[1];
-        scd.t_left_cam_to_right_cam.at<double>(2,0) = r_l_eye_transform.getOrigin()[2];*/
-
-        //obtain and show the disparity map
-        /*complete_stereo_disparity_data csdd = scd.complete_stereo_calib::get_disparity_map(left_rz, right_rz, stereo_encoders);
-            imshow("disparity", csdd.disparity_image);
-        waitKey(1)*/
-
-        //show the transformation between the left and right images
-        //cout << "Transformation from left to right camera: " << cscd.transformation_left_cam_to_right_cam << endl;
-
-
-
-        double total_elapsed = (ros::WallTime::now() - startTime).toSec();
-
-        ROS_INFO(" TOTAL TIME STEREO CALIBRATION:  %f sec", total_elapsed);
+        return Q;
     }
 
+    cv::Mat Quaternion(cv::Mat Rotation_Matrix)
+    {
+        Mat Q(4,1,CV_64F);
+
+        Q.at<double>(0,0) = sqrt(1 + Rotation_Matrix.at<double>(0,0) + Rotation_Matrix.at<double>(1,1) + Rotation_Matrix.at<double>(2,2))/2;
+        Q.at<double>(1,0) = (Rotation_Matrix.at<double>(2,1) - Rotation_Matrix.at<double>(1,2))/(4*Q.at<double>(0,0));
+        Q.at<double>(2,0) = (Rotation_Matrix.at<double>(0,2) - Rotation_Matrix.at<double>(2,0))/(4*Q.at<double>(0,0));
+        Q.at<double>(3,0) = (Rotation_Matrix.at<double>(1,0) - Rotation_Matrix.at<double>(0,1))/(4*Q.at<double>(0,0));
+
+        return Q;
+
+    }
+
+    cv::Mat Quaternion_to_Euler(cv::Mat Quaternion)
+    {
+
+        cv::Mat Euler(3,1,CV_64F);
+        Mat R = Rotation_Matrix(Quaternion);
+
+        Euler.at<double>(0,0) = atan(R.at<double>(1,0)/R.at<double>(0,0));
+        Euler.at<double>(1,0) = atan( -R.at<double>(2,0) / ( cos(Euler.at<double>(0,0))*R.at<double>(0,0) + sin(Euler.at<double>(0,0))*R.at<double>(1,0)));
+        Euler.at<double>(2,0) = atan( ( sin(Euler.at<double>(0,0))*R.at<double>(0,2) - cos(Euler.at<double>(0,0))*R.at<double>(1,2)) / ( cos(Euler.at<double>(0,0))*R.at<double>(1,1) - sin(Euler.at<double>(0,0))*R.at<double>(0,1)));
+
+        return Euler;
+    }
+
+    cv::Mat Rotation_Matrix(cv::Mat Quaternion)
+    {
+        Mat R(3,3,CV_64F);
+
+        double q0 = Quaternion.at<double>(0,0);
+        double qx = Quaternion.at<double>(1,0);
+        double qy = Quaternion.at<double>(2,0);
+        double qz = Quaternion.at<double>(3,0);
+
+        R.at<double>(0,0) = q0*q0 + qx*qx - qy*qy - qz*qz;
+        R.at<double>(0,1) = 2*(qx*qy - q0*qz);
+        R.at<double>(0,2) = 2*(qz*qx - q0*qy);
+        R.at<double>(1,0) = 2*(qx*qy + q0*qz);
+        R.at<double>(1,1) = q0*q0 - qx*qx + qy*qy - qz*qz;
+        R.at<double>(1,2) = 2*(qy*qz - q0*qx);
+        R.at<double>(2,0) = 2*(qz*qx - q0*qy);
+        R.at<double>(2,1) = 2*(qy*qz + q0*qx);
+        R.at<double>(2,2) = q0*q0 - qx*qx - qy*qy + qz*qz;
+
+        return R;
+    }
 
 };
 
