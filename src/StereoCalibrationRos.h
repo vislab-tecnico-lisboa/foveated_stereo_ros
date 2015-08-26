@@ -12,9 +12,15 @@
 #include <cv_bridge/cv_bridge.h>
 #include <image_transport/image_transport.h>
 #include <iostream>
+
 using namespace cv;
 class StereoCalibrationRos
 {
+    std::string left_camera_frame;
+    std::string right_camera_frame;
+
+    tf::StampedTransform r_l_eye_transform;
+
     ros::NodeHandle nh;
     ros::NodeHandle private_node_handle;
     boost::shared_ptr<tf::TransformListener> listener;
@@ -29,11 +35,16 @@ class StereoCalibrationRos
     boost::shared_ptr<message_filters::Synchronizer<MySyncPolicy> >sync;
 
     ros::Publisher right_to_left_pub;
+    ros::Publisher left_to_center_pub;
+
 public:
 
     StereoCalibrationRos();
 
     StereoCalibrationRos(ros::NodeHandle & nh_, ros::NodeHandle & private_node_handle_);
+
+    complete_stereo_calib_params fillStereoCalibParams(const unsigned int & width, const unsigned int & height, const cv::Mat & left_cam_intrinsic, const cv::Mat & right_cam_intrinsic, const double & baseline, const double & resize_factor);
+
 
     void callback(const sensor_msgs::ImageConstPtr& left_image,
                   const sensor_msgs::ImageConstPtr& right_image,

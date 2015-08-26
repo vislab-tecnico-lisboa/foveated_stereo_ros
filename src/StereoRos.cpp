@@ -114,6 +114,7 @@ void StereoRos::publishStereoData(StereoData & sdd, const ros::Time & time)
 
     stereo_data_publisher.publish(stereo_msg);
 }
+
 void StereoRos::publishCovarianceMatrices(StereoData & sdd, const ros::Time & time)
 {
 
