@@ -116,6 +116,24 @@ target_link_libraries(ego_sphere_manager_ros_node
 
 add_dependencies(ego_sphere_manager_ros_node foveated_stereo_ros_gencpp)
 
+
+## Declare a cpp executable
+add_executable(stereo_calibration_node src/StereoCalibrationRos.cpp)
+
+## Specify libraries to link a library or executable target against
+target_link_libraries(stereo_calibration_node
+   ${PCL_LIBRARIES}
+   ${catkin_LIBRARIES}
+   STEREO_CALIB_LIB
+   ${OpenCV_LIBRARIES}
+)
+
+add_dependencies(stereo_calibration_node foveated_stereo_ros_gencpp)
+
+
+
+
+
 # Nodelet library
 add_library(conventional_stereo_ros_nodelet src/ConventionalStereoRos.cpp src/StereoRos.cpp src/ConventionalStereoRosNodelet.cpp)
 target_link_libraries(conventional_stereo_ros_nodelet
