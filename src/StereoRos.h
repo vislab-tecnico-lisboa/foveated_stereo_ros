@@ -139,6 +139,7 @@ protected:
         private_node_handle.param("interp", interp, 1);
         private_node_handle.param("sp", sp, 0);
         private_node_handle.param("full", full, 1);
+
         private_node_handle.param<std::string>("ego_frame", ego_frame, "ego_frame");
         private_node_handle.param<std::string>("left_camera_frame", left_camera_frame, "left_camera_frame");
         private_node_handle.param<std::string>("right_camera_frame", right_camera_frame, "right_camera_frame");

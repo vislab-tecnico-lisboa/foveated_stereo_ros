@@ -131,6 +131,19 @@ target_link_libraries(stereo_calibration_node
 add_dependencies(stereo_calibration_node foveated_stereo_ros_gencpp)
 
 
+## Declare a cpp executable
+add_executable(perfect_stereo_calibration_node src/PerfectStereoCalibrationRos.cpp)
+
+## Specify libraries to link a library or executable target against
+target_link_libraries(perfect_stereo_calibration_node
+   ${PCL_LIBRARIES}
+   ${catkin_LIBRARIES}
+)
+
+add_dependencies(stereo_calibration_node foveated_stereo_ros_gencpp)
+
+
+
 
 
 

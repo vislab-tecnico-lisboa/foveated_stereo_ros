@@ -25,7 +25,6 @@ class StereoCalibrationRos
     ros::NodeHandle private_node_handle;
     boost::shared_ptr<tf::TransformListener> listener;
     boost::shared_ptr<complete_stereo_calib> stereo_calibration;
-    image_transport::Publisher image_pub_;
     typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::JointState> MySyncPolicy;
 
     boost::shared_ptr<message_filters::Subscriber<sensor_msgs::Image> > left_image_sub;
