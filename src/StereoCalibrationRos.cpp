@@ -68,7 +68,7 @@ StereoCalibrationRos::StereoCalibrationRos(ros::NodeHandle & nh_, ros::NodeHandl
     sync=boost::shared_ptr<message_filters::Synchronizer<MySyncPolicy> > (new message_filters::Synchronizer<MySyncPolicy>(MySyncPolicy(10), *left_image_sub, *right_image_sub, *joint_state_sub));
     sync->registerCallback(boost::bind(&StereoCalibrationRos::callback, this, _1, _2, _3));
 
-    right_to_left_pub=nh.advertise<geometry_msgs::TransformStamped>("right_to_left_tf", 1);
+    left_to_right_pub=nh.advertise<geometry_msgs::TransformStamped>("left_to_right_tf", 1);
     left_to_center_pub=nh.advertise<geometry_msgs::TransformStamped>("left_to_center_tf", 1);
 
     ROS_INFO("Done.");
@@ -126,19 +126,25 @@ void StereoCalibrationRos::callback(const sensor_msgs::ImageConstPtr& left_image
     scd =  stereo_calibration->get_calibrated_transformations(stereo_encoders);
 
     geometry_msgs::TransformStamped right_to_left_transform_stamped;
-    cv::Mat r_right_cam_to_left_cam_quaternion=Quaternion(scd.R_right_cam_to_left_cam);
+    right_to_left_transform_stamped.header=left_image->header;
+    right_to_left_transform_stamped.header.stamp=ros::Time::now();
+    right_to_left_transform_stamped.child_frame_id="eyes_center_link";
+    cv::Mat r_right_cam_to_left_cam_quaternion=Quaternion(scd.R_left_cam_to_right_cam);
 
     right_to_left_transform_stamped.transform.rotation.w=r_right_cam_to_left_cam_quaternion.at<double>(0,0);
     right_to_left_transform_stamped.transform.rotation.x=r_right_cam_to_left_cam_quaternion.at<double>(1,0);
     right_to_left_transform_stamped.transform.rotation.y=r_right_cam_to_left_cam_quaternion.at<double>(2,0);
     right_to_left_transform_stamped.transform.rotation.z=r_right_cam_to_left_cam_quaternion.at<double>(3,0);
-    right_to_left_transform_stamped.transform.translation.x=scd.t_right_cam_to_left_cam.at<double>(0,0);
-    right_to_left_transform_stamped.transform.translation.y=scd.t_right_cam_to_left_cam.at<double>(1,0);
-    right_to_left_transform_stamped.transform.translation.z=scd.t_right_cam_to_left_cam.at<double>(2,0);
+    right_to_left_transform_stamped.transform.translation.x=scd.t_left_cam_to_right_cam.at<double>(0,0);
+    right_to_left_transform_stamped.transform.translation.y=scd.t_left_cam_to_right_cam.at<double>(1,0);
+    right_to_left_transform_stamped.transform.translation.z=scd.t_left_cam_to_right_cam.at<double>(2,0);
 
-    right_to_left_pub.publish(right_to_left_transform_stamped);
+    left_to_right_pub.publish(right_to_left_transform_stamped);
 
     geometry_msgs::TransformStamped left_to_center_transform_stamped;
+    left_to_center_transform_stamped.header=left_image->header;
+    left_to_center_transform_stamped.header.stamp=ros::Time::now();
+    left_to_center_transform_stamped.child_frame_id="eyes_center_link";
     cv::Mat r_left_cam_to_center_cam_quaternion=Quaternion(scd.transformation_left_cam_to_baseline_center(cv::Range(0,3),cv::Range(0,3)));
 
     left_to_center_transform_stamped.transform.rotation.w=r_left_cam_to_center_cam_quaternion.at<double>(0,0);

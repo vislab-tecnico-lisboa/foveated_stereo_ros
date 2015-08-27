@@ -222,9 +222,6 @@ protected:
 
         left_to_right_sub=boost::shared_ptr<message_filters::Subscriber<geometry_msgs::TransformStamped> > (new message_filters::Subscriber<geometry_msgs::TransformStamped>(nh, "left_to_right_tf", 10));
         left_to_center_sub=boost::shared_ptr<message_filters::Subscriber<geometry_msgs::TransformStamped> > (new message_filters::Subscriber<geometry_msgs::TransformStamped>(nh, "left_to_center_tf", 10));
-
-        sync=boost::shared_ptr<Synchronizer<MySyncPolicy> > (new Synchronizer<MySyncPolicy>(MySyncPolicy(10), *left_image_sub, *right_image_sub, *left_to_right_sub, *left_to_center_sub));
-        //sync->registerCallback(boost::bind(&ConventionalStereoRos::callback, this, _1, _2));
     }
 
 public:

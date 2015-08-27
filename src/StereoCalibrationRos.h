@@ -34,7 +34,7 @@ class StereoCalibrationRos
 
     boost::shared_ptr<message_filters::Synchronizer<MySyncPolicy> >sync;
 
-    ros::Publisher right_to_left_pub;
+    ros::Publisher left_to_right_pub;
     ros::Publisher left_to_center_pub;
 
 public:

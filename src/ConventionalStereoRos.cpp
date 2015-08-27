@@ -54,6 +54,9 @@ void ConventionalStereoRos::cameraInfoCallback(const sensor_msgs::CameraInfoPtr 
                                                                          )
                                                   );
     initTopics();
+    sync=boost::shared_ptr<Synchronizer<MySyncPolicy> > (new Synchronizer<MySyncPolicy>(MySyncPolicy(10), *left_image_sub, *right_image_sub, *left_to_right_sub, *left_to_center_sub));
+    sync->registerCallback(boost::bind(&ConventionalStereoRos::callback, this, _1, _2, _3, _4));
+    ROS_INFO("TESTEasd");
     ROS_INFO_STREAM("done");
 }
 
