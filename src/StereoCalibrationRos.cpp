@@ -16,6 +16,8 @@ StereoCalibrationRos::StereoCalibrationRos(ros::NodeHandle & nh_, ros::NodeHandl
     std::string joint_states_topic;
     private_node_handle.param<std::string>("left_camera_frame", left_camera_frame, "left_camera_frame");
     private_node_handle.param<std::string>("right_camera_frame", right_camera_frame, "right_camera_frame");
+    private_node_handle.param<std::string>("ego_frame", ego_frame, "ego_frame");
+
     private_node_handle.param<std::string>("left_camera_info_topic", left_camera_info_topic, "left_camera_info_topic");
     private_node_handle.param<std::string>("right_camera_info_topic", right_camera_info_topic, "right_camera_info_topic");
     private_node_handle.param<std::string>("joint_states_topic", joint_states_topic, "joint_states_topic");
@@ -126,9 +128,10 @@ void StereoCalibrationRos::callback(const sensor_msgs::ImageConstPtr& left_image
     scd =  stereo_calibration->get_calibrated_transformations(stereo_encoders);
 
     geometry_msgs::TransformStamped right_to_left_transform_stamped;
-    right_to_left_transform_stamped.header=left_image->header;
+    right_to_left_transform_stamped.header.stamp=left_image->header.stamp;
+    right_to_left_transform_stamped.header.frame_id="r_camera_vision_link";
     right_to_left_transform_stamped.header.stamp=ros::Time::now();
-    right_to_left_transform_stamped.child_frame_id="eyes_center_link";
+    right_to_left_transform_stamped.child_frame_id="l_camera_vision_link";
     cv::Mat r_right_cam_to_left_cam_quaternion=Quaternion(scd.R_left_cam_to_right_cam);
 
     right_to_left_transform_stamped.transform.rotation.w=r_right_cam_to_left_cam_quaternion.at<double>(0,0);
@@ -141,8 +144,26 @@ void StereoCalibrationRos::callback(const sensor_msgs::ImageConstPtr& left_image
 
     left_to_right_pub.publish(right_to_left_transform_stamped);
 
-    geometry_msgs::TransformStamped left_to_center_transform_stamped;
-    left_to_center_transform_stamped.header=left_image->header;
+    tf::StampedTransform l_center_transform;
+
+    try
+    {
+        listener->waitForTransform(ego_frame, left_camera_frame, ros::Time(0), ros::Duration(1.0));
+        listener->lookupTransform(ego_frame, left_camera_frame,
+                                 ros::Time(0), l_center_transform);
+    }
+    catch (tf::TransformException &ex)
+    {
+        ROS_ERROR("%s",ex.what());
+        ros::Duration(1.0).sleep();
+        return;
+    }
+
+    geometry_msgs::TransformStamped l_center_msg;
+    tf::transformStampedTFToMsg (l_center_transform, l_center_msg);
+    left_to_center_pub.publish(l_center_msg);
+
+    /*left_to_center_transform_stamped.header=left_image->header;
     left_to_center_transform_stamped.header.stamp=ros::Time::now();
     left_to_center_transform_stamped.child_frame_id="eyes_center_link";
     cv::Mat r_left_cam_to_center_cam_quaternion=Quaternion(scd.transformation_left_cam_to_baseline_center(cv::Range(0,3),cv::Range(0,3)));
@@ -155,7 +176,7 @@ void StereoCalibrationRos::callback(const sensor_msgs::ImageConstPtr& left_image
     left_to_center_transform_stamped.transform.translation.y=scd.transformation_left_cam_to_baseline_center.at<double>(1,0);
     left_to_center_transform_stamped.transform.translation.z=scd.transformation_left_cam_to_baseline_center.at<double>(2,0);
 
-    left_to_center_pub.publish(left_to_center_transform_stamped);
+    left_to_center_pub.publish(left_to_center_transform_stamped);*/
 
     double total_elapsed = (ros::WallTime::now() - startTime).toSec();
 

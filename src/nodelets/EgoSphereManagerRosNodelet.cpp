@@ -1,4 +1,4 @@
-#include "EgoSphereManagerRosNodelet.h"
+#include "nodelets/EgoSphereManagerRosNodelet.h"
 
 namespace foveated_stereo_ros
 {

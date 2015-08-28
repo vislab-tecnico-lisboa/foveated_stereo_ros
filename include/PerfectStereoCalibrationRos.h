@@ -12,15 +12,13 @@
 #include <cv_bridge/cv_bridge.h>
 #include <image_transport/image_transport.h>
 #include <iostream>
-
+#include <tf/transform_datatypes.h>
 using namespace cv;
 class PerfectStereoCalibrationRos
 {
     std::string left_camera_frame;
     std::string right_camera_frame;
     std::string ego_frame;
-
-    tf::StampedTransform r_l_eye_transform;
 
     ros::NodeHandle nh;
     ros::NodeHandle private_node_handle;

@@ -76,8 +76,13 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/lib/foveated_stereo/cpp)
 ## stereo calibration lib
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/lib/stereo_calib_lib)
 
+####################
+# NODE EXECUTABLES #
+####################
+
+
 ## Declare a cpp executable
-add_executable(conventional_stereo_ros_node src/ConventionalStereoRos.cpp src/StereoRos.cpp)
+add_executable(conventional_stereo_ros_node src/ConventionalStereoRos.cpp)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(conventional_stereo_ros_node
@@ -90,7 +95,7 @@ target_link_libraries(conventional_stereo_ros_node
 add_dependencies(conventional_stereo_ros_node foveated_stereo_ros_gencpp)
 
 ## Declare a cpp executable
-add_executable(foveated_stereo_ros_node src/FoveatedStereoRos.cpp src/StereoRos.cpp)
+add_executable(foveated_stereo_ros_node src/FoveatedStereoRos.cpp)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(foveated_stereo_ros_node
@@ -142,13 +147,12 @@ target_link_libraries(perfect_stereo_calibration_node
 
 add_dependencies(stereo_calibration_node foveated_stereo_ros_gencpp)
 
-
-
-
-
+#####################
+# NODELET LIBRARIES #
+#####################
 
 # Nodelet library
-add_library(conventional_stereo_ros_nodelet src/ConventionalStereoRos.cpp src/StereoRos.cpp src/ConventionalStereoRosNodelet.cpp)
+add_library(conventional_stereo_ros_nodelet src/ConventionalStereoRos.cpp src/nodelets/ConventionalStereoRosNodelet.cpp)
 target_link_libraries(conventional_stereo_ros_nodelet
    ${PCL_LIBRARIES}
    ${catkin_LIBRARIES}
@@ -165,7 +169,7 @@ install(FILES foveated_stereo_nodelets.xml
 
 
 # Nodelet library
-add_library(foveated_stereo_ros_nodelet src/FoveatedStereoRos.cpp src/StereoRos.cpp src/FoveatedStereoRosNodelet.cpp)
+add_library(foveated_stereo_ros_nodelet src/FoveatedStereoRos.cpp src/nodelets/FoveatedStereoRosNodelet.cpp)
 target_link_libraries(foveated_stereo_ros_nodelet    
    ${PCL_LIBRARIES}
    ${catkin_LIBRARIES}
@@ -182,7 +186,7 @@ install(FILES foveated_stereo_nodelets.xml
 )
 
 # Nodelet library
-add_library(ego_sphere_manager_ros_nodelet src/EgoSphereManagerRos.cpp src/EgoSphereManagerRosNodelet.cpp)
+add_library(ego_sphere_manager_ros_nodelet src/EgoSphereManagerRos.cpp src/nodelets/EgoSphereManagerRosNodelet.cpp)
 target_link_libraries(ego_sphere_manager_ros_nodelet
    ${PCL_LIBRARIES}
    ${catkin_LIBRARIES}
@@ -197,21 +201,4 @@ install(FILES foveated_stereo_nodelets.xml
         DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
 
-#add_executable(gaze src/Gaze.cpp)
-## Specify libraries to link a library or executable target against
-#target_link_libraries(gaze
-#   ${catkin_LIBRARIES}
-#)
-
-#add_executable(gaze_client src/GazeClient.cpp)
-## Specify libraries to link a library or executable target against
-#target_link_libraries(gaze_client
-#   ${catkin_LIBRARIES}
-#)
-
-#add_executable(teste src/test.cpp)
-## Specify libraries to link a library or executable target against
-#target_link_libraries(teste
-#   ${catkin_LIBRARIES}
-#)
 

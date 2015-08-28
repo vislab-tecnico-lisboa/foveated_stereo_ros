@@ -18,6 +18,7 @@ class StereoCalibrationRos
 {
     std::string left_camera_frame;
     std::string right_camera_frame;
+    std::string ego_frame;
 
     tf::StampedTransform r_l_eye_transform;
 

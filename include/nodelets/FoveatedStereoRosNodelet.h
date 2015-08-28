@@ -1,7 +1,8 @@
 #ifndef FOVEATEDSTEREOROSNODELET_H
 #define FOVEATEDSTEREOROSNODELET_H
 #include <nodelet/nodelet.h>
-#include "FoveatedStereoRos.h"
+#include "StereoRos.h"
+#include "FovealStereo.h"
 
 namespace foveated_stereo_ros
 {
@@ -12,7 +13,7 @@ public:
     FoveatedStereoRosNodelet(){}
     ~FoveatedStereoRosNodelet(){}
     virtual void onInit();
-    boost::shared_ptr<FoveatedStereoRos> inst_;
+    boost::shared_ptr<StereoRos<FovealStereo> > inst_;
 
 };
 

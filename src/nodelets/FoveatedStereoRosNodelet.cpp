@@ -1,11 +1,11 @@
-#include "FoveatedStereoRosNodelet.h"
+#include "nodelets/FoveatedStereoRosNodelet.h"
 
 namespace foveated_stereo_ros
 {
     void FoveatedStereoRosNodelet::onInit()
     {
         NODELET_INFO("Initializing nodelet");
-        inst_.reset(new FoveatedStereoRos(getNodeHandle(), getPrivateNodeHandle()));
+        inst_.reset(new StereoRos<FovealStereo>(getNodeHandle(), getPrivateNodeHandle()));
     }
 }
 
