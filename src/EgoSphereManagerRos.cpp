@@ -58,15 +58,15 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
 
 
     ego_sphere = boost::shared_ptr<SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > > (new SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > (egosphere_nodes, spherical_angle_bins, sensorToWorld.cast <double> (),uncertainty_lower_bound,mahalanobis_distance_threshold,mean_mat,standard_deviation_mat));
-    rgb_point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere", 2);
-    uncertainty_point_cloud_publisher  = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere_uncertainty", 2);
-    point_clouds_publisher = nh.advertise<foveated_stereo_ros::EgoData>("ego_point_clouds", 10);
+    rgb_point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere", 1);
+    uncertainty_point_cloud_publisher  = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere_uncertainty", 1);
+    point_clouds_publisher = nh.advertise<foveated_stereo_ros::EgoData>("ego_point_clouds", 1);
 
     marker_pub = nh.advertise<visualization_msgs::MarkerArray>("covariances_debug", 1);
     ego_sphere_hash_table  = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere_structure", 2);
 
-    stereo_data_subscriber_ = new message_filters::Subscriber<foveated_stereo_ros::StereoData> (nh, "stereo_data", 2);
-    tf_filter_ = new tf::MessageFilter<foveated_stereo_ros::StereoData> (*stereo_data_subscriber_, listener, world_frame_id, 2);
+    stereo_data_subscriber_ = new message_filters::Subscriber<foveated_stereo_ros::StereoData> (nh, "stereo_data", 1);
+    tf_filter_ = new tf::MessageFilter<foveated_stereo_ros::StereoData> (*stereo_data_subscriber_, listener, world_frame_id, 1);
     tf_filter_->registerCallback(boost::bind(&EgoSphereManagerRos::insertCloudCallback, this, _1));
     last=ros::Time::now();
 
@@ -251,7 +251,7 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
     // ACT //
     /////////
 
-    if(active_vision)
+    while(active_vision|| nh.ok())
     {
         //ego_sphere->getClosestPoint();
 
@@ -300,12 +300,23 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
         ROS_DEBUG("Started.");
         //wait for the action to return
         ac.sendGoal(goal);
-        bool finished_before_timeout = ac.waitForResult(ros::Duration(30));
+        ROS_ERROR("WAIT FOR RESULT...");
+
+        bool finished_before_timeout = ac.waitForResult(ros::Duration(10));
+        ROS_ERROR("DONE.");
 
         if (finished_before_timeout)
         {
             actionlib::SimpleClientGoalState state = ac.getState();
-            ROS_INFO("Action finished: %s",state.toString().c_str());
+            if(state.SUCCEEDED)
+            {
+                ROS_INFO("Action finished: %s",state.toString().c_str());
+                break;
+            }
+            else
+            {
+                ROS_WARN("Point not valid.");
+            }
         }
         else
         {
@@ -328,6 +339,7 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
     double total_elapsed = (ros::WallTime::now() - start_time).toSec();
 
     ROS_INFO(" TOTAL TIME:  %f sec", total_elapsed);
+    sleep(4.0); /// give time to sensor
 }
 
 
