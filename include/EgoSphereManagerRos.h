@@ -24,9 +24,7 @@
 #include <image_transport/image_transport.h>
 #include <tf/message_filter.h>
 #include <pcl_ros/transforms.h>
-#include "structures.h"
-#include "EgoSphere.h"
-#include <foveated_stereo_ros/StereoData.h>
+
 #include <visualization_msgs/MarkerArray.h>
 #include <pcl/filters/extract_indices.h>
 #include <actionlib/client/simple_action_client.h>
@@ -34,6 +32,10 @@
 #include <move_robot_msgs/GazeAction.h>
 #include <pcl_ros/transforms.h>
 #include <foveated_stereo_ros/EgoData.h>
+#include "DecisionMaking.h"
+#include "structures.h"
+#include "EgoSphere.h"
+#include "foveated_stereo_ros/StereoData.h"
 
 using namespace sensor_msgs;
 using namespace message_filters;
@@ -71,7 +73,7 @@ public:
     ros::Publisher ego_sphere_hash_table;
 
     boost::shared_ptr<SphericalShell<std::vector<boost::shared_ptr<MemoryPatch> > > > ego_sphere;
-
+    boost::shared_ptr<DecisionMaking> decision_making;
     EgoSphereManagerRos(ros::NodeHandle & nh_,ros::NodeHandle & private_node_handle_);
 
     ~EgoSphereManagerRos();

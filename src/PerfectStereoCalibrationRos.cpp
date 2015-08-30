@@ -13,7 +13,10 @@ PerfectStereoCalibrationRos::PerfectStereoCalibrationRos(ros::NodeHandle & nh_, 
     private_node_handle.param<std::string>("ego_frame", ego_frame, "ego_frame");
     private_node_handle.param<std::string>("left_camera_frame", left_camera_frame, "left_camera_frame");
     private_node_handle.param<std::string>("right_camera_frame", right_camera_frame, "right_camera_frame");
-    private_node_handle.param<std::string>("ego_frame", ego_frame, "ego_frame");
+
+    ROS_INFO_STREAM("ego_frame: "<<ego_frame);
+    ROS_INFO_STREAM("left_camera_frame: "<<left_camera_frame);
+    ROS_INFO_STREAM("right_camera_frame: "<<right_camera_frame);
 
     left_to_right_pub=nh.advertise<geometry_msgs::TransformStamped>("left_to_right_tf", 1);
     left_to_center_pub=nh.advertise<geometry_msgs::TransformStamped>("left_to_center_tf", 1);

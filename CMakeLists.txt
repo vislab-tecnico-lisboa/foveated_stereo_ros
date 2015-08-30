@@ -108,7 +108,7 @@ target_link_libraries(foveated_stereo_ros_node
 add_dependencies(foveated_stereo_ros_node foveated_stereo_ros_gencpp)
 
 ## Declare a cpp executable
-add_executable(ego_sphere_manager_ros_node src/EgoSphereManagerRos.cpp)
+add_executable(ego_sphere_manager_ros_node src/EgoSphereManagerRos.cpp src/DecisionMaking.cpp)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(ego_sphere_manager_ros_node
@@ -186,7 +186,7 @@ install(FILES foveated_stereo_nodelets.xml
 )
 
 # Nodelet library
-add_library(ego_sphere_manager_ros_nodelet src/EgoSphereManagerRos.cpp src/nodelets/EgoSphereManagerRosNodelet.cpp)
+add_library(ego_sphere_manager_ros_nodelet src/EgoSphereManagerRos.cpp src/DecisionMaking.cpp src/nodelets/EgoSphereManagerRosNodelet.cpp)
 target_link_libraries(ego_sphere_manager_ros_nodelet
    ${PCL_LIBRARIES}
    ${catkin_LIBRARIES}

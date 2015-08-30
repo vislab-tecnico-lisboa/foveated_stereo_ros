@@ -7,12 +7,15 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
 
   //world_frame_id("map")
 {
-    fixation_point(3)=1;
+    fixation_point(3)=1; // Homogeneous coordinates
+
     // Declare variables that can be modified by launch file or command line.
     int egosphere_nodes;
     int spherical_angle_bins;
     double uncertainty_lower_bound;
     double mahalanobis_distance_threshold;
+    double closest_point_bound;
+    double sigma_scale_upper_bound;
     private_node_handle_.param<std::string>("world_frame",world_frame_id,"base_link");
     private_node_handle_.param<std::string>("ego_frame",ego_frame_id,"eyes_center_vision_link");
 
@@ -20,6 +23,8 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     private_node_handle_.param("spherical_angle_bins", spherical_angle_bins, 1000);
     private_node_handle_.param("uncertainty_lower_bound", uncertainty_lower_bound, 0.0);
     private_node_handle_.param("active_vision",active_vision,false);
+    private_node_handle_.param("closest_point_bound",closest_point_bound,1.0);
+    private_node_handle_.param("sigma_scale_upper_bound",sigma_scale_upper_bound,1.0);
 
     private_node_handle_.param("mahalanobis_distance_threshold",mahalanobis_distance_threshold,std::numeric_limits<double>::max());
     XmlRpc::XmlRpcValue mean_list;
@@ -49,6 +54,8 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     ROS_INFO_STREAM("egosphere_nodes: "<<egosphere_nodes);
     ROS_INFO_STREAM("spherical_angle_bins: "<<spherical_angle_bins);
     ROS_INFO_STREAM("uncertainty_lower_bound: "<<uncertainty_lower_bound);
+    ROS_INFO_STREAM("closest_point_bound: "<<closest_point_bound);
+
     ROS_INFO_STREAM("mahalanobis_distance_threshold: "<<mahalanobis_distance_threshold);
     ROS_INFO_STREAM("mean: "<<mean_mat);
     ROS_INFO_STREAM("standard_deviation: "<<standard_deviation_mat);
@@ -58,6 +65,9 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
 
 
     ego_sphere = boost::shared_ptr<SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > > (new SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > (egosphere_nodes, spherical_angle_bins, sensorToWorld.cast <double> (),uncertainty_lower_bound,mahalanobis_distance_threshold,mean_mat,standard_deviation_mat));
+    decision_making = boost::shared_ptr<DecisionMaking> (new DecisionMaking(ego_sphere,closest_point_bound,sigma_scale_upper_bound));
+
+
     rgb_point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere", 1);
     uncertainty_point_cloud_publisher  = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere_uncertainty", 1);
     point_clouds_publisher = nh.advertise<foveated_stereo_ros::EgoData>("ego_point_clouds", 1);
@@ -254,45 +264,18 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
     while(active_vision|| nh.ok())
     {
         //ego_sphere->getClosestPoint();
+        Eigen::Vector3d fixation_point_3d=decision_making->getFixationPoint();
 
-
+        fixation_point(0)=fixation_point_3d(0);
+        fixation_point(1)=fixation_point_3d(1);
+        fixation_point(2)=fixation_point_3d(2);
         // send a goal to the action
         move_robot_msgs::GazeGoal goal;
         goal.fixation_point.header.frame_id=ego_frame_id;
         goal.fixation_point.header.stamp=ros::Time::now();
-
-        if(ego_sphere->new_closest_point)
-        {
-            fixation_point(0)=ego_sphere->closest_point(0);
-            fixation_point(1)=ego_sphere->closest_point(1);
-            fixation_point(2)=ego_sphere->closest_point(2);
-
-            goal.fixation_point.point.x = fixation_point(0);
-            goal.fixation_point.point.y = fixation_point(1);
-            goal.fixation_point.point.z = fixation_point(2);
-        }
-        else
-        {
-            Eigen::Vector3d random_point;
-            Mat aux(1, 1, CV_64F);
-
-            // Generate random patch on the sphere surface
-            cv::randn(aux, 0, 0.1);
-            random_point(0,0)=aux.at<double>(0,0);
-
-            cv::randn(aux, 0, 0.1);
-            random_point(1,0)=aux.at<double>(0,0);
-
-            cv::randn(aux, 0, 0.1);
-            random_point(2,0)=aux.at<double>(0,0);
-            fixation_point(0)=ego_sphere->closest_point(0)+random_point(0,0);
-            fixation_point(1)=ego_sphere->closest_point(1)+random_point(1,0);
-            fixation_point(2)=ego_sphere->closest_point(2)+random_point(2,0);
-
-            goal.fixation_point.point.x = fixation_point(0);
-            goal.fixation_point.point.y = fixation_point(1);
-            goal.fixation_point.point.z = fixation_point(2);
-        }
+        goal.fixation_point.point.x = fixation_point(0);
+        goal.fixation_point.point.y = fixation_point(1);
+        goal.fixation_point.point.z = fixation_point(2);
 
         ROS_DEBUG("Waiting for action server to start.");
         // wait for the action server to start

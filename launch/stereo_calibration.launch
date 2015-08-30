@@ -10,7 +10,7 @@
   <arg name="joint_states" default="/vizzy/joint_states"/>
   <!-- launch stereo_calibration -->
   <node name="stereo_calibration" pkg="foveated_stereo_ros" type="perfect_stereo_calibration_node" respawn="false" output="screen" >
-    <rosparam file="$(find foveated_stereo_ros)/config/params.yaml" command="load" />
+    <rosparam file="$(find foveated_stereo_ros)/config/frames.yaml" command="load" />
     <remap from="left_image" to="$(arg left_image_topic)"/>
     <remap from="right_image" to="$(arg right_image_topic)"/>
     <remap from="joint_states" to="$(arg joint_states)"/>
