@@ -338,7 +338,8 @@ void EgoSphereManagerRos::publishAll(const foveated_stereo_ros::StereoDataConstP
     pcl::PointCloud<pcl::PointXYZRGB> rgb_point_cloud=ego_sphere->getPointCloud();
     rgb_point_cloud.header.frame_id=ego_frame_id;
     rgb_point_cloud.is_dense=false;
-    pcl_conversions::toPCL(ros::Time::now(), rgb_point_cloud.header.stamp);
+    //pcl_conversions::toPCL(ros::Time::now(), rgb_point_cloud.header.stamp);
+    rgb_point_cloud.header.stamp=ros::Time::now().toNSec() / 1000ull;  // Convert from ns to us
     sensor_msgs::PointCloud2 rgb_point_cloud_msg;
     pcl::toROSMsg(rgb_point_cloud,rgb_point_cloud_msg);
 
@@ -347,7 +348,9 @@ void EgoSphereManagerRos::publishAll(const foveated_stereo_ros::StereoDataConstP
     pcl::PointCloud<pcl::PointXYZI> point_cloud_uncertainty_viz=ego_sphere->getPointCloudUncertaintyViz();
     point_cloud_uncertainty_viz.header.frame_id=ego_frame_id;
     point_cloud_uncertainty_viz.is_dense=false;
-    pcl_conversions::toPCL(ros::Time::now(), point_cloud_uncertainty_viz.header.stamp);
+    //pcl_conversions::toPCL(ros::Time::now(), point_cloud_uncertainty_viz.header.stamp);
+    point_cloud_uncertainty_viz.header.stamp=ros::Time::now().toNSec() / 1000ull;  // Convert from ns to us
+
     sensor_msgs::PointCloud2 uncertainty_point_cloud_viz_msg;
     pcl::toROSMsg(point_cloud_uncertainty_viz, uncertainty_point_cloud_viz_msg);
     uncertainty_point_cloud_publisher.publish(uncertainty_point_cloud_viz_msg);
@@ -361,14 +364,13 @@ void EgoSphereManagerRos::publishAll(const foveated_stereo_ros::StereoDataConstP
     pcl::PointCloud<pcl::PointXYZI> point_cloud_uncertainty=ego_sphere->getPointCloudUncertainty();
     point_cloud_uncertainty.header.frame_id=ego_frame_id;
     point_cloud_uncertainty.is_dense=false;
-    pcl_conversions::toPCL(ros::Time::now(), point_cloud_uncertainty.header.stamp);
+    //pcl_conversions::toPCL(ros::Time::now(), point_cloud_uncertainty.header.stamp);
+    point_cloud_uncertainty.header.stamp=ros::Time::now().toNSec() / 1000ull;  // Convert from ns to us
     sensor_msgs::PointCloud2 uncertainty_point_cloud_msg;
     pcl::toROSMsg(point_cloud_uncertainty, uncertainty_point_cloud_msg);
 
-
     sensor_msgs::PointCloud2 uncertainty_point_cloud_msg_base;
     pcl_ros::transformPointCloud(sensorToWorld, uncertainty_point_cloud_msg, uncertainty_point_cloud_msg_base);
-
 
     ego_point_clouds_msg.rgb_point_cloud=rgb_point_cloud_msg_base;
     ego_point_clouds_msg.uncertainty_point_cloud=uncertainty_point_cloud_msg_base;
