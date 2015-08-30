@@ -40,7 +40,11 @@ using namespace message_filters;
 
 class EgoSphereManagerRos
 {
-    Eigen::Vector3d fixation_point;
+    Eigen::Matrix4f sensorToWorld;
+    Eigen::Matrix4f sensorToEgo;
+    Eigen::Matrix4f worldToEgo;
+
+    Eigen::Vector4d fixation_point;
     std::string world_frame_id;
     std::string ego_frame_id;
     tf::TransformListener listener;
@@ -56,7 +60,6 @@ class EgoSphereManagerRos
 
 public:
     typedef pcl::PointCloud<pcl::PointXYZRGB> PCLPointCloud;
-    //typedef sync_policies::ApproximateTime<Image, Image> MySyncPolicy;
 
     ros::NodeHandle nh;
 
@@ -72,6 +75,7 @@ public:
     EgoSphereManagerRos(ros::NodeHandle & nh_,ros::NodeHandle & private_node_handle_);
 
     ~EgoSphereManagerRos();
+    void updateEgoSphere();
 
     void insertCloudCallback(const foveated_stereo_ros::StereoData::ConstPtr& stereo_data);
 

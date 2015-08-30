@@ -16,6 +16,7 @@
   <node pkg="nodelet" type="nodelet" name="active_stereo_manager" args="manager" respawn="true" output="screen"/>
 
   <node pkg="nodelet" type="nodelet" name="conventional_stereo_ros" args="load foveated_stereo_ros/ConventionalStereoRosNodelet active_stereo_manager" respawn="true" output="screen" >
+    <rosparam file="$(find foveated_stereo_ros)/config/frames.yaml" command="load" />
     <rosparam file="$(find foveated_stereo_ros)/config/params.yaml" command="load" />
     <rosparam file="$(find foveated_stereo_ros)/config/stereo_params.yaml" command="load" />
     <remap from="left_image" to="$(arg left_image_topic)"/>
@@ -24,6 +25,7 @@
   </node>
 
   <node pkg="nodelet" type="nodelet" name="egosphere" args="load foveated_stereo_ros/EgoSphereManagerRosNodelet active_stereo_manager" respawn="true" output="screen">
+    <rosparam file="$(find foveated_stereo_ros)/config/frames.yaml" command="load" />
     <rosparam file="$(find foveated_stereo_ros)/config/egosphere.yaml" command="load" />
   </node>
 

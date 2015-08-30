@@ -4,9 +4,6 @@ interp: 1
 full: 0
 sectors: 250
 sp: 0
-ego_frame: ego_frame
-left_camera_frame: l_camera_vision_link
-right_camera_frame: r_camera_vision_link
 information_lower_bound: -2
 L: 4.0
 alpha: 0.25

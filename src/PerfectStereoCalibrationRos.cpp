@@ -21,19 +21,23 @@ PerfectStereoCalibrationRos::PerfectStereoCalibrationRos(ros::NodeHandle & nh_, 
 
 void PerfectStereoCalibrationRos::streamTF()
 {
-    try
+    while(ros::ok())
     {
-        listener->waitForTransform(ego_frame, left_camera_frame, ros::Time(0), ros::Duration(10.0));
-        listener->lookupTransform (ego_frame, left_camera_frame, ros::Time(0), l_eye_transform);
-        listener->waitForTransform(right_camera_frame, left_camera_frame, ros::Time(0), ros::Duration(10.0));
-        listener->lookupTransform (right_camera_frame, left_camera_frame, ros::Time(0), r_l_eye_transform);
+        try
+        {
+            listener->waitForTransform(ego_frame, left_camera_frame, ros::Time(0), ros::Duration(10.0));
+            listener->lookupTransform (ego_frame, left_camera_frame, ros::Time(0), l_eye_transform);
+            listener->waitForTransform(right_camera_frame, left_camera_frame, ros::Time(0), ros::Duration(10.0));
+            listener->lookupTransform (right_camera_frame, left_camera_frame, ros::Time(0), r_l_eye_transform);
+        }
+        catch (tf::TransformException &ex)
+        {
+            ROS_WARN("%s",ex.what());
+            continue;
+        }
+        break;
     }
-    catch (tf::TransformException &ex)
-    {
-        ROS_ERROR("%s",ex.what());
-        //ros::Duration(1.0).sleep();
-        return;
-    }
+
     geometry_msgs::TransformStamped left_to_right_tf_msg;
     tf::transformStampedTFToMsg (r_l_eye_transform, left_to_right_tf_msg);
     left_to_right_pub.publish(left_to_right_tf_msg);

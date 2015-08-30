@@ -69,8 +69,6 @@ protected:
     // For visualizing things in rviz
     boost::shared_ptr<tf::TransformListener> listener;
     tf::StampedTransform l_eye_transform;
-    tf::StampedTransform r_eye_transform;
-    tf::StampedTransform r_l_eye_transform;
 
     image_transport::ImageTransport it_;
     image_transport::Publisher disparity_image_publisher;
@@ -103,9 +101,9 @@ protected:
 
 
     void callback(const ImageConstPtr& left_image,
-                                         const ImageConstPtr& right_image,
-                                         const geometry_msgs::TransformStampedConstPtr& left_to_right_transform_,
-                                         const geometry_msgs::TransformStampedConstPtr& left_to_center_transform_)
+                  const ImageConstPtr& right_image,
+                  const geometry_msgs::TransformStampedConstPtr& left_to_right_transform_,
+                  const geometry_msgs::TransformStampedConstPtr& left_to_center_transform_)
     {
         ROS_INFO("Stereo callback...");
 
@@ -130,24 +128,30 @@ protected:
         t_left_cam_to_right_cam.at<double>(1,0) = r_l_eye_transform.getOrigin()[1];
         t_left_cam_to_right_cam.at<double>(2,0) = r_l_eye_transform.getOrigin()[2];
 
-        try
+        while(nh.ok())
         {
-            listener->waitForTransform(ego_frame, left_camera_frame, ros::Time(0), ros::Duration(1.0));
-            listener->lookupTransform(ego_frame, left_camera_frame,
-                                     ros::Time(0), l_eye_transform);
-        }
-        catch (tf::TransformException &ex)
-        {
-            ROS_ERROR("%s",ex.what());
-            ros::Duration(1.0).sleep();
-            return;
+            try
+            {
+                listener->waitForTransform(ego_frame, left_camera_frame, ros::Time(0), ros::Duration(1.0));
+                listener->lookupTransform(ego_frame, left_camera_frame,
+                                          ros::Time(0), l_eye_transform);
+            }
+            catch (tf::TransformException &ex)
+            {
+                //ROS_ERROR("%s",ex.what());
+                //ros::Duration(1.0).sleep();
+                continue;
+            }
+            break;
         }
 
         Eigen::Affine3d left_to_center_eigen;
 
         tf::transformTFToEigen (l_eye_transform, left_to_center_eigen );
         cv::Mat left_to_center = Mat::eye(4,4,CV_64F);
-        cv::eigen2cv(left_to_center_eigen.matrix(),transformation_left_cam_to_baseline_center);    StereoData stereo_data=stereo->computeStereo(left_image_mat,
+        cv::eigen2cv(left_to_center_eigen.matrix(),transformation_left_cam_to_baseline_center);
+
+        StereoData stereo_data=stereo->computeStereo(left_image_mat,
                                                      right_image_mat,
                                                      R_left_cam_to_right_cam,
                                                      t_left_cam_to_right_cam,
@@ -254,52 +258,40 @@ protected:
         height=(unsigned int)left_camera_info->height;
 
 
-        try
-        {
-            listener->waitForTransform(left_camera_frame, right_camera_frame, ros::Time(0), ros::Duration(1.0));
-            listener->lookupTransform(left_camera_frame, right_camera_frame,
-                                      ros::Time(0), r_l_eye_transform);
-        }
-        catch (tf::TransformException &ex)
-        {
-            ROS_ERROR("%s",ex.what());
-            ros::Duration(1.0).sleep();
-            return;
-        }
         stereo=boost::shared_ptr<T> (new T(left_cam_intrinsic,
-                                                                             right_cam_intrinsic,
-                                                                             width,
-                                                                             height,
-                                                                             cv::Point2i(width/2.0,
-                                                                                         height/2.0),
-                                                                             rings,
-                                                                             min_radius,
-                                                                             interp,
-                                                                             full,
-                                                                             sectors,
-                                                                             sp,
-                                                                             ego_frame,
-                                                                             information_lower_bound,
-                                                                             L,
-                                                                             alpha,
-                                                                             ki,
-                                                                             beta,
-                                                                             scaling_factor,
-                                                                             number_of_disparities,
-                                                                             pre_filter_cap,
-                                                                             sad_window_size,
-                                                                             P1,
-                                                                             P2,
-                                                                             min_disparity,
-                                                                             uniqueness_ratio,
-                                                                             speckle_window_size,
-                                                                             speckle_range,
-                                                                             disp_12_max_diff,
-                                                                             full_dp,
-                                                                             ignore_border_left
+                                           right_cam_intrinsic,
+                                           width,
+                                           height,
+                                           cv::Point2i(width/2.0,
+                                                       height/2.0),
+                                           rings,
+                                           min_radius,
+                                           interp,
+                                           full,
+                                           sectors,
+                                           sp,
+                                           ego_frame,
+                                           information_lower_bound,
+                                           L,
+                                           alpha,
+                                           ki,
+                                           beta,
+                                           scaling_factor,
+                                           number_of_disparities,
+                                           pre_filter_cap,
+                                           sad_window_size,
+                                           P1,
+                                           P2,
+                                           min_disparity,
+                                           uniqueness_ratio,
+                                           speckle_window_size,
+                                           speckle_range,
+                                           disp_12_max_diff,
+                                           full_dp,
+                                           ignore_border_left
 
-                                                                             )
-                                                      );
+                                           )
+                                     );
         disparity_image_publisher = it_.advertise("/vizzy/disparity", 3);
         rgb_point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("stereo", 10);
         mean_point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("mean_pcl", 10);
@@ -360,24 +352,28 @@ public:
         pcl::toROSMsg(sdd.point_cloud, rgb_point_cloud_msg);
         rgb_point_cloud_msg.is_dense=false;
         rgb_point_cloud_msg.header.stamp=time;
+        rgb_point_cloud_msg.header.frame_id=left_camera_frame;
         rgb_point_cloud_publisher.publish(rgb_point_cloud_msg);
 
         sensor_msgs::PointCloud2 mean_point_cloud_msg;
         pcl::toROSMsg(sdd.mean_point_cloud, mean_point_cloud_msg);
         mean_point_cloud_msg.is_dense=false;
         mean_point_cloud_msg.header.stamp=time;
+        mean_point_cloud_msg.header.frame_id=left_camera_frame;
         mean_point_cloud_publisher.publish(mean_point_cloud_msg);
 
         sensor_msgs::PointCloud2 uncertainty_point_cloud_viz_msg;
         pcl::toROSMsg(sdd.point_cloud_uncertainty_viz, uncertainty_point_cloud_viz_msg);
         uncertainty_point_cloud_viz_msg.is_dense=false;
         uncertainty_point_cloud_viz_msg.header.stamp=time;
+        uncertainty_point_cloud_viz_msg.header.frame_id=left_camera_frame;
         uncertainty_point_cloud_publisher.publish(uncertainty_point_cloud_viz_msg);
 
         sensor_msgs::PointCloud2 uncertainty_point_cloud_msg;
         pcl::toROSMsg(sdd.point_cloud_uncertainty, uncertainty_point_cloud_msg);
         uncertainty_point_cloud_msg.is_dense=false;
         uncertainty_point_cloud_msg.header.stamp=time;
+        uncertainty_point_cloud_msg.header.frame_id=left_camera_frame;
 
         foveated_stereo_ros::StereoData stereo_msg;
         stereo_msg.point_clouds.rgb_point_cloud=rgb_point_cloud_msg;
@@ -457,7 +453,7 @@ public:
 
                 visualization_msgs::Marker marker;
                 // Set the frame ID and timestamp.  See the TF tutorials for information on these.
-                marker.header.frame_id = ego_frame;
+                marker.header.frame_id = left_camera_frame;
                 marker.header.stamp = ros::Time::now();
                 marker.ns = "covariances";
                 marker.id = c+r*sdd.cov_3d[r].size();
