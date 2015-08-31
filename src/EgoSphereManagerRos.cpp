@@ -18,6 +18,7 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     double sigma_scale_upper_bound;
     private_node_handle_.param<std::string>("world_frame",world_frame_id,"base_link");
     private_node_handle_.param<std::string>("ego_frame",ego_frame_id,"eyes_center_vision_link");
+    private_node_handle_.param<std::string>("eyes_center_frame", eyes_center_frame_id, "eyes_center_frame");
 
     private_node_handle_.param("egosphere_nodes", egosphere_nodes, 1000);
     private_node_handle_.param("spherical_angle_bins", spherical_angle_bins, 1000);
@@ -63,8 +64,25 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     ROS_INFO_STREAM("world_frame_id: "<<world_frame_id);
     ROS_INFO_STREAM("ego_frame_id: "<<ego_frame_id);
 
+    tf::StampedTransform transform;
 
-    ego_sphere = boost::shared_ptr<SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > > (new SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > (egosphere_nodes, spherical_angle_bins, sensorToWorld.cast <double> (),uncertainty_lower_bound,mahalanobis_distance_threshold,mean_mat,standard_deviation_mat));
+    while(nh_.ok())
+    {
+        try
+        {
+            listener.waitForTransform(eyes_center_frame_id, ego_frame_id, ros::Time(0), ros::Duration(10.0) );
+            listener.lookupTransform(eyes_center_frame_id, ego_frame_id, ros::Time(0), transform);
+        }
+        catch (tf::TransformException &ex)
+        {
+            ROS_WARN("%s",ex.what());
+            continue;
+        }
+        break;
+    }
+
+
+    ego_sphere = boost::shared_ptr<SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > > (new SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > (egosphere_nodes, spherical_angle_bins, sensorToWorld.cast <double> (),uncertainty_lower_bound,mahalanobis_distance_threshold,mean_mat,standard_deviation_mat,transform.getOrigin().getY()));
     decision_making = boost::shared_ptr<DecisionMaking> (new DecisionMaking(ego_sphere,closest_point_bound,sigma_scale_upper_bound));
 
 

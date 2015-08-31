@@ -49,6 +49,7 @@ class EgoSphereManagerRos
     Eigen::Vector4d fixation_point;
     std::string world_frame_id;
     std::string ego_frame_id;
+    std::string eyes_center_frame_id;
     tf::TransformListener listener;
     tf::StampedTransform l_eye_transform;
 
