@@ -14,16 +14,19 @@ StereoCalibrationRos::StereoCalibrationRos(ros::NodeHandle & nh_, ros::NodeHandl
     std::string left_camera_info_topic;
     std::string right_camera_info_topic;
     std::string joint_states_topic;
+    private_node_handle.param<std::string>("ego_frame", ego_frame, "ego_frame");
     private_node_handle.param<std::string>("left_camera_frame", left_camera_frame, "left_camera_frame");
     private_node_handle.param<std::string>("right_camera_frame", right_camera_frame, "right_camera_frame");
-    private_node_handle.param<std::string>("ego_frame", ego_frame, "ego_frame");
+
 
     private_node_handle.param<std::string>("left_camera_info_topic", left_camera_info_topic, "left_camera_info_topic");
     private_node_handle.param<std::string>("right_camera_info_topic", right_camera_info_topic, "right_camera_info_topic");
     private_node_handle.param<std::string>("joint_states_topic", joint_states_topic, "joint_states_topic");
 
-    ROS_INFO_STREAM("left_camera_frame:"<<left_camera_frame);
-    ROS_INFO_STREAM("right_camera_frame:"<<right_camera_frame);
+    ROS_INFO_STREAM("ego_frame: "<<ego_frame);
+    ROS_INFO_STREAM("left_camera_frame: "<<left_camera_frame);
+    ROS_INFO_STREAM("right_camera_frame: "<<right_camera_frame);
+
     ROS_INFO_STREAM("left_camera_info_topic:"<<left_camera_info_topic);
     ROS_INFO_STREAM("right_camera_info_topic:"<<right_camera_info_topic);
     ROS_INFO_STREAM("joint_states_topic:"<<joint_states_topic);
@@ -106,14 +109,42 @@ void StereoCalibrationRos::callback(const sensor_msgs::ImageConstPtr& left_image
                                     const sensor_msgs::ImageConstPtr& right_image,
                                     const sensor_msgs::JointStateConstPtr& joint_states)
 {
+    cv::Mat stereo_encoders = cv::Mat::zeros(6,1,CV_64F);
+
+    int i;
+    for(i=0;i<joint_states->name.size();++i)
+    {
+        // LEFT Y angles
+        if(joint_states->name[i]==std::string("l_eye_vergence_joint")||joint_states->name[i]==std::string("l_eye_version_joint"))
+        {
+            stereo_encoders.at<double>(0,0)+=joint_states->position[i];
+            std::cout << "joint_states["<<i<<"]:"<< joint_states->name[i] << std::endl;
+        }
+
+        // RIGHT Y angles
+        if(joint_states->name[i]==std::string("r_eye_vergence_joint")||joint_states->name[i]==std::string("r_eye_version_joint"))
+        {
+            stereo_encoders.at<double>(1,0)+=joint_states->position[i];
+            std::cout << "joint_states["<<i<<"]:"<< joint_states->name[i] << std::endl;
+        }
+
+        // LEFT AND RIGHT TILT angles
+        if(joint_states->name[i]==std::string("eyes_tilt_joint"))
+        {
+            stereo_encoders.at<double>(2,0)=joint_states->position[i];
+            stereo_encoders.at<double>(3,0)=joint_states->position[i];
+            std::cout << "joint_states["<<i<<"]:"<< joint_states->name[i] << std::endl;
+        }
+
+
+    }
+
     ROS_INFO("Stereo calibration callback...");
     ros::WallTime startTime = ros::WallTime::now();
 
     // 1. Get uncalibrated color images
     cv::Mat left_image_mat =cv_bridge::toCvCopy(left_image, "bgr8")->image;
     cv::Mat right_image_mat =cv_bridge::toCvCopy(right_image, "bgr8")->image;
-
-    cv::Mat stereo_encoders = cv::Mat::zeros(6,1,CV_64F);
 
     // 3. calibrate given angles
     ROS_INFO("Calibrate stereo...");
