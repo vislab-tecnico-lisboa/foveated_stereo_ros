@@ -1,5 +1,5 @@
 #include "EgoSphereManagerRos.h"
-
+static int iterations_=0;
 EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle & private_node_handle_) :
     nh(nh_),
     ac("gaze", true),
@@ -312,6 +312,7 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
             if(state.SUCCEEDED)
             {
                 ROS_INFO("Action finished: %s",state.toString().c_str());
+                sleep(1.0); //HACK TO AVOID WRONG SENSORY DATA
                 break;
             }
             else
@@ -341,6 +342,8 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
 
     ROS_INFO(" TOTAL TIME:  %f sec", total_elapsed);
     sleep(4.0); /// give time to sensor
+
+    ROS_ERROR_STREAM("ITERATION:"<<++iterations_);
 }
 
 

@@ -221,6 +221,7 @@ protected:
         private_node_handle.param("ki", ki, 1.0);
         private_node_handle.param("scaling_factor", scaling_factor, 1.0);
 
+        scaling_factor=(1/(2*3.0))*(1/(2*3.0));
         ROS_INFO_STREAM("sectors: "<<sectors);
         ROS_INFO_STREAM("rings: "<<rings);
         ROS_INFO_STREAM("min_radius: "<<min_radius);

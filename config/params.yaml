@@ -4,12 +4,12 @@ interp: 1
 full: 0
 sectors: 250
 sp: 0
-information_lower_bound: -10
+information_lower_bound: -100
 L: 4.0
 alpha: 0.25
 beta: 2.0
 ki: 3.0
-scaling_factor: 1.0
+scaling_factor: 10.0
 left_camera_info_topic: /vizzy/l_camera/camera_info
 right_camera_info_topic: /vizzy/r_camera/camera_info
 joint_states_topic: /vizzy/joint_states
