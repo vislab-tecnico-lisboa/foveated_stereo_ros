@@ -377,7 +377,7 @@ void EgoSphereManagerRos::publishAll(const foveated_stereo_ros::StereoDataConstP
     foveated_stereo_ros::PointClouds ego_point_clouds_msg;
 
     sensor_msgs::PointCloud2 rgb_point_cloud_msg_base;
-    pcl_ros::transformPointCloud(sensorToWorld, rgb_point_cloud_msg, rgb_point_cloud_msg_base);
+    pcl_ros::transformPointCloud(sensorToEgo*sensorToWorld.inverse(), rgb_point_cloud_msg, rgb_point_cloud_msg_base);
 
     pcl::PointCloud<pcl::PointXYZI> point_cloud_uncertainty=ego_sphere->getPointCloudUncertainty();
     point_cloud_uncertainty.header.frame_id=ego_frame_id;
@@ -388,7 +388,7 @@ void EgoSphereManagerRos::publishAll(const foveated_stereo_ros::StereoDataConstP
     pcl::toROSMsg(point_cloud_uncertainty, uncertainty_point_cloud_msg);
 
     sensor_msgs::PointCloud2 uncertainty_point_cloud_msg_base;
-    pcl_ros::transformPointCloud(sensorToWorld, uncertainty_point_cloud_msg, uncertainty_point_cloud_msg_base);
+    pcl_ros::transformPointCloud(sensorToEgo*sensorToWorld.inverse(), uncertainty_point_cloud_msg, uncertainty_point_cloud_msg_base);
 
     ego_point_clouds_msg.rgb_point_cloud=rgb_point_cloud_msg_base;
     ego_point_clouds_msg.uncertainty_point_cloud=uncertainty_point_cloud_msg_base;
@@ -396,11 +396,11 @@ void EgoSphereManagerRos::publishAll(const foveated_stereo_ros::StereoDataConstP
     foveated_stereo_ros::EgoData ego_data_msg;
 
     sensor_msgs::PointCloud2 sensor_rgb_point_cloud_msg_base;
-    pcl_ros::transformPointCloud(sensorToWorld, stereo_data->point_clouds.rgb_point_cloud, sensor_rgb_point_cloud_msg_base);
+    pcl_ros::transformPointCloud(sensorToEgo*sensorToWorld.inverse(), stereo_data->point_clouds.rgb_point_cloud, sensor_rgb_point_cloud_msg_base);
 
     sensor_msgs::PointCloud2 sensor_uncertainty_point_cloud_msg_base;
 
-    pcl_ros::transformPointCloud(sensorToWorld, stereo_data->point_clouds.uncertainty_point_cloud, sensor_uncertainty_point_cloud_msg_base);
+    pcl_ros::transformPointCloud(sensorToEgo*sensorToWorld.inverse(), stereo_data->point_clouds.uncertainty_point_cloud, sensor_uncertainty_point_cloud_msg_base);
 
     ego_data_msg.sensor_point_clouds.rgb_point_cloud=sensor_rgb_point_cloud_msg_base;
     ego_data_msg.sensor_point_clouds.uncertainty_point_cloud=sensor_uncertainty_point_cloud_msg_base;

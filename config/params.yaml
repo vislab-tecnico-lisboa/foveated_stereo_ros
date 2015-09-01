@@ -4,7 +4,7 @@ interp: 1
 full: 0
 sectors: 250
 sp: 0
-information_lower_bound: -2
+information_lower_bound: -10
 L: 4.0
 alpha: 0.25
 beta: 2.0

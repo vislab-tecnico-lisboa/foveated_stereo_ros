@@ -1,9 +1,9 @@
-spherical_angle_bins: 1000
-egosphere_nodes: 100000
+spherical_angle_bins: 100
+egosphere_nodes: 10000
 uncertainty_lower_bound: -1
-closest_point_bound: 1.5
-sigma_scale_upper_bound: 1.0
-mahalanobis_distance_threshold: 0.1
+closest_point_bound: 0.5
+sigma_scale_upper_bound: 3.0
+mahalanobis_distance_threshold: 1.0
 mean: [0.0, 0.0, 0.0]
 standard_deviation: [1.0, 1.0, 1.0]
 active_vision: true

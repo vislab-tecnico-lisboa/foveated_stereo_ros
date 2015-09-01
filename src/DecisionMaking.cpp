@@ -10,6 +10,8 @@ Eigen::Vector3d DecisionMaking::getFixationPoint()
 {
     Eigen::Vector3d fixation_point(Eigen::Vector3d::Constant(std::numeric_limits<double>::max()));
     double closest_point_inverse_dist=0.0;
+    double confidence_dist;
+    double sigma;
     for(std::vector<boost::shared_ptr<MemoryPatch> >::iterator structure_it = ego_sphere->structure.begin(); structure_it != ego_sphere->structure.end(); ++structure_it)
     {
         // Linearize 1/sqrt(x*x + y*y + z*z)
@@ -18,12 +20,12 @@ Eigen::Vector3d DecisionMaking::getFixationPoint()
         Eigen::Vector3d jacobian(-(*structure_it)->sensory_data.position.mean.x()*aux,
                                  -(*structure_it)->sensory_data.position.mean.y()*aux,
                                  -(*structure_it)->sensory_data.position.mean.z()*aux);
-        double sigma=sqrt( jacobian.transpose()*(*structure_it)->sensory_data.position.information.inverse()*jacobian );
+        sigma=sqrt( jacobian.transpose()*(*structure_it)->sensory_data.position.information.inverse()*jacobian );
 
         if(isnan(sigma))
             continue;
 
-        double confidence_dist=mean+sigma_scale_upper_bound*sigma;
+        confidence_dist=mean+sigma_scale_upper_bound*sigma;
 
         //std::cout << "sigma:"<< sigma << std::endl;
         if(confidence_dist>closest_point_inverse_dist&&confidence_dist<closest_bound)
@@ -34,6 +36,8 @@ Eigen::Vector3d DecisionMaking::getFixationPoint()
         }
     }
     std::cout << "fixation_point:"<< fixation_point.transpose() << std::endl;
+    std::cout << "SIGMA:"<< sigma << std::endl;
+    std::cout << "confidence_dist:"<< confidence_dist << std::endl;
 
     return fixation_point;
 }
