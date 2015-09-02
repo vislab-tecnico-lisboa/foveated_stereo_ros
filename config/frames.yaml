@@ -1,5 +1,6 @@
 world_frame: world
 ego_frame: ego_frame
+base_frame: base_link
 left_camera_frame: l_camera_vision_link
 right_camera_frame: r_camera_vision_link
 left_eye_frame: l_eye_version_link

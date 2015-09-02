@@ -38,11 +38,11 @@ Eigen::Vector3d DecisionMaking::getFixationPoint()
         if(isnan(sigma))
         {
             ROS_ERROR("NAAAAOOOOOOOOOOOOOOOOOOOO");
-            exit(-1);
+            continue;
         }
 
-        confidence_dist=sigma_scale_upper_bound*sigma;
-        //confidence_dist=mean+sigma_scale_upper_bound*sigma;
+        //confidence_dist=sigma_scale_upper_bound*sigma;
+        confidence_dist=mean+sigma_scale_upper_bound*sigma;
 
         //std::cout << "sigma:"<< sigma << std::endl;
         if(confidence_dist>closest_point_inverse_dist)

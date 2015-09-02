@@ -45,11 +45,15 @@ class EgoSphereManagerRos
     Eigen::Matrix4f sensorToWorld;
     Eigen::Matrix4f sensorToEgo;
     Eigen::Matrix4f worldToEgo;
+    Eigen::Matrix4f sensorToBase;
+    Eigen::Matrix4f egoToBase;
+    Eigen::Matrix4f egoToWorld;
 
     Eigen::Vector4d fixation_point;
     std::string world_frame_id;
     std::string ego_frame_id;
     std::string eyes_center_frame_id;
+    std::string base_frame_id;
     tf::TransformListener listener;
     tf::StampedTransform l_eye_transform;
 

@@ -4,7 +4,6 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     nh(nh_),
     ac("gaze", true),
     fixation_point(Eigen::Vector4d::Constant(std::numeric_limits<double>::max()))
-
   //world_frame_id("map")
 {
     fixation_point(3)=1; // Homogeneous coordinates
@@ -16,9 +15,10 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     double mahalanobis_distance_threshold;
     double closest_point_bound;
     double sigma_scale_upper_bound;
-    private_node_handle_.param<std::string>("world_frame",world_frame_id,"base_link");
+    private_node_handle_.param<std::string>("world_frame",world_frame_id,"world");
     private_node_handle_.param<std::string>("ego_frame",ego_frame_id,"eyes_center_vision_link");
     private_node_handle_.param<std::string>("eyes_center_frame", eyes_center_frame_id, "eyes_center_frame");
+    private_node_handle_.param<std::string>("base_frame", base_frame_id, "base_link");
 
     private_node_handle_.param("egosphere_nodes", egosphere_nodes, 1000);
     private_node_handle_.param("spherical_angle_bins", spherical_angle_bins, 1000);
@@ -63,6 +63,8 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     ROS_INFO_STREAM("active_vision: "<<active_vision);
     ROS_INFO_STREAM("world_frame_id: "<<world_frame_id);
     ROS_INFO_STREAM("ego_frame_id: "<<ego_frame_id);
+    ROS_INFO_STREAM("eyes_center_frame_id: "<<eyes_center_frame_id);
+    ROS_INFO_STREAM("base_frame_id: "<<base_frame_id);
 
     tf::StampedTransform transform;
 
@@ -81,10 +83,10 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
         break;
     }
 
-
+    //GIVE TIME TO MATLAB
+    sleep(5.0);
     ego_sphere = boost::shared_ptr<SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > > (new SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > (egosphere_nodes, spherical_angle_bins, sensorToWorld.cast <double> (),uncertainty_lower_bound,mahalanobis_distance_threshold,mean_mat,standard_deviation_mat,transform.getOrigin().getY()));
     decision_making = boost::shared_ptr<DecisionMaking> (new DecisionMaking(ego_sphere,closest_point_bound,sigma_scale_upper_bound));
-
 
     rgb_point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere", 1);
     uncertainty_point_cloud_publisher  = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere_uncertainty", 1);
@@ -98,8 +100,7 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     tf_filter_->registerCallback(boost::bind(&EgoSphereManagerRos::insertCloudCallback, this, _1));
     last=ros::Time::now();
 
-    //GIVE TIME TO MATLAB
-    //sleep(5.0);
+
     return;
 }
 
@@ -144,6 +145,7 @@ void EgoSphereManagerRos::updateEgoSphere()
         ROS_ERROR_STREAM( "Transform error of sensor data: " << ex.what() << ", quitting callback");
         return;
     }
+
 
     pcl_ros::transformAsMatrix(worldToEgoTf, worldToEgo);
 
@@ -236,6 +238,23 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
         break;
     }
 
+    tf::StampedTransform sensorToBaseTf;
+
+    while(nh.ok())
+    {
+        try
+        {
+            listener.waitForTransform(base_frame_id, stereo_data->point_clouds.rgb_point_cloud.header.frame_id, stereo_data->point_clouds.rgb_point_cloud.header.stamp, ros::Duration(10.0) );
+            listener.lookupTransform(world_frame_id, stereo_data->point_clouds.rgb_point_cloud.header.frame_id, stereo_data->point_clouds.rgb_point_cloud.header.stamp, sensorToBaseTf);
+        }
+        catch(tf::TransformException& ex)
+        {
+            //ROS_ERROR_STREAM( "Transform error of sensor data: " << ex.what() << ", quitting callback");
+            continue;
+        }
+        break;
+    }
+    pcl_ros::transformAsMatrix(sensorToBaseTf, sensorToBase);
     ///////////////////////////////////////////////////////////////
     // TRANSFORM SENSOR POINTS TO WORLD FRAME FOR FILTERING ON Z //
     ///////////////////////////////////////////////////////////////
@@ -356,6 +375,9 @@ void EgoSphereManagerRos::insertScan(const PCLPointCloud& point_cloud, const std
 
 void EgoSphereManagerRos::publishAll(const foveated_stereo_ros::StereoDataConstPtr& stereo_data)
 {
+    egoToBase=sensorToBase*sensorToEgo.inverse();
+    egoToWorld=sensorToWorld*sensorToEgo.inverse();
+
     pcl::PointCloud<pcl::PointXYZRGB> rgb_point_cloud=ego_sphere->getPointCloud();
     rgb_point_cloud.header.frame_id=ego_frame_id;
     rgb_point_cloud.is_dense=false;
@@ -380,7 +402,7 @@ void EgoSphereManagerRos::publishAll(const foveated_stereo_ros::StereoDataConstP
     foveated_stereo_ros::PointClouds ego_point_clouds_msg;
 
     sensor_msgs::PointCloud2 rgb_point_cloud_msg_base;
-    pcl_ros::transformPointCloud(sensorToEgo*sensorToWorld.inverse(), rgb_point_cloud_msg, rgb_point_cloud_msg_base);
+    pcl_ros::transformPointCloud(egoToWorld, rgb_point_cloud_msg, rgb_point_cloud_msg_base);
 
     pcl::PointCloud<pcl::PointXYZI> point_cloud_uncertainty=ego_sphere->getPointCloudUncertainty();
     point_cloud_uncertainty.header.frame_id=ego_frame_id;
@@ -391,7 +413,7 @@ void EgoSphereManagerRos::publishAll(const foveated_stereo_ros::StereoDataConstP
     pcl::toROSMsg(point_cloud_uncertainty, uncertainty_point_cloud_msg);
 
     sensor_msgs::PointCloud2 uncertainty_point_cloud_msg_base;
-    pcl_ros::transformPointCloud(sensorToEgo*sensorToWorld.inverse(), uncertainty_point_cloud_msg, uncertainty_point_cloud_msg_base);
+    pcl_ros::transformPointCloud(egoToWorld, uncertainty_point_cloud_msg, uncertainty_point_cloud_msg_base);
 
     ego_point_clouds_msg.rgb_point_cloud=rgb_point_cloud_msg_base;
     ego_point_clouds_msg.uncertainty_point_cloud=uncertainty_point_cloud_msg_base;
@@ -399,18 +421,18 @@ void EgoSphereManagerRos::publishAll(const foveated_stereo_ros::StereoDataConstP
     foveated_stereo_ros::EgoData ego_data_msg;
 
     sensor_msgs::PointCloud2 sensor_rgb_point_cloud_msg_base;
-    pcl_ros::transformPointCloud(sensorToEgo*sensorToWorld.inverse(), stereo_data->point_clouds.rgb_point_cloud, sensor_rgb_point_cloud_msg_base);
+    pcl_ros::transformPointCloud(sensorToWorld, stereo_data->point_clouds.rgb_point_cloud, sensor_rgb_point_cloud_msg_base);
 
     sensor_msgs::PointCloud2 sensor_uncertainty_point_cloud_msg_base;
 
-    pcl_ros::transformPointCloud(sensorToEgo*sensorToWorld.inverse(), stereo_data->point_clouds.uncertainty_point_cloud, sensor_uncertainty_point_cloud_msg_base);
+    pcl_ros::transformPointCloud(sensorToWorld, stereo_data->point_clouds.uncertainty_point_cloud, sensor_uncertainty_point_cloud_msg_base);
 
     ego_data_msg.sensor_point_clouds.rgb_point_cloud=sensor_rgb_point_cloud_msg_base;
     ego_data_msg.sensor_point_clouds.uncertainty_point_cloud=sensor_uncertainty_point_cloud_msg_base;
     ego_data_msg.ego_point_clouds=ego_point_clouds_msg;
 
     Eigen::Vector4f fixation_point_world;
-    fixation_point_world=(sensorToWorld*sensorToEgo.inverse())*fixation_point.cast<float>();
+    fixation_point_world=(egoToBase)*fixation_point.cast<float>();
     geometry_msgs::PointStamped fixation_point_world_msg;
     fixation_point_world_msg.header.frame_id=world_frame_id;
     fixation_point_world_msg.point.x = fixation_point_world(0);
