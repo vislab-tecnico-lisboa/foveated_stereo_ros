@@ -356,7 +356,7 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
     ros::WallTime publish_time_after = ros::WallTime::now();
     ROS_INFO_STREAM(" 4. publish time: " <<  (publish_time_after - publish_time_before).toSec());
 
-    //publishCovarianceMatrices();
+    publishCovarianceMatrices();
     double total_elapsed = (ros::WallTime::now() - start_time).toSec();
 
     ROS_INFO(" TOTAL TIME:  %f sec", total_elapsed);
