@@ -258,7 +258,9 @@ protected:
         width=(unsigned int)left_camera_info->width;
         height=(unsigned int)left_camera_info->height;
 
-
+        rings=sqrt((width*height/(2*M_PI)))*log(0.5*width/min_radius);
+        sectors=round(width*height/rings);
+        rings=round(rings);
         stereo=boost::shared_ptr<T> (new T(left_cam_intrinsic,
                                            right_cam_intrinsic,
                                            width,
