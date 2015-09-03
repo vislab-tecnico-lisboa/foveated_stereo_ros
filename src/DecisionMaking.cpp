@@ -31,7 +31,6 @@ Eigen::Vector3d DecisionMaking::getFixationPoint()
             continue;
         }
 
-
         //confidence_dist=mean;
 
         //confidence_dist=-sigma;
@@ -49,6 +48,7 @@ Eigen::Vector3d DecisionMaking::getFixationPoint()
             ROS_ERROR_STREAM("confidence_dist:"<< confidence_dist);
         }
     }
+    ROS_ERROR_STREAM("UPPER BOUND SCALE:"<<sigma_scale_upper_bound);
     ROS_ERROR_STREAM("BEST fixation_point:"<< fixation_point.transpose());
     ROS_ERROR_STREAM("BEST SIGMA:"<< best_sigma);
     ROS_ERROR_STREAM("BEST MEAN:"<< best_mean);
