@@ -1,4 +1,16 @@
 #include "EgoSphereManagerRos.h"
+
+
+bool fileExists(const std::string& filename)
+{
+    struct stat buf;
+    if (stat(filename.c_str(), &buf) != -1)
+    {
+        return true;
+    }
+    return false;
+}
+
 static int iterations_=0;
 EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle & private_node_handle_) :
     nh(nh_),
@@ -15,10 +27,12 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     double mahalanobis_distance_threshold;
     double closest_point_bound;
     double sigma_scale_upper_bound;
+    std::string data_folder;
     private_node_handle_.param<std::string>("world_frame",world_frame_id,"world");
     private_node_handle_.param<std::string>("ego_frame",ego_frame_id,"eyes_center_vision_link");
     private_node_handle_.param<std::string>("eyes_center_frame", eyes_center_frame_id, "eyes_center_frame");
     private_node_handle_.param<std::string>("base_frame", base_frame_id, "base_link");
+    private_node_handle_.param<std::string>("data_folder", data_folder, "data_folder");
 
     private_node_handle_.param("egosphere_nodes", egosphere_nodes, 1000);
     private_node_handle_.param("spherical_angle_bins", spherical_angle_bins, 1000);
@@ -85,7 +99,44 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
 
     //GIVE TIME TO MATLAB
     sleep(5.0);
-    ego_sphere = boost::shared_ptr<SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > > (new SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > (egosphere_nodes, spherical_angle_bins, sensorToWorld.cast <double> (),uncertainty_lower_bound,mahalanobis_distance_threshold,mean_mat,standard_deviation_mat,transform.getOrigin().getY()));
+    std::string ego_file_name;
+    // 1. with Boost
+    ego_file_name = data_folder+"/ego_sphere_nodes_" + boost::lexical_cast<std::string>(egosphere_nodes) + "_angle_bins_"+boost::lexical_cast<std::string>(spherical_angle_bins);
+    ROS_INFO_STREAM("ego_file_name:"<<ego_file_name);
+
+    if(fileExists(ego_file_name))
+    {
+        ROS_INFO("LOAD EGOSPHERE");
+        // create and open an archive for input
+        std::ifstream ifs(ego_file_name.c_str());
+        boost::archive::binary_iarchive ia(ifs);
+        // read class state from archive
+        ego_sphere =  boost::shared_ptr<SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > > (new SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > ());
+        ia >> ego_sphere;
+    }
+    else
+    {
+        ROS_INFO("CREATE NEW EGO SPHEREEEEEEEEEEEEEEEEE");
+        ego_sphere = boost::shared_ptr<SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > > (new SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > (egosphere_nodes, spherical_angle_bins, sensorToWorld.cast <double> (),uncertainty_lower_bound,mahalanobis_distance_threshold,mean_mat,standard_deviation_mat,transform.getOrigin().getY()));
+
+        std::ofstream ofs(ego_file_name.c_str());
+        ROS_INFO("SAVE EGOSPHERE");
+        // save data to archive
+        {
+            boost::archive::binary_oarchive oa(ofs);
+            // write class instance to archive
+            oa << ego_sphere;
+
+            // archive and stream closed when destructors are called
+        }
+        ROS_INFO("DONE");
+    }
+
+    // archive and stream closed when destructors are called
+    // ... some time later restore the class instance to its orginal state
+    ROS_INFO("DONE");
+
+
     decision_making = boost::shared_ptr<DecisionMaking> (new DecisionMaking(ego_sphere,closest_point_bound,sigma_scale_upper_bound));
 
     rgb_point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere", 1);
