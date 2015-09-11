@@ -18,7 +18,8 @@ Eigen::Vector3d DecisionMaking::getFixationPoint()
     {
         // Linearize 1/sqrt(x*x + y*y + z*z)
         double mean=(*structure_it)->sensory_data.position.mean.norm();
-
+        if (mean<0.45)
+            continue;
         Eigen::Vector3d jacobian((*structure_it)->sensory_data.position.mean.x()/mean,
                                  (*structure_it)->sensory_data.position.mean.y()/mean,
                                  (*structure_it)->sensory_data.position.mean.z()/mean);

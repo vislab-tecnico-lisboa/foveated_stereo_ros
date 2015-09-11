@@ -9,7 +9,7 @@ speckleWindowSize: 50
 speckleRange: 16
 disp12MaxDiff: 0
 fullDP: true
-ignore_border_left: 0
+ignore_border_left: 10
 
 
 #numberOfDisparities: 80
