@@ -346,6 +346,7 @@ public:
         std::string left_camera_info_topic;
         private_node_handle.param<std::string>("left_camera_info_topic", left_camera_info_topic, "left_camera_frame");
         left_camera_info_sub=nh_.subscribe(left_camera_info_topic,1,&StereoRos<T>::cameraInfoCallback, this);
+
         return;
     }
 
