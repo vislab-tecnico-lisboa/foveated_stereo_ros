@@ -116,7 +116,7 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     }
     else
     {
-        ROS_INFO("CREATE NEW EGO SPHEREEEEEEEEEEEEEEEEE");
+        ROS_INFO("CREATE NEW EGO SPHERE");
         ego_sphere = boost::shared_ptr<SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > > (new SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > (egosphere_nodes, spherical_angle_bins, sensorToWorld.cast <double> (),uncertainty_lower_bound,mahalanobis_distance_threshold,mean_mat,standard_deviation_mat,transform.getOrigin().getY()));
 
         std::ofstream ofs(ego_file_name.c_str());
@@ -151,6 +151,7 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     tf_filter_->registerCallback(boost::bind(&EgoSphereManagerRos::insertCloudCallback, this, _1));
     last=ros::Time::now();
 
+    ROS_INFO("DONE INIT");
 
     return;
 }
