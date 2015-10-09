@@ -21,7 +21,6 @@
 #include <pcl_ros/transforms.h>
 #include <tf/transform_listener.h>
 
-
 #include "opencv2/core/core.hpp"
 #include "opencv2/core/eigen.hpp"
 
@@ -274,7 +273,6 @@ protected:
                                            sectors,
                                            sp,
                                            ego_frame,
-                                           information_lower_bound,
                                            L,
                                            alpha,
                                            ki,
@@ -292,9 +290,9 @@ protected:
                                            disp_12_max_diff,
                                            full_dp,
                                            ignore_border_left
-
                                            )
                                      );
+
         disparity_image_publisher = it_.advertise("/vizzy/disparity", 3);
         rgb_point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("stereo", 10);
         mean_point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("mean_pcl", 10);
