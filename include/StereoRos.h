@@ -86,7 +86,6 @@ protected:
     std::string ego_frame;
     std::string left_camera_frame;
     std::string right_camera_frame;
-    double information_lower_bound;
 
     cv::Mat left_cam_intrinsic, right_cam_intrinsic;
 
@@ -213,7 +212,6 @@ protected:
         private_node_handle.param<std::string>("ego_frame", ego_frame, "ego_frame");
         private_node_handle.param<std::string>("left_camera_frame", left_camera_frame, "left_camera_frame");
         private_node_handle.param<std::string>("right_camera_frame", right_camera_frame, "right_camera_frame");
-        private_node_handle.param("information_lower_bound", information_lower_bound, 0.0);
         private_node_handle.param("L", L, 1.0);
         private_node_handle.param("alpha", alpha, 1.0);
         private_node_handle.param("beta", beta, 2.0);
@@ -230,7 +228,6 @@ protected:
         ROS_INFO_STREAM("ego_frame: "<<ego_frame);
         ROS_INFO_STREAM("left_camera_frame: "<<left_camera_frame);
         ROS_INFO_STREAM("right_camera_frame: "<<right_camera_frame);
-        ROS_INFO_STREAM("information_lower_bound: "<<information_lower_bound);
         ROS_INFO_STREAM("L: "<<L);
         ROS_INFO_STREAM("alpha: "<<alpha);
         ROS_INFO_STREAM("beta: "<<beta);
@@ -387,7 +384,9 @@ public:
         {
             for(unsigned int c=0; c<sdd.information_3d[r].size();++c)
             {
-                if(isnan(informations_determinants.at<double>(r,c))||isnan(log(informations_determinants.at<double>(r,c)))||log(informations_determinants.at<double>(r,c))<information_lower_bound)
+                //if(isnan(informations_determinants.at<double>(r,c))||isnan(log(informations_determinants.at<double>(r,c)))||log(informations_determinants.at<double>(r,c))<information_lower_bound)
+
+                if(isnan(informations_determinants.at<double>(r,c))||isnan(log(informations_determinants.at<double>(r,c))))
                     continue;
                 //foveated_stereo_ros::Covariance covariance_msg;
                 foveated_stereo_ros::Information information_msg;
@@ -438,9 +437,12 @@ public:
 
         for(int r=0; r<sdd.information_3d.size();r=r+jump)
         {
-            for(int c=ignore_border_left; c<sdd.information_3d[r].size();c=c+jump)
+            for(int c=0; c<sdd.information_3d[r].size();c=c+jump)
+            //for(int c=ignore_border_left; c<sdd.information_3d[r].size();c=c+jump)
             {
-                if(isnan(informations_determinants.at<double>(r,c))||isnan(log(informations_determinants.at<double>(r,c)))||log(informations_determinants.at<double>(r,c))<information_lower_bound)
+                if(isnan(informations_determinants.at<double>(r,c))||isnan(log(informations_determinants.at<double>(r,c))))
+
+                //if(isnan(informations_determinants.at<double>(r,c))||isnan(log(informations_determinants.at<double>(r,c)))||log(informations_determinants.at<double>(r,c))<information_lower_bound)
                 {
                     continue;
                 }

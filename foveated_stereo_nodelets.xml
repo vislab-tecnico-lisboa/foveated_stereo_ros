@@ -1,6 +1,15 @@
 <!-- stereo driver nodelet publisher -->
-<library path="lib/libfoveated_stereo_ros_nodelet">
-  <class name="foveated_stereo_ros/FoveatedStereoRosNodelet" type="foveated_stereo_ros::FoveatedStereoRosNodelet" base_class_type="nodelet::Nodelet">
+<library path="lib/libperipheral_stereo_ros_nodelet">
+  <class name="foveated_stereo_ros/PeripheralStereoRosNodelet" type="foveated_stereo_ros::PeripheralStereoRosNodelet" base_class_type="nodelet::Nodelet">
+    <description>
+      peripheral stereo nodelet.
+    </description>
+  </class>
+</library>
+
+
+<library path="lib/libperipheral_foveal_stereo_ros_nodelet">
+  <class name="foveated_stereo_ros/PeripheralFovealStereoRosNodelet" type="foveated_stereo_ros::PeripheralFovealStereoRosNodelet" base_class_type="nodelet::Nodelet">
     <description>
       foveated stereo nodelet.
     </description>

@@ -6,5 +6,5 @@ sigma_scale_upper_bound: 2.0
 mahalanobis_distance_threshold: 10000000.0
 mean: [0.0, 0.0, 0.0]
 standard_deviation: [1.0, 1.0, 1.0]
-active_vision: true
+active_vision: false
 

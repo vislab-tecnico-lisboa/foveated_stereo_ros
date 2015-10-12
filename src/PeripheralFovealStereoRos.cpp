@@ -1,5 +1,5 @@
 #include "StereoRos.h"
-#include "FovealStereo.h"
+#include "PeripheralFovealStereo.h"
 
 int main(int argc, char** argv)
 {
@@ -17,7 +17,7 @@ int main(int argc, char** argv)
 
     private_node_handle_.param("rate", rate, 100);
 
-    StereoRos<FovealStereo> stereo_ros(nh, private_node_handle_);
+    StereoRos<PeripheralFovealStereo> stereo_ros(nh, private_node_handle_);
 
     // Tell ROS how fast to run this node.
     ros::Rate r(rate);
