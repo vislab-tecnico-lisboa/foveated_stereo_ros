@@ -368,32 +368,34 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
 
         ROS_DEBUG("Waiting for action server to start.");
         // wait for the action server to start
-        ac.waitForServer(); //with no duration will wait for infinite time
-        ROS_DEBUG("Started.");
-        //wait for the action to return
-        ac.sendGoal(goal);
-        ROS_ERROR("WAIT FOR RESULT...");
-
-        bool finished_before_timeout = ac.waitForResult(ros::Duration(10));
-        ROS_ERROR("DONE.");
-
-        if (finished_before_timeout)
+        if(ac.waitForServer()) //with no duration will wait for infinite time
         {
-            actionlib::SimpleClientGoalState state = ac.getState();
-            if(state.SUCCEEDED)
+            ROS_DEBUG("Started.");
+            //wait for the action to return
+            ac.sendGoal(goal);
+            ROS_ERROR("WAIT FOR RESULT...");
+
+            bool finished_before_timeout = ac.waitForResult(ros::Duration(10));
+            ROS_ERROR("DONE.");
+
+            if (finished_before_timeout)
             {
-                ROS_INFO("Action finished: %s",state.toString().c_str());
-                sleep(1.0); //HACK TO AVOID WRONG SENSORY DATA
-                break;
+                actionlib::SimpleClientGoalState state = ac.getState();
+                if(state.SUCCEEDED)
+                {
+                    ROS_INFO("Action finished: %s",state.toString().c_str());
+                    sleep(1.0); //HACK TO AVOID WRONG SENSORY DATA
+                    break;
+                }
+                else
+                {
+                    ROS_WARN("Point not valid.");
+                }
             }
             else
             {
-                ROS_WARN("Point not valid.");
+                ROS_ERROR("Action did not finish before the time out.");
             }
-        }
-        else
-        {
-            ROS_ERROR("Action did not finish before the time out.");
         }
     }
 
