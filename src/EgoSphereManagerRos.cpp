@@ -350,7 +350,7 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
     // ACT //
     /////////
 
-    while(active_vision|| nh.ok())
+    while(active_vision&&nh.ok())
     {
         //ego_sphere->getClosestPoint();
         Eigen::Vector3d fixation_point_3d=decision_making->getFixationPoint();
