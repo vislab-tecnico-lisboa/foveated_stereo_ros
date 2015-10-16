@@ -13,7 +13,7 @@
   <include file="$(find foveated_stereo_ros)/launch/stereo_calibration.launch"/>
   
   <!-- nodelet manager -->
-  <node pkg="nodelet" type="nodelet" name="active_stereo_manager" args="manager" respawn="true" output="screen"/>
+  <node pkg="nodelet" type="nodelet" name="active_stereo_manager" args="manager" respawn="true" output="log"/>
 
   <node pkg="nodelet" type="nodelet" name="peripheral_foveal_stereo_ros" args="load foveated_stereo_ros/PeripheralFovealStereoRosNodelet active_stereo_manager" respawn="true" output="screen" >
     <rosparam file="$(find foveated_stereo_ros)/config/frames.yaml" command="load" />

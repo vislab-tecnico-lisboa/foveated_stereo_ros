@@ -79,8 +79,12 @@ protected:
     ros::Publisher uncertainty_point_cloud_publisher;
     ros::Publisher mean_point_cloud_publisher;
     ros::Publisher marker_pub;
-    ros::Publisher stereo_data_publisher;
+    ros::Publisher stereo_data_publisher;    
     ros::Subscriber left_camera_info_sub;
+
+    ros::Publisher left_cortical_image;
+    ros::Publisher left_retinal_image;
+
 
     std::vector<ros::Publisher> sigma_point_clouds_publishers;
     std::string ego_frame;
@@ -312,6 +316,11 @@ protected:
         left_to_center_sub=boost::shared_ptr<message_filters::Subscriber<geometry_msgs::TransformStamped> > (new message_filters::Subscriber<geometry_msgs::TransformStamped>(nh, "left_to_center_tf", 10));
         sync=boost::shared_ptr<Synchronizer<MySyncPolicy> > (new Synchronizer<MySyncPolicy>(MySyncPolicy(10), *left_image_sub, *right_image_sub, *left_to_right_sub, *left_to_center_sub));
         sync->registerCallback(boost::bind(&StereoRos<T>::callback, this, _1, _2, _3, _4));
+
+        left_cortical_image=nh.advertise<sensor_msgs::Image>("left_cortical_image", 1);
+        left_retinal_image=nh.advertise<sensor_msgs::Image>("left_retinal_image", 1);
+
+
         ROS_INFO_STREAM("done");
     }
 public:
