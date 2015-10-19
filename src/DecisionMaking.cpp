@@ -17,18 +17,18 @@ Eigen::Vector3d DecisionMaking::getFixationPoint()
     for(std::vector<boost::shared_ptr<MemoryPatch> >::iterator structure_it = ego_sphere->structure.begin(); structure_it != ego_sphere->structure.end(); ++structure_it)
     {
         // Linearize 1/sqrt(x*x + y*y + z*z)
-        double mean=(*structure_it)->sensory_data.position.mean.norm();
+        double mean=(*structure_it)->sensory_data->position.mean.norm();
         if (mean<0.45)
             continue;
-        Eigen::Vector3d jacobian((*structure_it)->sensory_data.position.mean.x()/mean,
-                                 (*structure_it)->sensory_data.position.mean.y()/mean,
-                                 (*structure_it)->sensory_data.position.mean.z()/mean);
+        Eigen::Vector3d jacobian((*structure_it)->sensory_data->position.mean.x()/mean,
+                                 (*structure_it)->sensory_data->position.mean.y()/mean,
+                                 (*structure_it)->sensory_data->position.mean.z()/mean);
 
-        double sigma=sqrt( jacobian.transpose()*(*structure_it)->sensory_data.position.information.inverse()*jacobian );
+        double sigma=sqrt( jacobian.transpose()*(*structure_it)->sensory_data->position.information.inverse()*jacobian );
 
         if(isnan(sigma))
         {
-            //ROS_ERROR_STREAM("NAAAAOOOOOOOOOOOOOOOOOOOO volume:"<<(*structure_it)->sensory_data.position.getVolume()<< " mean:"<<  mean);
+            //ROS_ERROR_STREAM("NAAAAOOOOOOOOOOOOOOOOOOOO volume:"<<(*structure_it)->sensory_data->position.getVolume()<< " mean:"<<  mean);
             continue;
         }
 
@@ -41,7 +41,7 @@ Eigen::Vector3d DecisionMaking::getFixationPoint()
         if(confidence_dist<closest_point_dist)
         {
             closest_point_dist=confidence_dist;
-            fixation_point=(*structure_it)->sensory_data.position.mean;
+            fixation_point=(*structure_it)->sensory_data->position.mean;
             best_sigma=sigma;
             best_mean=mean;
             ROS_ERROR_STREAM("SIGMA:"<< sigma);
