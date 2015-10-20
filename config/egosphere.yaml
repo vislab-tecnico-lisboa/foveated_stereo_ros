@@ -1,4 +1,4 @@
-spherical_angle_bins: 100
+spherical_angle_bins: 2
 egosphere_nodes: 10000
 uncertainty_lower_bound: -100
 closest_point_bound: 0.25
