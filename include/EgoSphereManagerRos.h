@@ -62,6 +62,9 @@ class EgoSphereManagerRos
     message_filters::Subscriber<foveated_stereo_ros::StereoData>* stereo_data_subscriber_;
     tf::MessageFilter<foveated_stereo_ros::StereoData>* tf_filter_;
 
+    ros::Timer update_timer;
+
+
     actionlib::SimpleActionClient<move_robot_msgs::GazeAction> ac;
     bool active_vision;
 
@@ -82,7 +85,7 @@ public:
     EgoSphereManagerRos(ros::NodeHandle & nh_,ros::NodeHandle & private_node_handle_);
 
     ~EgoSphereManagerRos();
-    void updateEgoSphere();
+    void updateEgoSphere(const ros::TimerEvent&);
 
     void insertCloudCallback(const foveated_stereo_ros::StereoData::ConstPtr& stereo_data);
 
@@ -91,6 +94,8 @@ public:
     void insertScan(const PCLPointCloud& point_cloud, const std::vector<Eigen::Matrix3d> & covariances);
 
     ros::Time last;
+
+
 
     void publishEgoStructure();
 };

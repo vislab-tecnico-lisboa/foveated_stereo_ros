@@ -16,7 +16,6 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     nh(nh_),
     ac("gaze", true),
     fixation_point(Eigen::Vector4d::Constant(std::numeric_limits<double>::max()))
-  //world_frame_id("map")
 {
     fixation_point(3)=1; // Homogeneous coordinates
 
@@ -136,7 +135,6 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     // ... some time later restore the class instance to its orginal state
     ROS_INFO("DONE");
 
-
     decision_making = boost::shared_ptr<DecisionMaking> (new DecisionMaking(ego_sphere,closest_point_bound,sigma_scale_upper_bound));
 
     rgb_point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere", 1);
@@ -150,6 +148,8 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     tf_filter_ = new tf::MessageFilter<foveated_stereo_ros::StereoData> (*stereo_data_subscriber_, listener, world_frame_id, 1);
     tf_filter_->registerCallback(boost::bind(&EgoSphereManagerRos::insertCloudCallback, this, _1));
     last=ros::Time::now();
+
+    update_timer = nh.createTimer(ros::Duration(0.1), &EgoSphereManagerRos::updateEgoSphere, this);
 
     ROS_INFO("DONE INIT");
 
@@ -182,7 +182,7 @@ EgoSphereManagerRos::~EgoSphereManagerRos()
     }
 }
 
-void EgoSphereManagerRos::updateEgoSphere()
+void EgoSphereManagerRos::updateEgoSphere(const ros::TimerEvent&)
 {
     ros::WallTime start_time = ros::WallTime::now();
 
@@ -197,7 +197,6 @@ void EgoSphereManagerRos::updateEgoSphere()
         ROS_ERROR_STREAM( "Transform error of sensor data: " << ex.what() << ", quitting callback");
         return;
     }
-
 
     pcl_ros::transformAsMatrix(worldToEgoTf, worldToEgo);
 
@@ -214,8 +213,9 @@ void EgoSphereManagerRos::updateEgoSphere()
         ros::WallTime update_time = ros::WallTime::now();
         ROS_INFO_STREAM(" 2. Update time: " <<  (update_time - transform_time).toSec());
 
-        return;
     }
+
+    publishEgoStructure();
 }
 
 void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoData::ConstPtr& stereo_data)
@@ -405,7 +405,6 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
 
     ros::WallTime publish_time_before = ros::WallTime::now();
 
-
     publishAll(stereo_data);
     ros::WallTime publish_time_after = ros::WallTime::now();
     ROS_INFO_STREAM(" 4. publish time: " <<  (publish_time_after - publish_time_before).toSec());
@@ -452,12 +451,6 @@ void EgoSphereManagerRos::publishAll(const foveated_stereo_ros::StereoDataConstP
     pcl::toROSMsg(point_cloud_uncertainty_viz, uncertainty_point_cloud_viz_msg);
     uncertainty_point_cloud_publisher.publish(uncertainty_point_cloud_viz_msg);
 
-
-    foveated_stereo_ros::PointClouds ego_point_clouds_msg;
-
-    sensor_msgs::PointCloud2 rgb_point_cloud_msg_base;
-    pcl_ros::transformPointCloud(egoToWorld, rgb_point_cloud_msg, rgb_point_cloud_msg_base);
-
     pcl::PointCloud<pcl::PointXYZI> point_cloud_uncertainty=ego_sphere->getPointCloudUncertainty();
     point_cloud_uncertainty.header.frame_id=ego_frame_id;
     point_cloud_uncertainty.is_dense=false;
@@ -469,6 +462,10 @@ void EgoSphereManagerRos::publishAll(const foveated_stereo_ros::StereoDataConstP
     sensor_msgs::PointCloud2 uncertainty_point_cloud_msg_base;
     pcl_ros::transformPointCloud(egoToWorld, uncertainty_point_cloud_msg, uncertainty_point_cloud_msg_base);
 
+    sensor_msgs::PointCloud2 rgb_point_cloud_msg_base;
+    pcl_ros::transformPointCloud(egoToWorld, rgb_point_cloud_msg, rgb_point_cloud_msg_base);
+
+    foveated_stereo_ros::PointClouds ego_point_clouds_msg;
     ego_point_clouds_msg.rgb_point_cloud=rgb_point_cloud_msg_base;
     ego_point_clouds_msg.uncertainty_point_cloud=uncertainty_point_cloud_msg_base;
 
@@ -574,8 +571,7 @@ int main(int argc, char** argv)
     // Main loop.
     while (nh.ok())
     {
-        ego_sphere.updateEgoSphere();
-        ego_sphere.publishEgoStructure();
+
         ros::spinOnce();
         r.sleep();
     }
