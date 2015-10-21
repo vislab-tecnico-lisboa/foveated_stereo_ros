@@ -54,7 +54,7 @@ class EgoSphereManagerRos
     std::string ego_frame_id;
     std::string eyes_center_frame_id;
     std::string base_frame_id;
-    tf::TransformListener listener;
+    boost::shared_ptr<tf::TransformListener> listener;
     tf::StampedTransform l_eye_transform;
 
     image_transport::Publisher image_pub_;
@@ -67,7 +67,7 @@ class EgoSphereManagerRos
 
     actionlib::SimpleActionClient<move_robot_msgs::GazeAction> ac;
     bool active_vision;
-
+    ros::Time previous_update_time;
 public:
     typedef pcl::PointCloud<pcl::PointXYZRGB> PCLPointCloud;
 

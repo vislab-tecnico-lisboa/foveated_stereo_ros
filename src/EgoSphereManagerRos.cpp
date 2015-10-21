@@ -15,7 +15,8 @@ static int iterations_=0;
 EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle & private_node_handle_) :
     nh(nh_),
     ac("gaze", true),
-    fixation_point(Eigen::Vector4d::Constant(std::numeric_limits<double>::max()))
+    fixation_point(Eigen::Vector4d::Constant(std::numeric_limits<double>::max())),
+    listener(new tf::TransformListener(ros::Duration(20.0)))
 {
     fixation_point(3)=1; // Homogeneous coordinates
 
@@ -39,8 +40,8 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     private_node_handle_.param("active_vision",active_vision,false);
     private_node_handle_.param("closest_point_bound",closest_point_bound,1.0);
     private_node_handle_.param("sigma_scale_upper_bound",sigma_scale_upper_bound,1.0);
-
     private_node_handle_.param("mahalanobis_distance_threshold",mahalanobis_distance_threshold,std::numeric_limits<double>::max());
+
     XmlRpc::XmlRpcValue mean_list;
     private_node_handle_.getParam("mean", mean_list);
     ROS_ASSERT(mean_list.getType() == XmlRpc::XmlRpcValue::TypeArray);
@@ -85,8 +86,8 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     {
         try
         {
-            listener.waitForTransform(eyes_center_frame_id, ego_frame_id, ros::Time(0), ros::Duration(10.0) );
-            listener.lookupTransform(eyes_center_frame_id, ego_frame_id, ros::Time(0), transform);
+            listener->waitForTransform(eyes_center_frame_id, ego_frame_id, ros::Time(0), ros::Duration(10.0) );
+            listener->lookupTransform(eyes_center_frame_id, ego_frame_id, ros::Time(0), transform);
         }
         catch (tf::TransformException &ex)
         {
@@ -116,7 +117,14 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     else
     {
         ROS_INFO("CREATE NEW EGO SPHERE");
-        ego_sphere = boost::shared_ptr<SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > > (new SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > (egosphere_nodes, spherical_angle_bins, sensorToWorld.cast <double> (),uncertainty_lower_bound,mahalanobis_distance_threshold,mean_mat,standard_deviation_mat,transform.getOrigin().getY()));
+
+        ego_sphere = boost::shared_ptr<SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > > (new SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > (egosphere_nodes,
+                                                                                                                                                                             spherical_angle_bins,
+                                                                                                                                                                             uncertainty_lower_bound,
+                                                                                                                                                                             mahalanobis_distance_threshold,
+                                                                                                                                                                             mean_mat,
+                                                                                                                                                                             standard_deviation_mat,
+                                                                                                                                                                             transform.getOrigin().getY()));
 
         std::ofstream ofs(ego_file_name.c_str());
         ROS_INFO("SAVE EGOSPHERE");
@@ -145,11 +153,11 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     ego_sphere_hash_table  = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere_structure", 2);
 
     stereo_data_subscriber_ = new message_filters::Subscriber<foveated_stereo_ros::StereoData> (nh, "stereo_data", 1);
-    tf_filter_ = new tf::MessageFilter<foveated_stereo_ros::StereoData> (*stereo_data_subscriber_, listener, world_frame_id, 1);
+    tf_filter_ = new tf::MessageFilter<foveated_stereo_ros::StereoData> (*stereo_data_subscriber_, *listener, world_frame_id, 1);
     tf_filter_->registerCallback(boost::bind(&EgoSphereManagerRos::insertCloudCallback, this, _1));
     last=ros::Time::now();
 
-    update_timer = nh.createTimer(ros::Duration(0.1), &EgoSphereManagerRos::updateEgoSphere, this);
+    update_timer = nh.createTimer(ros::Duration(0.05), &EgoSphereManagerRos::updateEgoSphere, this);
 
     ROS_INFO("DONE INIT");
 
@@ -184,25 +192,36 @@ EgoSphereManagerRos::~EgoSphereManagerRos()
 
 void EgoSphereManagerRos::updateEgoSphere(const ros::TimerEvent&)
 {
-    ros::WallTime start_time = ros::WallTime::now();
+    ros::Time current_time;
 
     // 1. get transform from world to ego-sphere frame
     tf::StampedTransform worldToEgoTf;
-    try
+    while(nh.ok())
     {
-        listener.waitForTransform(ego_frame_id, world_frame_id, ros::Time(0), ros::Duration(10.0) );
+        try
+        {
+            current_time = ros::Time::now();
+            //ros::Time now=current_time-ros::Duration(current_time-previous_update_time);
+            //listener->waitForTransform(ego_frame_id,  ego_frame_id, now, ros::Duration(1.0) );
+            //listener->lookupTransform(ego_frame_id,  ego_frame_id, now, worldToEgoTf);
 
-        listener.lookupTransform(ego_frame_id, world_frame_id, ros::Time(0), worldToEgoTf);
-    } catch(tf::TransformException& ex){
-        ROS_ERROR_STREAM( "Transform error of sensor data: " << ex.what() << ", quitting callback");
-        return;
+            listener->waitForTransform(ego_frame_id,  current_time, ego_frame_id, previous_update_time, world_frame_id, ros::Duration(1.0) );
+            listener->lookupTransform(ego_frame_id, current_time, ego_frame_id, previous_update_time, world_frame_id, worldToEgoTf);
+        }
+        catch(tf::TransformException& ex)
+        {
+            ROS_ERROR_STREAM( "Transform error: " << ex.what() << ", quitting callback");
+            continue;
+        }
+        break;
     }
+    previous_update_time=current_time;
 
     pcl_ros::transformAsMatrix(worldToEgoTf, worldToEgo);
 
-    ros::WallTime transform_time = ros::WallTime::now();
+    ros::Time transform_time = ros::Time::now();
 
-    ROS_INFO_STREAM(" 1. transform time: " <<  (transform_time - start_time).toSec());
+    ROS_INFO_STREAM(" 1. transform time: " <<  (transform_time - current_time).toSec());
 
     // 1. Update or insert
     if(ego_sphere->transform(worldToEgo.cast <double> ()))
@@ -210,11 +229,10 @@ void EgoSphereManagerRos::updateEgoSphere(const ros::TimerEvent&)
         ///////////////////////
         // Update ego-sphere //
         ///////////////////////
-        ros::WallTime update_time = ros::WallTime::now();
+        ros::Time update_time = ros::Time::now();
         ROS_INFO_STREAM(" 2. Update time: " <<  (update_time - transform_time).toSec());
 
     }
-
     publishEgoStructure();
 }
 
@@ -263,8 +281,8 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
     {
         try
         {
-            listener.waitForTransform(world_frame_id, stereo_data->point_clouds.rgb_point_cloud.header.frame_id, stereo_data->point_clouds.rgb_point_cloud.header.stamp, ros::Duration(10.0) );
-            listener.lookupTransform(world_frame_id, stereo_data->point_clouds.rgb_point_cloud.header.frame_id, stereo_data->point_clouds.rgb_point_cloud.header.stamp, sensorToWorldTf);
+            listener->waitForTransform(world_frame_id, stereo_data->point_clouds.rgb_point_cloud.header.frame_id, stereo_data->point_clouds.rgb_point_cloud.header.stamp, ros::Duration(10.0) );
+            listener->lookupTransform(world_frame_id, stereo_data->point_clouds.rgb_point_cloud.header.frame_id, stereo_data->point_clouds.rgb_point_cloud.header.stamp, sensorToWorldTf);
         }
         catch(tf::TransformException& ex)
         {
@@ -280,8 +298,8 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
     {
         try
         {
-            listener.waitForTransform(ego_frame_id, stereo_data->point_clouds.rgb_point_cloud.header.frame_id, stereo_data->point_clouds.rgb_point_cloud.header.stamp, ros::Duration(10.0) );
-            listener.lookupTransform(ego_frame_id, stereo_data->point_clouds.rgb_point_cloud.header.frame_id, stereo_data->point_clouds.rgb_point_cloud.header.stamp, sensorToEgoTf);
+            listener->waitForTransform(ego_frame_id, stereo_data->point_clouds.rgb_point_cloud.header.frame_id, stereo_data->point_clouds.rgb_point_cloud.header.stamp, ros::Duration(10.0) );
+            listener->lookupTransform(ego_frame_id, stereo_data->point_clouds.rgb_point_cloud.header.frame_id, stereo_data->point_clouds.rgb_point_cloud.header.stamp, sensorToEgoTf);
         } catch(tf::TransformException& ex)
         {
             //ROS_ERROR_STREAM( "Transform error of sensor data: " << ex.what() << ", quitting callback");
@@ -296,8 +314,8 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
     {
         try
         {
-            listener.waitForTransform(base_frame_id, stereo_data->point_clouds.rgb_point_cloud.header.frame_id, stereo_data->point_clouds.rgb_point_cloud.header.stamp, ros::Duration(10.0) );
-            listener.lookupTransform(world_frame_id, stereo_data->point_clouds.rgb_point_cloud.header.frame_id, stereo_data->point_clouds.rgb_point_cloud.header.stamp, sensorToBaseTf);
+            listener->waitForTransform(base_frame_id, stereo_data->point_clouds.rgb_point_cloud.header.frame_id, stereo_data->point_clouds.rgb_point_cloud.header.stamp, ros::Duration(10.0) );
+            listener->lookupTransform(world_frame_id, stereo_data->point_clouds.rgb_point_cloud.header.frame_id, stereo_data->point_clouds.rgb_point_cloud.header.stamp, sensorToBaseTf);
         }
         catch(tf::TransformException& ex)
         {

@@ -23,9 +23,9 @@
     <remap from="right_image" to="$(arg right_image_topic)"/>
   </node>
 
-  <!--<node pkg="nodelet" type="nodelet" name="egosphere" args="load foveated_stereo_ros/EgoSphereManagerRosNodelet active_stereo_manager" respawn="true" output="screen">
+  <node pkg="nodelet" type="nodelet" name="egosphere" args="load foveated_stereo_ros/EgoSphereManagerRosNodelet active_stereo_manager" respawn="true" output="screen">
     <param name="data_folder" value="$(find foveated_stereo_ros)/data" />
     <rosparam file="$(find foveated_stereo_ros)/config/frames.yaml" command="load" />
     <rosparam file="$(find foveated_stereo_ros)/config/egosphere.yaml" command="load" />
-  </node>-->
+  </node>
 </launch>
