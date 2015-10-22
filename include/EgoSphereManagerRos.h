@@ -48,6 +48,7 @@ class EgoSphereManagerRos
     Eigen::Matrix4f sensorToBase;
     Eigen::Matrix4f egoToBase;
     Eigen::Matrix4f egoToWorld;
+    Eigen::Matrix4f egoTransform;
 
     Eigen::Vector4d fixation_point;
     std::string world_frame_id;
@@ -67,7 +68,7 @@ class EgoSphereManagerRos
 
     actionlib::SimpleActionClient<move_robot_msgs::GazeAction> ac;
     bool active_vision;
-    ros::Time previous_update_time;
+    ros::Time last_update_time;
 public:
     typedef pcl::PointCloud<pcl::PointXYZRGB> PCLPointCloud;
 
@@ -78,7 +79,7 @@ public:
     ros::Publisher point_clouds_publisher;
     ros::Publisher marker_pub;
 
-    ros::Publisher ego_sphere_hash_table;
+    ros::Publisher ses_structure_pub;
 
     boost::shared_ptr<SphericalShell<std::vector<boost::shared_ptr<MemoryPatch> > > > ego_sphere;
     boost::shared_ptr<DecisionMaking> decision_making;
