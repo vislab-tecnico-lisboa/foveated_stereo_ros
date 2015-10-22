@@ -1,6 +1,5 @@
 #include "EgoSphereManagerRos.h"
 
-
 bool fileExists(const std::string& filename)
 {
     struct stat buf;
