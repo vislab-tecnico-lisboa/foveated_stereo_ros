@@ -1,8 +1,8 @@
-rings: 100
+rings: 200
 min_radius: 1
 interp: 1
 full: 0
-sectors: 100
+sectors: 200
 sp: 0
 L: 4.0
 alpha: 0.25
