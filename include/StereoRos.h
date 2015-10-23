@@ -150,7 +150,7 @@ protected:
         Eigen::Affine3d left_to_center_eigen;
 
         tf::transformTFToEigen (l_eye_transform, left_to_center_eigen );
-        cv::Mat left_to_center = Mat::eye(4,4,CV_64F);
+        cv::Mat left_to_center = cv::Mat::eye(4,4,CV_64F);
         cv::eigen2cv(left_to_center_eigen.matrix(),transformation_left_cam_to_baseline_center);
 
         StereoData stereo_data=stereo->computeStereo(left_image_mat,
@@ -244,13 +244,13 @@ protected:
         sensor_msgs::CameraInfoConstPtr right_camera_info=ros::topic::waitForMessage<sensor_msgs::CameraInfo>(right_camera_info_topic, ros::Duration(3.0));
 
         //set the cameras intrinsic parameters
-        left_cam_intrinsic = Mat::eye(3,3,CV_64F);
+        left_cam_intrinsic = cv::Mat::eye(3,3,CV_64F);
         left_cam_intrinsic.at<double>(0,0) = left_camera_info->K.at(0);
         left_cam_intrinsic.at<double>(1,1) = left_camera_info->K.at(4);
         left_cam_intrinsic.at<double>(0,2) = left_camera_info->K.at(2);
         left_cam_intrinsic.at<double>(1,2) = left_camera_info->K.at(5);
 
-        right_cam_intrinsic = Mat::eye(3,3,CV_64F);
+        right_cam_intrinsic = cv::Mat::eye(3,3,CV_64F);
         right_cam_intrinsic.at<double>(0,0) = right_camera_info->K.at(0);
         right_cam_intrinsic.at<double>(1,1) = right_camera_info->K.at(4);
         right_cam_intrinsic.at<double>(0,2) = right_camera_info->K.at(2);
