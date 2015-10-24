@@ -194,6 +194,8 @@ EgoSphereManagerRos::~EgoSphereManagerRos()
 
 void EgoSphereManagerRos::updateEgoSphere(const ros::TimerEvent&)
 {
+    ROS_INFO_STREAM("Updating Ego Sphere:");
+
     ros::Time current_time;
 
     // 1. get transform from world to ego-sphere frame
@@ -228,17 +230,27 @@ void EgoSphereManagerRos::updateEgoSphere(const ros::TimerEvent&)
 
     ROS_INFO_STREAM(" 1. transform time: " <<  (transform_time - current_time).toSec());
 
-    // 1. Update or insert
-    if(ego_sphere->transform(egoTransform.cast <double> ()))
-    {
-        ///////////////////////
-        // Update ego-sphere //
-        ///////////////////////
-        ros::Time update_time = ros::Time::now();
-        ROS_INFO_STREAM(" 2. Update time: " <<  (update_time - transform_time).toSec());
+    ///////////////////////
+    // Update ego-sphere //
+    ///////////////////////
+    ego_sphere->transform(egoTransform.cast <double> ());
 
-    }
+
+    ros::Time update_time = ros::Time::now();
+    ROS_INFO_STREAM(" 2. Update time: " <<  (update_time - transform_time).toSec());
+
+    ///////////////////////
+    // Publish structure //
+    ///////////////////////
+
     publishEgoStructure();
+
+    ros::Time publish_time = ros::Time::now();
+    ROS_INFO_STREAM(" 3. Publish time: " <<  (publish_time - update_time).toSec());
+
+
+    ROS_INFO_STREAM("Done. Total update time:"<< (publish_time - current_time).toSec());
+
 }
 
 void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoData::ConstPtr& stereo_data)
@@ -422,10 +434,7 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
     publishCovarianceMatrices();
     double total_elapsed = (ros::WallTime::now() - start_time).toSec();
 
-    ROS_INFO(" TOTAL TIME:  %f sec", total_elapsed);
-    sleep(4.0); /// give time to sensor
-
-    ROS_ERROR_STREAM("ITERATION:"<<++iterations_);
+    ROS_INFO_STREAM("Done. Total insertion time:"<< total_elapsed);
 }
 
 
