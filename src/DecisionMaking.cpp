@@ -44,16 +44,16 @@ Eigen::Vector3d DecisionMaking::getFixationPoint()
             fixation_point=(*structure_it)->sensory_data.position.mean;
             best_sigma=sigma;
             best_mean=mean;
-            ROS_ERROR_STREAM("SIGMA:"<< sigma);
+            /*ROS_ERROR_STREAM("SIGMA:"<< sigma);
             ROS_ERROR_STREAM("mean:"<< mean);
-            ROS_ERROR_STREAM("confidence_dist:"<< confidence_dist);
+            ROS_ERROR_STREAM("confidence_dist:"<< confidence_dist);*/
         }
     }
-    ROS_ERROR_STREAM("UPPER BOUND SCALE:"<<sigma_scale_upper_bound);
+    /*ROS_ERROR_STREAM("UPPER BOUND SCALE:"<<sigma_scale_upper_bound);
     ROS_ERROR_STREAM("BEST fixation_point:"<< fixation_point.transpose());
     ROS_ERROR_STREAM("BEST SIGMA:"<< best_sigma);
     ROS_ERROR_STREAM("BEST MEAN:"<< best_mean);
-    ROS_ERROR_STREAM("BEST CONFIDENCE DIST:"<< closest_point_dist);
+    ROS_ERROR_STREAM("BEST CONFIDENCE DIST:"<< closest_point_dist);*/
 
     return fixation_point;
 }

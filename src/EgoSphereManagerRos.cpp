@@ -432,7 +432,9 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
 void EgoSphereManagerRos::insertScan(const PCLPointCloud& point_cloud, const std::vector<Eigen::Matrix3d> & covariances)
 {
     //ego_sphere->insert(point_cloud);
-    ego_sphere->insertHashTable(point_cloud, covariances);
+    //ego_sphere->insertHashTable(point_cloud, covariances);
+    ego_sphere->insertKdTree(point_cloud, covariances);
+
 
 }
 
