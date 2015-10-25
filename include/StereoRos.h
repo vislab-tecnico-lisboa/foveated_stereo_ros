@@ -79,12 +79,14 @@ protected:
     ros::Publisher uncertainty_point_cloud_publisher;
     ros::Publisher mean_point_cloud_publisher;
     ros::Publisher marker_pub;
-    ros::Publisher stereo_data_publisher;    
+    ros::Publisher stereo_data_publisher;
     ros::Subscriber left_camera_info_sub;
 
-    ros::Publisher left_cortical_image;
-    ros::Publisher left_retinal_image;
+    image_transport::Publisher left_cortical_image_publisher;
+    image_transport::Publisher left_retinal_image_publisher;
 
+    image_transport::Publisher right_cortical_image_publisher;
+    image_transport::Publisher right_retinal_image_publisher;
 
     std::vector<ros::Publisher> sigma_point_clouds_publishers;
     std::string ego_frame;
@@ -213,6 +215,12 @@ protected:
         private_node_handle.param("sp", sp, 0);
         private_node_handle.param("full", full, 1);
 
+        int fovea_rows;
+        int fovea_columns;
+        private_node_handle.param("fovea_rows", fovea_rows, 10);
+        private_node_handle.param("fovea_columns", fovea_columns, 10);
+
+
         private_node_handle.param<std::string>("ego_frame", ego_frame, "ego_frame");
         private_node_handle.param<std::string>("left_camera_frame", left_camera_frame, "left_camera_frame");
         private_node_handle.param<std::string>("right_camera_frame", right_camera_frame, "right_camera_frame");
@@ -229,6 +237,8 @@ protected:
         ROS_INFO_STREAM("interp: "<<interp);
         ROS_INFO_STREAM("sp: "<<sp);
         ROS_INFO_STREAM("full: "<<full);
+        ROS_INFO_STREAM("fovea_rows: "<<fovea_rows);
+        ROS_INFO_STREAM("fovea_columns: "<<fovea_columns);
         ROS_INFO_STREAM("ego_frame: "<<ego_frame);
         ROS_INFO_STREAM("left_camera_frame: "<<left_camera_frame);
         ROS_INFO_STREAM("right_camera_frame: "<<right_camera_frame);
@@ -273,6 +283,8 @@ protected:
                                            full,
                                            sectors,
                                            sp,
+                                           fovea_rows,
+                                           fovea_columns,
                                            ego_frame,
                                            L,
                                            alpha,
@@ -294,17 +306,18 @@ protected:
                                            )
                                      );
 
-        disparity_image_publisher = it_.advertise("/vizzy/disparity", 3);
-        rgb_point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("stereo", 10);
+        rgb_point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("rgbd_pcl", 10);
         mean_point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("mean_pcl", 10);
         uncertainty_point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("uncertainty_pcl", 10);
-        /*for(int i=0; i<9; ++i)
-        {
-            std::stringstream ss;
-            ss << i;
-            std::string str = ss.str();
-            //sigma_point_clouds_publishers.push_back(nh.advertise<sensor_msgs::PointCloud2>("sigma_point_clouds_"+str, 10));
-        }*/
+        disparity_image_publisher = it_.advertise("/vizzy/disparity", 3);
+
+
+        left_retinal_image_publisher = it_.advertise("left_retinal_image",2);
+        left_cortical_image_publisher = it_.advertise("left_cortical_image",2);
+
+        right_retinal_image_publisher = it_.advertise("right_retinal_image",2);
+        right_cortical_image_publisher = it_.advertise("right_cortical_image",2);
+
         stereo_data_publisher = nh.advertise<foveated_stereo_ros::StereoData>("stereo_data", 1);
 
         marker_pub = nh.advertise<visualization_msgs::MarkerArray>("covariances", 1);
@@ -316,10 +329,6 @@ protected:
         left_to_center_sub=boost::shared_ptr<message_filters::Subscriber<geometry_msgs::TransformStamped> > (new message_filters::Subscriber<geometry_msgs::TransformStamped>(nh, "left_to_center_tf", 10));
         sync=boost::shared_ptr<Synchronizer<MySyncPolicy> > (new Synchronizer<MySyncPolicy>(MySyncPolicy(10), *left_image_sub, *right_image_sub, *left_to_right_sub, *left_to_center_sub));
         sync->registerCallback(boost::bind(&StereoRos<T>::callback, this, _1, _2, _3, _4));
-
-        left_cortical_image=nh.advertise<sensor_msgs::Image>("left_cortical_image", 1);
-        left_retinal_image=nh.advertise<sensor_msgs::Image>("left_retinal_image", 1);
-
 
         ROS_INFO_STREAM("done");
     }
@@ -418,7 +427,7 @@ public:
             }
         }
 
-
+        stereo_data_publisher.publish(stereo_msg);
 
         /*for(int i=0; i<sdd.sigma_point_clouds.size();++i)
         {
@@ -432,7 +441,19 @@ public:
         }*/
 
 
-        stereo_data_publisher.publish(stereo_msg);
+
+        // Publish retinal and cortical images
+        sensor_msgs::ImagePtr left_retinal_image_msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", sdd.left_retinal_image).toImageMsg();
+        left_retinal_image_publisher.publish(left_retinal_image_msg);
+
+        sensor_msgs::ImagePtr left_cortical_image_msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", sdd.left_cortical_image).toImageMsg();
+        left_cortical_image_publisher.publish(left_cortical_image_msg);
+
+        sensor_msgs::ImagePtr right_retinal_image_msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", sdd.right_retinal_image).toImageMsg();
+        right_retinal_image_publisher.publish(right_retinal_image_msg);
+
+        sensor_msgs::ImagePtr right_cortical_image_msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", sdd.right_cortical_image).toImageMsg();
+        right_cortical_image_publisher.publish(right_cortical_image_msg);
     }
 
     void publishCovarianceMatrices(StereoData & sdd, const ros::Time & time)
@@ -447,11 +468,11 @@ public:
         for(int r=0; r<sdd.information_3d.size();r=r+jump)
         {
             for(int c=0; c<sdd.information_3d[r].size();c=c+jump)
-            //for(int c=ignore_border_left; c<sdd.information_3d[r].size();c=c+jump)
+                //for(int c=ignore_border_left; c<sdd.information_3d[r].size();c=c+jump)
             {
                 if(isnan(informations_determinants.at<double>(r,c))||isnan(log(informations_determinants.at<double>(r,c))))
 
-                //if(isnan(informations_determinants.at<double>(r,c))||isnan(log(informations_determinants.at<double>(r,c)))||log(informations_determinants.at<double>(r,c))<information_lower_bound)
+                    //if(isnan(informations_determinants.at<double>(r,c))||isnan(log(informations_determinants.at<double>(r,c)))||log(informations_determinants.at<double>(r,c))<information_lower_bound)
                 {
                     continue;
                 }
