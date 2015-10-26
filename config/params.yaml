@@ -1,11 +1,11 @@
 rings: 100
-min_radius: 10
+min_radius: 1
 interp: 1
 full: 0
 sectors: 100
 sp: 0
-fovea_rows: 20
-fovea_columns: 20
+fovea_rows: 10
+fovea_columns: 10
 L: 4.0
 alpha: 0.25
 beta: 2.0

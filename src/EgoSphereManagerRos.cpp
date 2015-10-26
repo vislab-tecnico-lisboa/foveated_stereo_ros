@@ -403,8 +403,8 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
                 actionlib::SimpleClientGoalState state = ac.getState();
                 if(state.SUCCEEDED)
                 {
-                    ROS_INFO("Action finished: %s",state.toString().c_str());
-                    sleep(1.0); //HACK TO AVOID WRONG SENSORY DATA
+                    ROS_INFO("Action finisheeed: %s",state.toString().c_str());
+                    //sleep(1.0); //HACK TO AVOID WRONG SENSORY DATA
                     break;
                 }
                 else
@@ -415,10 +415,11 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
             else
             {
                 ROS_ERROR("Action did not finish before the time out.");
+                break;
             }
         }
-        ros::TimerEvent aux;
-        updateEgoSphere(aux);
+        //ros::TimerEvent aux;
+        //updateEgoSphere(aux);
     }
 
     //////////
