@@ -93,6 +93,7 @@ public:
     void publishAll(const foveated_stereo_ros::StereoDataConstPtr& stereo_data);
     void publishCovarianceMatrices();
     void insertScan(const PCLPointCloud& point_cloud, const std::vector<Eigen::Matrix3d> & covariances);
+    Eigen::Vector3d perturb(const Eigen::Vector4d & fixation_point, const double & scale);
 
     ros::Time last;
 

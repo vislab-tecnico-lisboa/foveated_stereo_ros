@@ -27,5 +27,6 @@
     <param name="data_folder" value="$(find foveated_stereo_ros)/data" />
     <rosparam file="$(find foveated_stereo_ros)/config/frames.yaml" command="load" />
     <rosparam file="$(find foveated_stereo_ros)/config/egosphere.yaml" command="load" />
+    <rosparam file="$(find foveated_stereo_ros)/config/decision_making.yaml" command="load" />
   </node>
 </launch>

@@ -26,6 +26,7 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     double mahalanobis_distance_threshold;
     double closest_point_bound;
     double sigma_scale_upper_bound;
+    double neighbour_squared_threshold;
     std::string data_folder;
     private_node_handle_.param<std::string>("world_frame",world_frame_id,"world");
     private_node_handle_.param<std::string>("ego_frame",ego_frame_id,"eyes_center_vision_link");
@@ -40,6 +41,7 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     private_node_handle_.param("closest_point_bound",closest_point_bound,1.0);
     private_node_handle_.param("sigma_scale_upper_bound",sigma_scale_upper_bound,1.0);
     private_node_handle_.param("mahalanobis_distance_threshold",mahalanobis_distance_threshold,std::numeric_limits<double>::max());
+    private_node_handle_.param("neighbour_squared_threshold",neighbour_squared_threshold,0.00001);
 
     XmlRpc::XmlRpcValue mean_list;
     private_node_handle_.getParam("mean", mean_list);
@@ -123,7 +125,8 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
                                                                                                                                                                              mahalanobis_distance_threshold,
                                                                                                                                                                              mean_mat,
                                                                                                                                                                              standard_deviation_mat,
-                                                                                                                                                                             transform.getOrigin().getY()));
+                                                                                                                                                                             transform.getOrigin().getY(),
+                                                                                                                                                                             neighbour_squared_threshold));
 
         std::ofstream ofs(ego_file_name.c_str());
         ROS_INFO("SAVE EGOSPHERE");
@@ -370,57 +373,84 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
     // ACT //
     /////////
 
-    while(active_vision&&nh.ok())
+
+    Eigen::Vector3d fixation_point_3d=decision_making->getFixationPoint();
+    ros::WallTime decision_time = ros::WallTime::now();
+    ROS_INFO_STREAM(" 4. decision making time: " <<  (decision_time - insert_time).toSec());
+
+    fixation_point(0)=fixation_point_3d(0);
+    fixation_point(1)=fixation_point_3d(1);
+    fixation_point(2)=fixation_point_3d(2);
+    // send a goal to the action
+    move_robot_msgs::GazeGoal goal;
+    goal.fixation_point.header.frame_id=ego_frame_id;
+    goal.fixation_point.header.stamp=ros::Time::now();
+    goal.fixation_point.point.x = fixation_point(0);
+    goal.fixation_point.point.y = fixation_point(1);
+    goal.fixation_point.point.z = fixation_point(2);
+
+    ROS_DEBUG("Waiting for action server to start.");
+    // wait for the action server to start
+    if(ac.waitForServer()&&active_vision&&nh.ok()) //with no duration will wait for infinite time
     {
-        //ego_sphere->getClosestPoint();
-        Eigen::Vector3d fixation_point_3d=decision_making->getFixationPoint();
+        //wait for the action to return
+        ac.sendGoal(goal);
+        bool finished_before_timeout = ac.waitForResult(ros::Duration(10));
+        actionlib::SimpleClientGoalState state = ac.getState();
 
-        fixation_point(0)=fixation_point_3d(0);
-        fixation_point(1)=fixation_point_3d(1);
-        fixation_point(2)=fixation_point_3d(2);
-        // send a goal to the action
-        move_robot_msgs::GazeGoal goal;
-        goal.fixation_point.header.frame_id=ego_frame_id;
-        goal.fixation_point.header.stamp=ros::Time::now();
-        goal.fixation_point.point.x = fixation_point(0);
-        goal.fixation_point.point.y = fixation_point(1);
-        goal.fixation_point.point.z = fixation_point(2);
-
-        ROS_DEBUG("Waiting for action server to start.");
-        // wait for the action server to start
-        if(ac.waitForServer()) //with no duration will wait for infinite time
+        if (finished_before_timeout)
         {
-            ROS_DEBUG("Started.");
-            //wait for the action to return
-            ac.sendGoal(goal);
-            ROS_ERROR("WAIT FOR RESULT...");
-
-            bool finished_before_timeout = ac.waitForResult(ros::Duration(10));
-            ROS_ERROR("DONE.");
-
-            if (finished_before_timeout)
+            if(state == actionlib::SimpleClientGoalState::SUCCEEDED)
             {
-                actionlib::SimpleClientGoalState state = ac.getState();
-                if(state.SUCCEEDED)
-                {
-                    ROS_INFO("Action finisheeed: %s",state.toString().c_str());
-                    //sleep(1.0); //HACK TO AVOID WRONG SENSORY DATA
-                    break;
-                }
-                else
-                {
-                    ROS_WARN("Point not valid.");
-                }
+                ROS_INFO("Action succeeded: %s",state.toString().c_str());
+                //sleep(1.0); //HACK TO AVOID WRONG SENSORY DATA
             }
             else
             {
-                ROS_ERROR("Action did not finish before the time out.");
-                break;
+                ROS_ERROR("Action failed: %s",state.toString().c_str());
+
+                Eigen::Vector3d fixation_point_perturb;
+                do
+                {
+                    fixation_point_perturb=perturb(fixation_point, 0.01);
+                    // send a goal to the action
+                    move_robot_msgs::GazeGoal goal;
+                    goal.fixation_point.header.frame_id=ego_frame_id;
+                    goal.fixation_point.header.stamp=ros::Time::now();
+                    goal.fixation_point.point.x = fixation_point_perturb(0);
+                    goal.fixation_point.point.y = fixation_point_perturb(1);
+                    goal.fixation_point.point.z = fixation_point_perturb(2);
+
+                    ac.sendGoal(goal);
+                    bool finished_before_timeout = ac.waitForResult(ros::Duration(10));
+                    if (finished_before_timeout)
+                    {
+                        if(state == actionlib::SimpleClientGoalState::SUCCEEDED)
+                        {
+                            ROS_INFO("Action succeeded: %s",state.toString().c_str());
+                            break;
+                        }
+                        else
+                        {
+                            ROS_ERROR("Action failed: %s",state.toString().c_str());
+                        }
+                    }
+                    else
+                    {
+                        ROS_ERROR("Action did not finish before the time out.");
+                    }
+                }
+                while(nh.ok());
             }
         }
-        //ros::TimerEvent aux;
-        //updateEgoSphere(aux);
+        else
+        {
+            ROS_ERROR("Action did not finish before the time out.");
+        }
     }
+
+    ros::WallTime moving_time = ros::WallTime::now();
+    ROS_INFO_STREAM(" 5. saccade time: " <<  (moving_time - decision_time).toSec());
 
     //////////
     // SHOW //
@@ -430,7 +460,7 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
 
     publishAll(stereo_data);
     ros::WallTime publish_time_after = ros::WallTime::now();
-    ROS_INFO_STREAM(" 4. publish time: " <<  (publish_time_after - publish_time_before).toSec());
+    ROS_INFO_STREAM(" 6. publish time: " <<  (publish_time_after - publish_time_before).toSec());
 
     publishCovarianceMatrices();
     double total_elapsed = (ros::WallTime::now() - start_time).toSec();
@@ -561,6 +591,24 @@ void EgoSphereManagerRos::publishCovarianceMatrices()
         marker_array.markers.push_back(marker);
     }
     marker_pub.publish(marker_array);
+}
+Eigen::Vector3d EgoSphereManagerRos::perturb(const Eigen::Vector4d & fixation_point, const double & scale)
+{
+    cv::Mat aux(1, 1, CV_64F);
+    Eigen::Vector3d fixation_point_perturb;
+    // Generate random patch on the sphere surface
+    cv::randn(aux, 0, scale);
+    fixation_point_perturb(0,0)=fixation_point.x()+aux.at<double>(0,0);
+
+    cv::randn(aux, 0, scale);
+    fixation_point_perturb(1,0)=fixation_point.y()+aux.at<double>(0,0);
+
+    cv::randn(aux, 0, scale);
+    fixation_point_perturb(2,0)=fixation_point.z()+aux.at<double>(0,0);
+    //cv::randn(aux, 0, 0.1);
+    //fixation_point_perturb= fixation_point_normalized*aux.at<double>(0,0)+fixation_point;
+
+    return fixation_point_perturb;
 }
 
 int main(int argc, char** argv)
