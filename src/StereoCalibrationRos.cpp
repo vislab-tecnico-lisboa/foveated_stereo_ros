@@ -1,14 +1,12 @@
 #include "StereoCalibrationRos.h"
 
-StereoCalibrationRos::StereoCalibrationRos()
-{
-}
+
 
 StereoCalibrationRos::StereoCalibrationRos(ros::NodeHandle & nh_, ros::NodeHandle & private_node_handle_) :
     nh(nh_),
     private_node_handle(private_node_handle_),
-    listener(new tf::TransformListener(ros::Duration(5.0)))
-
+    listener(new tf::TransformListener(ros::Duration(5.0))),
+    it(nh_)
 {
     ROS_INFO("Initializing...");
     std::string left_camera_info_topic;
@@ -17,7 +15,6 @@ StereoCalibrationRos::StereoCalibrationRos(ros::NodeHandle & nh_, ros::NodeHandl
     private_node_handle.param<std::string>("ego_frame", ego_frame, "ego_frame");
     private_node_handle.param<std::string>("left_camera_frame", left_camera_frame, "left_camera_frame");
     private_node_handle.param<std::string>("right_camera_frame", right_camera_frame, "right_camera_frame");
-
 
     private_node_handle.param<std::string>("left_camera_info_topic", left_camera_info_topic, "left_camera_info_topic");
     private_node_handle.param<std::string>("right_camera_info_topic", right_camera_info_topic, "right_camera_info_topic");
@@ -65,7 +62,7 @@ StereoCalibrationRos::StereoCalibrationRos(ros::NodeHandle & nh_, ros::NodeHandl
 
     double baseline = (double)r_l_eye_transform.getOrigin().length();
 
-    stereo_calibration=boost::shared_ptr<complete_stereo_calib> (new complete_stereo_calib(fillStereoCalibParams(width,height,left_cam_intrinsic,right_cam_intrinsic,baseline,resize_factor)));
+    stereo_calibration=boost::shared_ptr<spherical_multiple_filter_stereo_calib> (new spherical_multiple_filter_stereo_calib(fillStereoCalibParams(width,height,left_cam_intrinsic,right_cam_intrinsic,baseline,resize_factor)));
     left_image_sub=boost::shared_ptr<message_filters::Subscriber<sensor_msgs::Image> > (new message_filters::Subscriber<sensor_msgs::Image>(nh, "left_image", 10));
     right_image_sub=boost::shared_ptr<message_filters::Subscriber<sensor_msgs::Image> > (new message_filters::Subscriber<sensor_msgs::Image>(nh, "right_image", 10));
     joint_state_sub=boost::shared_ptr<message_filters::Subscriber<sensor_msgs::JointState> > (new message_filters::Subscriber<sensor_msgs::JointState>(nh, "joint_states", 10));
@@ -76,14 +73,16 @@ StereoCalibrationRos::StereoCalibrationRos(ros::NodeHandle & nh_, ros::NodeHandl
     left_to_right_pub=nh.advertise<geometry_msgs::TransformStamped>("left_to_right_tf", 1);
     left_to_center_pub=nh.advertise<geometry_msgs::TransformStamped>("left_to_center_tf", 1);
 
+    stereo_calib_panel_image_publisher = it.advertise("stereo_calibration_panel_image", 3);
+
     ROS_INFO("Done.");
 }
 
-complete_stereo_calib_params StereoCalibrationRos::fillStereoCalibParams(const unsigned int & width, const unsigned int & height, const cv::Mat & left_cam_intrinsic, const cv::Mat & right_cam_intrinsic, const double & baseline, const double & resize_factor)
+spherical_multiple_filter_stereo_calib_params StereoCalibrationRos::fillStereoCalibParams(const unsigned int & width, const unsigned int & height, const cv::Mat & left_cam_intrinsic, const cv::Mat & right_cam_intrinsic, const double & baseline, const double & resize_factor)
 {
     ROS_INFO("Filling stereo params for online calibration...");
 
-    complete_stereo_calib_params params;
+    spherical_multiple_filter_stereo_calib_params params;
     params.baseline = baseline;//in mm
 
     //set the parameters for the stereo calibration system
@@ -149,14 +148,13 @@ void StereoCalibrationRos::callback(const sensor_msgs::ImageConstPtr& left_image
     // 3. calibrate given angles
     ROS_INFO("Calibrate stereo...");
     stereo_calibration->calibrate(left_image_mat,
-                                  right_image_mat,
-                                  stereo_encoders);
+                                  right_image_mat);
 
     ROS_INFO("Done.");
 
     //get the calibrated transformations between the two cameras
-    complete_stereo_calib_data scd;
-    scd =  stereo_calibration->get_calibrated_transformations(stereo_encoders);
+    spherical_multiple_filter_stereo_calib_data scd;
+    scd =  stereo_calibration->get_calibrated_transformations();
 
     geometry_msgs::TransformStamped right_to_left_transform_stamped;
     right_to_left_transform_stamped.header.stamp=left_image->header.stamp;
@@ -211,6 +209,12 @@ void StereoCalibrationRos::callback(const sensor_msgs::ImageConstPtr& left_image
 
     double total_elapsed = (ros::WallTime::now() - startTime).toSec();
 
+
+    cv::Mat calib_panel_image=EyesStereoModel(scd.ty,scd.tz,scd.rx,scd.ry,scd.rz);
+
+    sensor_msgs::ImagePtr image_msg = cv_bridge::CvImage(std_msgs::Header(), "bgr8", calib_panel_image).toImageMsg();
+
+    stereo_calib_panel_image_publisher.publish(image_msg);
     ROS_INFO(" TOTAL TIME STEREO CALIBRATION:  %f sec", total_elapsed);
 }
 
@@ -231,7 +235,7 @@ int main(int argc, char** argv)
     int rate;
 
     private_node_handle.param("rate", rate, 100);
-
+    ROS_INFO_STREAM("rate:"<< rate);
     StereoCalibrationRos stereo_ros(nh,private_node_handle);
 
     // Tell ROS how fast to run this node.

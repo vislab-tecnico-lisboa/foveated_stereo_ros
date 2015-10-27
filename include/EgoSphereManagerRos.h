@@ -18,7 +18,7 @@
 #include <tf/transform_listener.h>
 #include <sensor_msgs/image_encodings.h>
 #include <Stereo.h>
-#include <stereo_calib_lib.h>
+//#include <spherical_multiple_filter_stereo_calib_lib.h>
 #include <cv_bridge/cv_bridge.h>
 #include <sensor_msgs/image_encodings.h>
 #include <image_transport/image_transport.h>

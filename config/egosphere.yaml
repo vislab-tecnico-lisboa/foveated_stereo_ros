@@ -1,9 +1,8 @@
 spherical_angle_bins: 10
 egosphere_nodes: 10000
 uncertainty_lower_bound: -100
-neighbour_squared_threshold: 0.0001
+neighbour_distance_threshold: 0.1
 mahalanobis_distance_threshold: 10000000.0
 mean: [0.0, 0.0, 0.0]
 standard_deviation: [1.0, 1.0, 1.0]
-active_vision: true
 

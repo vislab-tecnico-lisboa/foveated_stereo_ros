@@ -4,7 +4,7 @@
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
-#include <complete_stereo_calib_lib.h>
+#include <spherical_multiple_filter_stereo_calib_lib.h>
 #include <sensor_msgs/CameraInfo.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/JointState.h>

@@ -4,7 +4,7 @@
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
 #include <message_filters/sync_policies/approximate_time.h>
-#include <complete_stereo_calib_lib.h>
+#include <spherical_multiple_filter_stereo_calib_lib.h>
 #include <sensor_msgs/CameraInfo.h>
 #include <sensor_msgs/Image.h>
 #include <sensor_msgs/JointState.h>
@@ -21,11 +21,12 @@ class StereoCalibrationRos
     std::string ego_frame;
 
     tf::StampedTransform r_l_eye_transform;
+    image_transport::ImageTransport it;
 
     ros::NodeHandle nh;
     ros::NodeHandle private_node_handle;
     boost::shared_ptr<tf::TransformListener> listener;
-    boost::shared_ptr<complete_stereo_calib> stereo_calibration;
+    boost::shared_ptr<spherical_multiple_filter_stereo_calib> stereo_calibration;
     typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Image, sensor_msgs::Image, sensor_msgs::JointState> MySyncPolicy;
 
     boost::shared_ptr<message_filters::Subscriber<sensor_msgs::Image> > left_image_sub;
@@ -37,13 +38,15 @@ class StereoCalibrationRos
     ros::Publisher left_to_right_pub;
     ros::Publisher left_to_center_pub;
 
+    image_transport::Publisher stereo_calib_panel_image_publisher;
+
+
 public:
 
-    StereoCalibrationRos();
 
     StereoCalibrationRos(ros::NodeHandle & nh_, ros::NodeHandle & private_node_handle_);
 
-    complete_stereo_calib_params fillStereoCalibParams(const unsigned int & width, const unsigned int & height, const cv::Mat & left_cam_intrinsic, const cv::Mat & right_cam_intrinsic, const double & baseline, const double & resize_factor);
+    spherical_multiple_filter_stereo_calib_params fillStereoCalibParams(const unsigned int & width, const unsigned int & height, const cv::Mat & left_cam_intrinsic, const cv::Mat & right_cam_intrinsic, const double & baseline, const double & resize_factor);
 
 
     void callback(const sensor_msgs::ImageConstPtr& left_image,

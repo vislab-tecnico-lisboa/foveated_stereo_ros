@@ -26,7 +26,7 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     double mahalanobis_distance_threshold;
     double closest_point_bound;
     double sigma_scale_upper_bound;
-    double neighbour_squared_threshold;
+    double neighbour_distance_threshold;
     std::string data_folder;
     private_node_handle_.param<std::string>("world_frame",world_frame_id,"world");
     private_node_handle_.param<std::string>("ego_frame",ego_frame_id,"eyes_center_vision_link");
@@ -41,7 +41,7 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     private_node_handle_.param("closest_point_bound",closest_point_bound,1.0);
     private_node_handle_.param("sigma_scale_upper_bound",sigma_scale_upper_bound,1.0);
     private_node_handle_.param("mahalanobis_distance_threshold",mahalanobis_distance_threshold,std::numeric_limits<double>::max());
-    private_node_handle_.param("neighbour_squared_threshold",neighbour_squared_threshold,0.00001);
+    private_node_handle_.param("neighbour_distance_threshold",neighbour_distance_threshold,0.00001);
 
     XmlRpc::XmlRpcValue mean_list;
     private_node_handle_.getParam("mean", mean_list);
@@ -126,7 +126,7 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
                                                                                                                                                                              mean_mat,
                                                                                                                                                                              standard_deviation_mat,
                                                                                                                                                                              transform.getOrigin().getY(),
-                                                                                                                                                                             neighbour_squared_threshold));
+                                                                                                                                                                             neighbour_distance_threshold));
 
         std::ofstream ofs(ego_file_name.c_str());
         ROS_INFO("SAVE EGOSPHERE");
@@ -407,12 +407,12 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
             }
             else
             {
-                ROS_ERROR("Action failed: %s",state.toString().c_str());
+                ROS_ERROR("Action failed1: %s",state.toString().c_str());
 
                 Eigen::Vector3d fixation_point_perturb;
                 do
                 {
-                    fixation_point_perturb=perturb(fixation_point, 0.01);
+                    fixation_point_perturb=perturb(fixation_point, 0.02);
                     // send a goal to the action
                     move_robot_msgs::GazeGoal goal;
                     goal.fixation_point.header.frame_id=ego_frame_id;
@@ -432,12 +432,13 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
                         }
                         else
                         {
-                            ROS_ERROR("Action failed: %s",state.toString().c_str());
+                            ROS_ERROR("Action failed2: %s",state.toString().c_str());
                         }
                     }
                     else
                     {
                         ROS_ERROR("Action did not finish before the time out.");
+                        break;
                     }
                 }
                 while(nh.ok());
