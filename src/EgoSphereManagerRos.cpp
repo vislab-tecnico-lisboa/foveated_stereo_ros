@@ -412,7 +412,7 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
                 Eigen::Vector3d fixation_point_perturb;
                 do
                 {
-                    fixation_point_perturb=perturb(fixation_point, 0.02);
+                    fixation_point_perturb=perturb(fixation_point, 0.04);
                     // send a goal to the action
                     move_robot_msgs::GazeGoal goal;
                     goal.fixation_point.header.frame_id=ego_frame_id;
@@ -423,6 +423,7 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
 
                     ac.sendGoal(goal);
                     bool finished_before_timeout = ac.waitForResult(ros::Duration(10));
+                    state = ac.getState();
                     if (finished_before_timeout)
                     {
                         if(state == actionlib::SimpleClientGoalState::SUCCEEDED)
@@ -467,6 +468,8 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
     double total_elapsed = (ros::WallTime::now() - start_time).toSec();
 
     ROS_INFO_STREAM("Done. Total insertion time:"<< total_elapsed);
+
+    ROS_DEBUG_STREAM("ITERATION:"<<++iterations_);
 }
 
 
