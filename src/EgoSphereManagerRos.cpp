@@ -67,6 +67,19 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
         standard_deviation_mat.at<double>(i,0)=static_cast<double>(std_dev_list[i]);
     }
 
+    XmlRpc::XmlRpcValue perturb_std_dev_list;
+    private_node_handle_.getParam("perturb_standard_deviation", perturb_std_dev_list);
+    ROS_ASSERT(std_dev_list.getType() == XmlRpc::XmlRpcValue::TypeArray);
+
+    perturb_standard_deviation_mat=cv::Mat(3, 1, CV_64F);
+
+    for (int32_t i = 0; i < std_dev_list.size(); ++i)
+    {
+        ROS_ASSERT(perturb_std_dev_list[i].getType() == XmlRpc::XmlRpcValue::TypeDouble);
+        perturb_standard_deviation_mat.at<double>(i,0)=static_cast<double>(perturb_std_dev_list[i]);
+    }
+
+
     ROS_INFO_STREAM("egosphere_nodes: "<<egosphere_nodes);
     ROS_INFO_STREAM("spherical_angle_bins: "<<spherical_angle_bins);
     ROS_INFO_STREAM("uncertainty_lower_bound: "<<uncertainty_lower_bound);
@@ -75,6 +88,8 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     ROS_INFO_STREAM("mahalanobis_distance_threshold: "<<mahalanobis_distance_threshold);
     ROS_INFO_STREAM("mean: "<<mean_mat);
     ROS_INFO_STREAM("standard_deviation: "<<standard_deviation_mat);
+    ROS_INFO_STREAM("perturb_standard_deviation: "<<perturb_standard_deviation_mat);
+
     ROS_INFO_STREAM("active_vision: "<<active_vision);
     ROS_INFO_STREAM("world_frame_id: "<<world_frame_id);
     ROS_INFO_STREAM("ego_frame_id: "<<ego_frame_id);
@@ -412,7 +427,7 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
                 Eigen::Vector3d fixation_point_perturb;
                 do
                 {
-                    fixation_point_perturb=perturb(fixation_point, 0.04);
+                    fixation_point_perturb=perturb(fixation_point, perturb_standard_deviation_mat);
                     // send a goal to the action
                     move_robot_msgs::GazeGoal goal;
                     goal.fixation_point.header.frame_id=ego_frame_id;
@@ -596,18 +611,18 @@ void EgoSphereManagerRos::publishCovarianceMatrices()
     }
     marker_pub.publish(marker_array);
 }
-Eigen::Vector3d EgoSphereManagerRos::perturb(const Eigen::Vector4d & fixation_point, const double & scale)
+Eigen::Vector3d EgoSphereManagerRos::perturb(const Eigen::Vector4d & fixation_point, const cv::Mat & perturb_standard_deviation_mat_)
 {
     cv::Mat aux(1, 1, CV_64F);
     Eigen::Vector3d fixation_point_perturb;
     // Generate random patch on the sphere surface
-    cv::randn(aux, 0, scale);
+    cv::randn(aux, 0, perturb_standard_deviation_mat_.at<double>(0,0));
     fixation_point_perturb(0,0)=fixation_point.x()+aux.at<double>(0,0);
 
-    cv::randn(aux, 0, scale);
+    cv::randn(aux, 0, perturb_standard_deviation_mat_.at<double>(1,0));
     fixation_point_perturb(1,0)=fixation_point.y()+aux.at<double>(0,0);
 
-    cv::randn(aux, 0, scale);
+    cv::randn(aux, 0, perturb_standard_deviation_mat_.at<double>(2,0));
     fixation_point_perturb(2,0)=fixation_point.z()+aux.at<double>(0,0);
     //cv::randn(aux, 0, 0.1);
     //fixation_point_perturb= fixation_point_normalized*aux.at<double>(0,0)+fixation_point;

@@ -69,6 +69,8 @@ class EgoSphereManagerRos
     actionlib::SimpleActionClient<move_robot_msgs::GazeAction> ac;
     bool active_vision;
     ros::Time last_update_time;
+
+    cv::Mat perturb_standard_deviation_mat;
 public:
     typedef pcl::PointCloud<pcl::PointXYZRGB> PCLPointCloud;
 
@@ -93,7 +95,7 @@ public:
     void publishAll(const foveated_stereo_ros::StereoDataConstPtr& stereo_data);
     void publishCovarianceMatrices();
     void insertScan(const PCLPointCloud& point_cloud, const std::vector<Eigen::Matrix3d> & covariances);
-    Eigen::Vector3d perturb(const Eigen::Vector4d & fixation_point, const double & scale);
+    Eigen::Vector3d perturb(const Eigen::Vector4d & fixation_point, const cv::Mat & scale);
 
     ros::Time last;
 
