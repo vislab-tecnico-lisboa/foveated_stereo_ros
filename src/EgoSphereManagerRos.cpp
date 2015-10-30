@@ -26,7 +26,7 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     double mahalanobis_distance_threshold;
     double closest_point_bound;
     double sigma_scale_upper_bound;
-    double neighbour_distance_threshold;
+    double neighbour_angle_threshold;
     std::string data_folder;
     private_node_handle_.param<std::string>("world_frame",world_frame_id,"world");
     private_node_handle_.param<std::string>("ego_frame",ego_frame_id,"eyes_center_vision_link");
@@ -41,7 +41,7 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     private_node_handle_.param("closest_point_bound",closest_point_bound,1.0);
     private_node_handle_.param("sigma_scale_upper_bound",sigma_scale_upper_bound,1.0);
     private_node_handle_.param("mahalanobis_distance_threshold",mahalanobis_distance_threshold,std::numeric_limits<double>::max());
-    private_node_handle_.param("neighbour_distance_threshold",neighbour_distance_threshold,0.00001);
+    private_node_handle_.param("neighbour_angle_threshold",neighbour_angle_threshold,1.0);
 
     XmlRpc::XmlRpcValue mean_list;
     private_node_handle_.getParam("mean", mean_list);
@@ -141,7 +141,7 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
                                                                                                                                                                              mean_mat,
                                                                                                                                                                              standard_deviation_mat,
                                                                                                                                                                              transform.getOrigin().getY(),
-                                                                                                                                                                             neighbour_distance_threshold));
+                                                                                                                                                                             neighbour_angle_threshold));
 
         std::ofstream ofs(ego_file_name.c_str());
         ROS_INFO("SAVE EGOSPHERE");
