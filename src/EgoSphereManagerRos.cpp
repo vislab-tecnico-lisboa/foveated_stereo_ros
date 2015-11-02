@@ -21,7 +21,6 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
 
     // Declare variables that can be modified by launch file or command line.
     int egosphere_nodes;
-    int spherical_angle_bins;
     double uncertainty_lower_bound;
     double mahalanobis_distance_threshold;
     double closest_point_bound;
@@ -35,7 +34,6 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     private_node_handle_.param<std::string>("data_folder", data_folder, "data_folder");
 
     private_node_handle_.param("egosphere_nodes", egosphere_nodes, 1000);
-    private_node_handle_.param("spherical_angle_bins", spherical_angle_bins, 1000);
     private_node_handle_.param("uncertainty_lower_bound", uncertainty_lower_bound, 0.0);
     private_node_handle_.param("active_vision",active_vision,false);
     private_node_handle_.param("closest_point_bound",closest_point_bound,1.0);
@@ -81,7 +79,6 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
 
 
     ROS_INFO_STREAM("egosphere_nodes: "<<egosphere_nodes);
-    ROS_INFO_STREAM("spherical_angle_bins: "<<spherical_angle_bins);
     ROS_INFO_STREAM("uncertainty_lower_bound: "<<uncertainty_lower_bound);
     ROS_INFO_STREAM("closest_point_bound: "<<closest_point_bound);
 
@@ -95,6 +92,7 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     ROS_INFO_STREAM("ego_frame_id: "<<ego_frame_id);
     ROS_INFO_STREAM("eyes_center_frame_id: "<<eyes_center_frame_id);
     ROS_INFO_STREAM("base_frame_id: "<<base_frame_id);
+    ROS_INFO_STREAM("neighbour_angle_threshold: "<<neighbour_angle_threshold);
 
     tf::StampedTransform transform;
 
@@ -117,7 +115,7 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     sleep(5.0);
     std::string ego_file_name;
     // 1. with Boost
-    ego_file_name = data_folder+"/ego_sphere_nodes_" + boost::lexical_cast<std::string>(egosphere_nodes) + "_angle_bins_"+boost::lexical_cast<std::string>(spherical_angle_bins);
+    ego_file_name = data_folder+"/ego_sphere_nodes_" + boost::lexical_cast<std::string>(egosphere_nodes) + "_nn_angle_threshold_"+boost::lexical_cast<std::string>(neighbour_angle_threshold);
     ROS_INFO_STREAM("ego_file_name:"<<ego_file_name);
 
     if(fileExists(ego_file_name))
@@ -135,7 +133,6 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
         ROS_INFO("CREATE NEW EGO SPHERE");
 
         ego_sphere = boost::shared_ptr<SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > > (new SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > (egosphere_nodes,
-                                                                                                                                                                             spherical_angle_bins,
                                                                                                                                                                              uncertainty_lower_bound,
                                                                                                                                                                              mahalanobis_distance_threshold,
                                                                                                                                                                              mean_mat,
@@ -384,6 +381,18 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
 
     ROS_DEBUG_STREAM("   total points inserted: " <<   pc.size());
 
+    //////////
+    // SHOW //
+    //////////
+
+    ros::WallTime publish_time_before = ros::WallTime::now();
+
+    publishAll(stereo_data);
+    ros::WallTime publish_time_after = ros::WallTime::now();
+    ROS_INFO_STREAM(" 6. publish time: " <<  (publish_time_after - publish_time_before).toSec());
+
+    publishCovarianceMatrices();
+
     /////////
     // ACT //
     /////////
@@ -469,17 +478,7 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
     ros::WallTime moving_time = ros::WallTime::now();
     ROS_INFO_STREAM(" 5. saccade time: " <<  (moving_time - decision_time).toSec());
 
-    //////////
-    // SHOW //
-    //////////
 
-    ros::WallTime publish_time_before = ros::WallTime::now();
-
-    publishAll(stereo_data);
-    ros::WallTime publish_time_after = ros::WallTime::now();
-    ROS_INFO_STREAM(" 6. publish time: " <<  (publish_time_after - publish_time_before).toSec());
-
-    publishCovarianceMatrices();
     double total_elapsed = (ros::WallTime::now() - start_time).toSec();
 
     ROS_INFO_STREAM("Done. Total insertion time:"<< total_elapsed);

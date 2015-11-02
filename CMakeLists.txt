@@ -143,10 +143,6 @@ target_link_libraries(conventional_stereo_ros_nodelet
 install(TARGETS conventional_stereo_ros_nodelet
         DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 )
-install(FILES foveated_stereo_nodelets.xml
-        DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-)
-
 
 # Nodelet library
 add_library(peripheral_stereo_ros_nodelet src/PeripheralStereoRos.cpp src/nodelets/PeripheralStereoRosNodelet.cpp)
@@ -160,10 +156,6 @@ add_dependencies(peripheral_stereo_ros_nodelet foveated_stereo_ros_gencpp)
 install(TARGETS peripheral_stereo_ros_nodelet
         DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 )
-install(FILES foveated_stereo_nodelets.xml
-        DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-)
-
 
 # Nodelet library
 add_library(peripheral_foveal_stereo_ros_nodelet src/PeripheralStereoRos.cpp src/nodelets/PeripheralFovealStereoRosNodelet.cpp)
@@ -177,11 +169,6 @@ add_dependencies(peripheral_foveal_stereo_ros_nodelet foveated_stereo_ros_gencpp
 install(TARGETS peripheral_foveal_stereo_ros_nodelet
         DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 )
-install(FILES foveated_stereo_nodelets.xml
-        DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
-)
-
-
 
 # Nodelet library
 add_library(ego_sphere_manager_ros_nodelet src/EgoSphereManagerRos.cpp src/DecisionMaking.cpp src/nodelets/EgoSphereManagerRosNodelet.cpp)
@@ -196,6 +183,8 @@ add_dependencies(ego_sphere_manager_ros_nodelet foveated_stereo_ros_gencpp)
 install(TARGETS ego_sphere_manager_ros_nodelet
         DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
 )
+
+
 install(FILES foveated_stereo_nodelets.xml
         DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )

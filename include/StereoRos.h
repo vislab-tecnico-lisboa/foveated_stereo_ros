@@ -106,8 +106,8 @@ protected:
 
     void callback(const ImageConstPtr& left_image,
                   const ImageConstPtr& right_image,
-                  const geometry_msgs::TransformStampedConstPtr& left_to_right_transform_,
-                  const geometry_msgs::TransformStampedConstPtr& left_to_center_transform_)
+                  const sensor_msgs::CameraInfoConstPtr & left_stereo_camera_info,
+                  const sensor_msgs::CameraInfoConstPtr & right_stereo_camera_info)
     {
         ROS_INFO("Stereo callback...");
 
@@ -116,21 +116,56 @@ protected:
         left_image_mat =cv_bridge::toCvCopy(left_image, "bgr8")->image;
         right_image_mat =cv_bridge::toCvCopy(right_image, "bgr8")->image;
 
-        tf::Transform r_l_eye_transform;
-        tf::transformMsgToTF(left_to_right_transform_->transform,r_l_eye_transform);
-        R_left_cam_to_right_cam.at<double>(0,0)=r_l_eye_transform.getBasis().getColumn(0)[0];
-        R_left_cam_to_right_cam.at<double>(1,0)=r_l_eye_transform.getBasis().getColumn(0)[1];
-        R_left_cam_to_right_cam.at<double>(2,0)=r_l_eye_transform.getBasis().getColumn(0)[2];
-        R_left_cam_to_right_cam.at<double>(0,1)=r_l_eye_transform.getBasis().getColumn(1)[0];
-        R_left_cam_to_right_cam.at<double>(1,1)=r_l_eye_transform.getBasis().getColumn(1)[1];
-        R_left_cam_to_right_cam.at<double>(2,1)=r_l_eye_transform.getBasis().getColumn(1)[2];
-        R_left_cam_to_right_cam.at<double>(0,2)=r_l_eye_transform.getBasis().getColumn(2)[0];
-        R_left_cam_to_right_cam.at<double>(1,2)=r_l_eye_transform.getBasis().getColumn(2)[1];
-        R_left_cam_to_right_cam.at<double>(2,2)=r_l_eye_transform.getBasis().getColumn(2)[2];
+        cv::Mat R1=cv::Mat(3,3,CV_64F);
+        R1.at<double>(0,0)=left_stereo_camera_info->R.at(0);
+        R1.at<double>(0,1)=left_stereo_camera_info->R.at(1);
+        R1.at<double>(0,2)=left_stereo_camera_info->R.at(2);
+        R1.at<double>(1,0)=left_stereo_camera_info->R.at(3);
+        R1.at<double>(1,1)=left_stereo_camera_info->R.at(4);
+        R1.at<double>(1,2)=left_stereo_camera_info->R.at(5);
+        R1.at<double>(2,0)=left_stereo_camera_info->R.at(6);
+        R1.at<double>(2,1)=left_stereo_camera_info->R.at(7);
+        R1.at<double>(2,2)=left_stereo_camera_info->R.at(8);
 
-        t_left_cam_to_right_cam.at<double>(0,0) = r_l_eye_transform.getOrigin()[0];
-        t_left_cam_to_right_cam.at<double>(1,0) = r_l_eye_transform.getOrigin()[1];
-        t_left_cam_to_right_cam.at<double>(2,0) = r_l_eye_transform.getOrigin()[2];
+        cv::Mat P1=cv::Mat(3,4,CV_64F);
+        P1.at<double>(0,0)=left_stereo_camera_info->P.at(0);
+        P1.at<double>(0,1)=left_stereo_camera_info->P.at(1);
+        P1.at<double>(0,2)=left_stereo_camera_info->P.at(2);
+        P1.at<double>(0,3)=left_stereo_camera_info->P.at(3);
+        P1.at<double>(1,0)=left_stereo_camera_info->P.at(4);
+        P1.at<double>(1,1)=left_stereo_camera_info->P.at(5);
+        P1.at<double>(1,2)=left_stereo_camera_info->P.at(6);
+        P1.at<double>(1,3)=left_stereo_camera_info->P.at(7);
+        P1.at<double>(2,0)=left_stereo_camera_info->P.at(8);
+        P1.at<double>(2,1)=left_stereo_camera_info->P.at(9);
+        P1.at<double>(2,2)=left_stereo_camera_info->P.at(10);
+        P1.at<double>(2,3)=left_stereo_camera_info->P.at(11);
+
+        cv::Mat R2=cv::Mat(3,3,CV_64F);
+        R2.at<double>(0,0)=right_stereo_camera_info->R.at(0);
+        R2.at<double>(0,1)=right_stereo_camera_info->R.at(1);
+        R2.at<double>(0,2)=right_stereo_camera_info->R.at(2);
+        R2.at<double>(1,0)=right_stereo_camera_info->R.at(3);
+        R2.at<double>(1,1)=right_stereo_camera_info->R.at(4);
+        R2.at<double>(1,2)=right_stereo_camera_info->R.at(5);
+        R2.at<double>(2,0)=right_stereo_camera_info->R.at(6);
+        R2.at<double>(2,1)=right_stereo_camera_info->R.at(7);
+        R2.at<double>(2,2)=right_stereo_camera_info->R.at(8);
+
+        cv::Mat P2=cv::Mat(3,4,CV_64F);
+        P2.at<double>(0,0)=right_stereo_camera_info->P.at(0);
+        P2.at<double>(0,1)=right_stereo_camera_info->P.at(1);
+        P2.at<double>(0,2)=right_stereo_camera_info->P.at(2);
+        P2.at<double>(0,3)=right_stereo_camera_info->P.at(3);
+        P2.at<double>(1,0)=right_stereo_camera_info->P.at(4);
+        P2.at<double>(1,1)=right_stereo_camera_info->P.at(5);
+        P2.at<double>(1,2)=right_stereo_camera_info->P.at(6);
+        P2.at<double>(1,3)=right_stereo_camera_info->P.at(7);
+        P2.at<double>(2,0)=right_stereo_camera_info->P.at(8);
+        P2.at<double>(2,1)=right_stereo_camera_info->P.at(9);
+        P2.at<double>(2,2)=right_stereo_camera_info->P.at(10);
+        P2.at<double>(2,3)=right_stereo_camera_info->P.at(11);
+
 
         while(nh.ok())
         {
@@ -157,8 +192,10 @@ protected:
 
         StereoData stereo_data=stereo->computeStereo(left_image_mat,
                                                      right_image_mat,
-                                                     R_left_cam_to_right_cam,
-                                                     t_left_cam_to_right_cam,
+                                                     R1,
+                                                     R2,
+                                                     P1,
+                                                     P2,
                                                      transformation_left_cam_to_baseline_center
                                                      );
 
@@ -206,7 +243,6 @@ protected:
         ROS_INFO_STREAM("disp_12_max_diff: "<<disp_12_max_diff);
         ROS_INFO_STREAM("full_dp: "<<full_dp);
         ROS_INFO_STREAM("ignore_border_left: "<<ignore_border_left);
-
 
         private_node_handle.param("sectors", sectors, 100);
         private_node_handle.param("rings", rings, 100);
@@ -325,9 +361,10 @@ protected:
         left_image_sub=boost::shared_ptr<message_filters::Subscriber<Image> > (new message_filters::Subscriber<Image>(nh, "left_image", 10));
         right_image_sub=boost::shared_ptr<message_filters::Subscriber<Image> > (new message_filters::Subscriber<Image>(nh, "right_image", 10));
 
-        left_to_right_sub=boost::shared_ptr<message_filters::Subscriber<geometry_msgs::TransformStamped> > (new message_filters::Subscriber<geometry_msgs::TransformStamped>(nh, "left_to_right_tf", 10));
-        left_to_center_sub=boost::shared_ptr<message_filters::Subscriber<geometry_msgs::TransformStamped> > (new message_filters::Subscriber<geometry_msgs::TransformStamped>(nh, "left_to_center_tf", 10));
-        sync=boost::shared_ptr<Synchronizer<MySyncPolicy> > (new Synchronizer<MySyncPolicy>(MySyncPolicy(10), *left_image_sub, *right_image_sub, *left_to_right_sub, *left_to_center_sub));
+        left_stereo_camera_info_sub=boost::shared_ptr<message_filters::Subscriber<sensor_msgs::CameraInfo> > (new message_filters::Subscriber<sensor_msgs::CameraInfo>(nh, "left_camera_info", 10));
+        right_stereo_camera_info_sub=boost::shared_ptr<message_filters::Subscriber<sensor_msgs::CameraInfo> > (new message_filters::Subscriber<sensor_msgs::CameraInfo>(nh, "right_camera_info", 10));
+
+        sync=boost::shared_ptr<Synchronizer<MySyncPolicy> > (new Synchronizer<MySyncPolicy>(MySyncPolicy(10), *left_image_sub, *right_image_sub, *left_stereo_camera_info_sub, *right_stereo_camera_info_sub));
         sync->registerCallback(boost::bind(&StereoRos<T>::callback, this, _1, _2, _3, _4));
 
         ROS_INFO_STREAM("done");
@@ -336,11 +373,11 @@ public:
 
     boost::shared_ptr<T> stereo;
 
-    typedef sync_policies::ApproximateTime<Image, Image, geometry_msgs::TransformStamped, geometry_msgs::TransformStamped> MySyncPolicy;
-    boost::shared_ptr<message_filters::Subscriber<Image> > left_image_sub;
-    boost::shared_ptr<message_filters::Subscriber<Image> > right_image_sub;
-    boost::shared_ptr<message_filters::Subscriber<geometry_msgs::TransformStamped> > left_to_right_sub;
-    boost::shared_ptr<message_filters::Subscriber<geometry_msgs::TransformStamped> > left_to_center_sub;
+    typedef sync_policies::ApproximateTime<Image, Image, sensor_msgs::CameraInfo, sensor_msgs::CameraInfo> MySyncPolicy;
+    boost::shared_ptr<message_filters::Subscriber<sensor_msgs::CameraInfo> > left_stereo_camera_info_sub;
+    boost::shared_ptr<message_filters::Subscriber<sensor_msgs::CameraInfo> > right_stereo_camera_info_sub;
+    boost::shared_ptr<message_filters::Subscriber<sensor_msgs::Image> > left_image_sub;
+    boost::shared_ptr<message_filters::Subscriber<sensor_msgs::Image> > right_image_sub;
 
     boost::shared_ptr<Synchronizer<MySyncPolicy> >sync;
 
@@ -358,7 +395,7 @@ public:
 
         std::string left_camera_info_topic;
         private_node_handle.param<std::string>("left_camera_info_topic", left_camera_info_topic, "left_camera_frame");
-        left_camera_info_sub=nh_.subscribe(left_camera_info_topic,1,&StereoRos<T>::cameraInfoCallback, this);
+        left_camera_info_sub=nh.subscribe(left_camera_info_topic,1,&StereoRos<T>::cameraInfoCallback, this);
 
         return;
     }

@@ -1,4 +1,4 @@
 active_vision: true
 closest_point_bound: 0.25
-sigma_scale_upper_bound: 100000.0
+sigma_scale_upper_bound: 1.0
 perturb_standard_deviation: [0.05, 0.05, 0.05]

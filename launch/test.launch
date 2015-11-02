@@ -3,7 +3,7 @@
 <launch>
   <include file="$(find move_robot)/launch/gaze.launch"/>
 
-  <include file="$(find online_stereo_calibration_ros)/launch/stereo_calibration.launch"/>
+  <!--<include file="$(find online_stereo_calibration_ros)/launch/stereo_calibration.launch"/>-->
 
   <node name="ego_sphere_manager_ros" pkg="foveated_stereo_ros" type="ego_sphere_manager_ros_node" respawn="false" output="screen" >
     <param name="data_folder" value="$(find foveated_stereo_ros)/data" />
