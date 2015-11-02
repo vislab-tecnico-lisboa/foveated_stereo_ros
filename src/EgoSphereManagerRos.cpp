@@ -15,7 +15,7 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     nh(nh_),
     ac("gaze", true),
     fixation_point(Eigen::Vector4d::Constant(std::numeric_limits<double>::max())),
-    listener(new tf::TransformListener(ros::Duration(20.0)))
+    listener(new tf::TransformListener(ros::Duration(30.0)))
 {
     fixation_point(3)=1; // Homogeneous coordinates
 
@@ -419,7 +419,7 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
     {
         //wait for the action to return
         ac.sendGoal(goal);
-        bool finished_before_timeout = ac.waitForResult(ros::Duration(10));
+        bool finished_before_timeout = ac.waitForResult(ros::Duration(40));
         actionlib::SimpleClientGoalState state = ac.getState();
 
         if (finished_before_timeout)
@@ -471,7 +471,7 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
         }
         else
         {
-            ROS_ERROR("Action did not finish before the time out.");
+            ROS_INFO("Action failed due to timeout: %s",state.toString().c_str());
         }
     }
 
