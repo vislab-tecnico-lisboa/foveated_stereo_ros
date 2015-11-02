@@ -94,6 +94,11 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     ROS_INFO_STREAM("base_frame_id: "<<base_frame_id);
     ROS_INFO_STREAM("neighbour_angle_threshold: "<<neighbour_angle_threshold);
 
+    ROS_DEBUG("Waiting for action server to start.");
+
+    ac.waitForServer();
+
+
     tf::StampedTransform transform;
 
     while(nh_.ok())
