@@ -417,6 +417,7 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
     goal.fixation_point.point.x = fixation_point(0);
     goal.fixation_point.point.y = fixation_point(1);
     goal.fixation_point.point.z = fixation_point(2);
+    goal.fixation_point_error_tolerance = 0.005;
 
     ROS_DEBUG("Waiting for action server to start.");
     // wait for the action server to start
