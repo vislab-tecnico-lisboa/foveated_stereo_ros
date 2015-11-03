@@ -1,5 +1,5 @@
 rings: 100
-min_radius: 2
+min_radius: 1
 interp: 1
 full: 0
 sectors: 100
