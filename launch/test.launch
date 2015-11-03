@@ -5,10 +5,10 @@
 
   <!--<include file="$(find online_stereo_calibration_ros)/launch/stereo_calibration.launch"/>-->
 
-  <node name="ego_sphere_manager_ros" pkg="foveated_stereo_ros" type="ego_sphere_manager_ros_node" respawn="false" output="screen" >
+  <!--<node name="ego_sphere_manager_ros" pkg="foveated_stereo_ros" type="ego_sphere_manager_ros_node" respawn="false" output="screen" >
     <param name="data_folder" value="$(find foveated_stereo_ros)/data" />
     <rosparam file="$(find foveated_stereo_ros)/config/frames.yaml" command="load" />
     <rosparam file="$(find foveated_stereo_ros)/config/egosphere.yaml" command="load" />
     <rosparam file="$(find foveated_stereo_ros)/config/decision_making.yaml" command="load" />
-  </node>
+  </node>-->
 </launch>

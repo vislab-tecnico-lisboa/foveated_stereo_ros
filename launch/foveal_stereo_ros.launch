@@ -26,12 +26,12 @@
     <remap from="right_camera_info" to="$(arg right_camera_info_topic)"/>
   </node>
 
-  <!--<node pkg="nodelet" type="nodelet" name="egosphere" args="load foveated_stereo_ros/EgoSphereManagerRosNodelet active_stereo_manager" respawn="true" output="screen">
+  <node pkg="nodelet" type="nodelet" name="egosphere" args="load foveated_stereo_ros/EgoSphereManagerRosNodelet active_stereo_manager" respawn="true" output="screen">
     <param name="data_folder" value="$(find foveated_stereo_ros)/data" />
     <rosparam file="$(find foveated_stereo_ros)/config/frames.yaml" command="load" />
     <rosparam file="$(find foveated_stereo_ros)/config/egosphere.yaml" command="load" />
     <rosparam file="$(find foveated_stereo_ros)/config/decision_making.yaml" command="load" />
-  </node>-->
+  </node>
 
   <include ns="vizzy"  file="$(find online_stereo_calibration_ros)/launch/stereo_calibration.launch">
     <arg name="manager" value="cameras_nodelet_manager"/>
