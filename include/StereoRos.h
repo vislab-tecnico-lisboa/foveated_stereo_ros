@@ -177,8 +177,6 @@ protected:
             }
             catch (tf::TransformException &ex)
             {
-                //ROS_ERROR("%s",ex.what());
-                //ros::Duration(1.0).sleep();
                 continue;
             }
             break;
@@ -303,6 +301,23 @@ protected:
         right_cam_intrinsic.at<double>(1,2) = right_camera_info->K.at(5);
         width=(unsigned int)left_camera_info->width;
         height=(unsigned int)left_camera_info->height;
+
+        double radius=std::min(0.5*width,0.5*height);
+        double npix=M_PI*(radius)*(radius);
+
+        double C_=radius/min_radius;
+        sectors=2*M_PI*radius/sqrt( 1 + 2*log(C_) );
+        rings=(sectors/(2*M_PI))*log(C_);
+
+        fovea_rows=fovea_columns=sqrt(npix-rings*sectors);
+        ROS_INFO_STREAM("SECTORS: " << sectors);
+        ROS_INFO_STREAM("rings: " << rings);
+        ROS_INFO_STREAM("fovea_rows: " << fovea_rows);
+        ROS_INFO_STREAM("fovea_columns: " << fovea_columns);
+
+        ROS_INFO_STREAM("NPIX: " << npix);
+        ROS_INFO_STREAM("rings*SECTORS: " << rings*sectors);
+        ROS_INFO_STREAM("rings*SECTORS: " << rings*sectors+fovea_columns*fovea_rows);
 
         //rings=sqrt((width*height/(2*M_PI)))*log(0.5*width/min_radius);
         //sectors=round(width*height/rings);
