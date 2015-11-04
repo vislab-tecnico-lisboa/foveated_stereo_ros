@@ -40,6 +40,8 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     private_node_handle_.param("sigma_scale_upper_bound",sigma_scale_upper_bound,1.0);
     private_node_handle_.param("mahalanobis_distance_threshold",mahalanobis_distance_threshold,std::numeric_limits<double>::max());
     private_node_handle_.param("neighbour_angle_threshold",neighbour_angle_threshold,1.0);
+    private_node_handle_.param("fixation_point_error_tolerance",fixation_point_error_tolerance,0.01);
+    private_node_handle_.param("gaze_timeout",gaze_timeout,1.0);
 
     XmlRpc::XmlRpcValue mean_list;
     private_node_handle_.getParam("mean", mean_list);
@@ -93,11 +95,25 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     ROS_INFO_STREAM("eyes_center_frame_id: "<<eyes_center_frame_id);
     ROS_INFO_STREAM("base_frame_id: "<<base_frame_id);
     ROS_INFO_STREAM("neighbour_angle_threshold: "<<neighbour_angle_threshold);
+    ROS_INFO_STREAM("fixation_point_error_tolerance: "<<fixation_point_error_tolerance);
+    ROS_INFO_STREAM("gaze_timeout: "<<gaze_timeout);
 
     ROS_DEBUG("Waiting for action server to start.");
 
     ac.waitForServer();
 
+    ROS_DEBUG("Move to home position.");
+    move_robot_msgs::GazeGoal goal;
+    goal.fixation_point.header.frame_id=ego_frame_id;
+    goal.type=move_robot_msgs::GazeGoal::HOME;
+    goal.mode=move_robot_msgs::GazeGoal::JOINT;
+    goal.fixation_point.header.stamp=ros::Time::now();
+    ac.sendGoal(goal);
+
+    if(!ac.waitForResult(ros::Duration(gaze_timeout)))
+    {
+        ROS_ERROR_STREAM("COULD NOT MOVE HOME! EXITING...");
+    }
 
     tf::StampedTransform transform;
 
@@ -413,11 +429,14 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
     // send a goal to the action
     move_robot_msgs::GazeGoal goal;
     goal.fixation_point.header.frame_id=ego_frame_id;
+    goal.type=move_robot_msgs::GazeGoal::FIXATION_POINT;
+    goal.mode=move_robot_msgs::GazeGoal::CARTESIAN;
+
     goal.fixation_point.header.stamp=ros::Time::now();
     goal.fixation_point.point.x = fixation_point(0);
     goal.fixation_point.point.y = fixation_point(1);
     goal.fixation_point.point.z = fixation_point(2);
-    goal.fixation_point_error_tolerance = 0.005;
+    goal.fixation_point_error_tolerance = fixation_point_error_tolerance;
 
     ROS_DEBUG("Waiting for action server to start.");
     // wait for the action server to start
@@ -425,7 +444,7 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
     {
         //wait for the action to return
         ac.sendGoal(goal);
-        bool finished_before_timeout = ac.waitForResult(ros::Duration(40));
+        bool finished_before_timeout = ac.waitForResult(ros::Duration(gaze_timeout));
         actionlib::SimpleClientGoalState state = ac.getState();
 
         if (finished_before_timeout)
@@ -433,7 +452,6 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
             if(state == actionlib::SimpleClientGoalState::SUCCEEDED)
             {
                 ROS_INFO("Action succeeded: %s",state.toString().c_str());
-                //sleep(1.0); //HACK TO AVOID WRONG SENSORY DATA
             }
             else
             {
@@ -444,15 +462,13 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
                 {
                     fixation_point_perturb=perturb(fixation_point, perturb_standard_deviation_mat);
                     // send a goal to the action
-                    move_robot_msgs::GazeGoal goal;
-                    goal.fixation_point.header.frame_id=ego_frame_id;
                     goal.fixation_point.header.stamp=ros::Time::now();
                     goal.fixation_point.point.x = fixation_point_perturb(0);
                     goal.fixation_point.point.y = fixation_point_perturb(1);
                     goal.fixation_point.point.z = fixation_point_perturb(2);
 
                     ac.sendGoal(goal);
-                    bool finished_before_timeout = ac.waitForResult(ros::Duration(10));
+                    bool finished_before_timeout = ac.waitForResult(ros::Duration(gaze_timeout));
                     state = ac.getState();
                     if (finished_before_timeout)
                     {
@@ -489,7 +505,7 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
 
     ROS_INFO_STREAM("Done. Total insertion time:"<< total_elapsed);
 
-    ROS_DEBUG_STREAM("ITERATION:"<<++iterations_);
+    ROS_ERROR_STREAM("ITERATION:"<<++iterations_);
 }
 
 

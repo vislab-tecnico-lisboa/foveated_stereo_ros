@@ -42,6 +42,7 @@ using namespace message_filters;
 
 class EgoSphereManagerRos
 {
+private:
     Eigen::Matrix4f sensorToWorld;
     Eigen::Matrix4f sensorToEgo;
     Eigen::Matrix4f worldToEgo;
@@ -71,6 +72,9 @@ class EgoSphereManagerRos
     ros::Time last_update_time;
 
     cv::Mat perturb_standard_deviation_mat;
+
+    double fixation_point_error_tolerance;
+    double gaze_timeout;
 public:
     typedef pcl::PointCloud<pcl::PointXYZRGB> PCLPointCloud;
 
