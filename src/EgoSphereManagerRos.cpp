@@ -42,6 +42,7 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     private_node_handle_.param("neighbour_angle_threshold",neighbour_angle_threshold,1.0);
     private_node_handle_.param("fixation_point_error_tolerance",fixation_point_error_tolerance,0.01);
     private_node_handle_.param("gaze_timeout",gaze_timeout,1.0);
+    private_node_handle_.param("field_of_view",field_of_view,1.0);
 
     XmlRpc::XmlRpcValue mean_list;
     private_node_handle_.getParam("mean", mean_list);
@@ -159,7 +160,8 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
                                                                                                                                                                              mean_mat,
                                                                                                                                                                              standard_deviation_mat,
                                                                                                                                                                              transform.getOrigin().getY(),
-                                                                                                                                                                             neighbour_angle_threshold));
+                                                                                                                                                                             neighbour_angle_threshold
+                                                                                                                                                                             ));
 
         std::ofstream ofs(ego_file_name.c_str());
         ROS_INFO("SAVE EGOSPHERE");
@@ -513,9 +515,17 @@ void EgoSphereManagerRos::insertScan(const PCLPointCloud& point_cloud, const std
 {
     //ego_sphere->insert(point_cloud);
     //ego_sphere->insertHashTable(point_cloud, covariances);
-    ego_sphere->insertKdTree(point_cloud, covariances);
+    Eigen::Matrix3d sensor_to_normal;
+    sensor_to_normal <<  0, 0, 1,
+                        -1, 0, 0,
+                         0,-1, 0;
 
+    Eigen::Vector3d sensor_direction;//
 
+    sensor_direction=sensor_to_normal.transpose()*sensorToWorld.block<3,3>(0,0).cast<double>()*Eigen::Vector3d::UnitZ();
+    sensor_direction=Eigen::Vector3d::UnitZ();
+
+    ego_sphere->insertKdTree(point_cloud, covariances, sensor_direction.normalized(), field_of_view);
 }
 
 void EgoSphereManagerRos::publishAll(const foveated_stereo_ros::StereoDataConstPtr& stereo_data)

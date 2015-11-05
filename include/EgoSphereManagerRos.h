@@ -43,6 +43,8 @@ using namespace message_filters;
 class EgoSphereManagerRos
 {
 private:
+    double field_of_view;
+
     Eigen::Matrix4f sensorToWorld;
     Eigen::Matrix4f sensorToEgo;
     Eigen::Matrix4f worldToEgo;
