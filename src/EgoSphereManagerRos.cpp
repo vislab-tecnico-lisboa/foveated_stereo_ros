@@ -43,6 +43,7 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     private_node_handle_.param("fixation_point_error_tolerance",fixation_point_error_tolerance,0.01);
     private_node_handle_.param("gaze_timeout",gaze_timeout,1.0);
     private_node_handle_.param("field_of_view",field_of_view,1.0);
+    private_node_handle_.param("update_mode",update_mode, true);
 
     XmlRpc::XmlRpcValue mean_list;
     private_node_handle_.getParam("mean", mean_list);
@@ -98,6 +99,9 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     ROS_INFO_STREAM("neighbour_angle_threshold: "<<neighbour_angle_threshold);
     ROS_INFO_STREAM("fixation_point_error_tolerance: "<<fixation_point_error_tolerance);
     ROS_INFO_STREAM("gaze_timeout: "<<gaze_timeout);
+    ROS_INFO_STREAM("field_of_view: "<<field_of_view);
+    ROS_INFO_STREAM("update_mode: "<<update_mode);
+
 
     ROS_DEBUG("Waiting for action server to start.");
 
@@ -271,8 +275,8 @@ void EgoSphereManagerRos::updateEgoSphere(const ros::TimerEvent&)
     ///////////////////////
     // Update ego-sphere //
     ///////////////////////
-    ego_sphere->transform(egoTransform.cast <double> ());
 
+    ego_sphere->transform(egoTransform.cast <double> (), update_mode);
 
     ros::Time update_time = ros::Time::now();
     ROS_INFO_STREAM(" 2. Update time: " <<  (update_time - transform_time).toSec());

@@ -6,4 +6,5 @@ mahalanobis_distance_threshold: 1000000000000.0
 mean: [0.0, 0.0, 0.0]
 standard_deviation: [1.0, 1.0, 1.0]
 field_of_view: 89
+update_mode: true
 
