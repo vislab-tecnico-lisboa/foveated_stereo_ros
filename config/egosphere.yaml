@@ -1,4 +1,3 @@
-spherical_angle_bins: 10
 egosphere_nodes: 20000
 uncertainty_lower_bound: -100
 neighbour_angle_threshold: 3.0 # degrees
