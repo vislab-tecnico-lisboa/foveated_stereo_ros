@@ -118,8 +118,13 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     if(!ac.waitForResult(ros::Duration(gaze_timeout)))
     {
         ROS_ERROR_STREAM("COULD NOT MOVE HOME! EXITING...");
+        exit(-1);
     }
 
+
+    // GET TRANSFORM FROM EGO FRAME TO SENSOR FRAME
+
+    sleep(5.0); //GIVE TIME TO TF
     tf::StampedTransform transform;
 
     while(nh_.ok())
@@ -137,8 +142,7 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
         break;
     }
 
-    //GIVE TIME TO MATLAB
-    sleep(5.0);
+
     std::string ego_file_name;
     // 1. with Boost
     ego_file_name = data_folder+"/ego_sphere_nodes_" + boost::lexical_cast<std::string>(egosphere_nodes) + "_nn_angle_threshold_"+boost::lexical_cast<std::string>(neighbour_angle_threshold);
