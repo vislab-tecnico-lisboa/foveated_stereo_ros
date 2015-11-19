@@ -26,6 +26,7 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     double closest_point_bound;
     double sigma_scale_upper_bound;
     double neighbour_angle_threshold;
+
     std::string data_folder;
     private_node_handle_.param<std::string>("world_frame",world_frame_id,"world");
     private_node_handle_.param<std::string>("ego_frame",ego_frame_id,"eyes_center_vision_link");
@@ -44,6 +45,10 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     private_node_handle_.param("gaze_timeout",gaze_timeout,1.0);
     private_node_handle_.param("field_of_view",field_of_view,1.0);
     private_node_handle_.param("update_mode",update_mode, true);
+    private_node_handle_.param("relative_update",relative_update, true);
+    private_node_handle_.param("update_frequency",update_frequency, 20.0);
+    private_node_handle_.param("sensory_filtering_sphere_radius",sensory_filtering_sphere_radius, 20.0);
+
 
     XmlRpc::XmlRpcValue mean_list;
     private_node_handle_.getParam("mean", mean_list);
@@ -101,6 +106,9 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     ROS_INFO_STREAM("gaze_timeout: "<<gaze_timeout);
     ROS_INFO_STREAM("field_of_view: "<<field_of_view);
     ROS_INFO_STREAM("update_mode: "<<update_mode);
+    ROS_INFO_STREAM("relative_update: "<<relative_update);
+    ROS_INFO_STREAM("update_frequency: "<<update_frequency);
+    ROS_INFO_STREAM("sensory_filtering_sphere_radius: "<<sensory_filtering_sphere_radius);
 
 
     ROS_DEBUG("Waiting for action server to start.");
@@ -121,11 +129,11 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
         exit(-1);
     }
 
-
     // GET TRANSFORM FROM EGO FRAME TO SENSOR FRAME
 
     sleep(5.0); //GIVE TIME TO TF
     tf::StampedTransform transform;
+    tf::StampedTransform egoToWorldTf;
 
     while(nh_.ok())
     {
@@ -133,6 +141,9 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
         {
             listener->waitForTransform(eyes_center_frame_id, ego_frame_id, ros::Time(0), ros::Duration(10.0) );
             listener->lookupTransform(eyes_center_frame_id, ego_frame_id, ros::Time(0), transform);
+
+            listener->waitForTransform(world_frame_id, ego_frame_id, ros::Time(0), ros::Duration(1.0) );
+            listener->lookupTransform(world_frame_id, ego_frame_id, ros::Time(0), egoToWorldTf); // ABSOLUTE EGO TO WORLD
         }
         catch (tf::TransformException &ex)
         {
@@ -142,6 +153,7 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
         break;
     }
 
+    pcl_ros::transformAsMatrix(egoToWorldTf, previousEgoToWorld);
 
     std::string ego_file_name;
     // 1. with Boost
@@ -170,7 +182,6 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
                                                                                                                                                                              transform.getOrigin().getY(),
                                                                                                                                                                              neighbour_angle_threshold
                                                                                                                                                                              ));
-
         std::ofstream ofs(ego_file_name.c_str());
         ROS_INFO("SAVE EGOSPHERE");
         // save data to archive
@@ -196,13 +207,21 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
 
     marker_pub = nh.advertise<visualization_msgs::MarkerArray>("covariances_debug", 1);
     ses_structure_pub  = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere_structure", 2);
+    sensor_direction_pub  = nh.advertise<visualization_msgs::Marker>("direction_arrow", 2);
 
     stereo_data_subscriber_ = new message_filters::Subscriber<foveated_stereo_ros::StereoData> (nh, "stereo_data", 1);
     tf_filter_ = new tf::MessageFilter<foveated_stereo_ros::StereoData> (*stereo_data_subscriber_, *listener, world_frame_id, 1);
     tf_filter_->registerCallback(boost::bind(&EgoSphereManagerRos::insertCloudCallback, this, _1));
     last=ros::Time::now();
 
-    update_timer = nh.createTimer(ros::Duration(0.05), &EgoSphereManagerRos::updateEgoSphere, this);
+    if(relative_update)
+    {
+        update_timer = nh.createTimer(ros::Duration(1.0/update_frequency), &EgoSphereManagerRos::updateEgoSphereRelative, this);
+    }
+    else
+    {
+        update_timer = nh.createTimer(ros::Duration(1.0/update_frequency), &EgoSphereManagerRos::updateEgoSphereAbsolute, this);
+    }
 
     ROS_INFO("DONE INIT");
 
@@ -221,6 +240,18 @@ void EgoSphereManagerRos::publishEgoStructure()
     ego_sphere_msg_world.header.frame_id=world_frame_id;
     ego_sphere_msg_world.header.stamp=last_update_time;
     ses_structure_pub.publish(ego_sphere_msg_world);
+
+    visualization_msgs::Marker direction_arrow;
+    direction_arrow.type=visualization_msgs::Marker::ARROW;
+    direction_arrow.action = visualization_msgs::Marker::ADD;
+
+    direction_arrow.header.frame_id=world_frame_id;
+
+    direction_arrow.scale.x=1.0;
+    direction_arrow.scale.y=0.01;
+    direction_arrow.scale.z=0.01;
+
+    sensor_direction_pub.publish(direction_arrow);
 }
 
 EgoSphereManagerRos::~EgoSphereManagerRos()
@@ -238,9 +269,9 @@ EgoSphereManagerRos::~EgoSphereManagerRos()
     }
 }
 
-void EgoSphereManagerRos::updateEgoSphere(const ros::TimerEvent&)
+void EgoSphereManagerRos::updateEgoSphereRelative(const ros::TimerEvent&)
 {
-    ROS_INFO_STREAM("Updating Ego Sphere:");
+    ROS_INFO_STREAM("Updating Ego Sphere (relative):");
 
     ros::Time current_time;
 
@@ -254,11 +285,10 @@ void EgoSphereManagerRos::updateEgoSphere(const ros::TimerEvent&)
         {
             current_time = ros::Time::now();
             listener->waitForTransform(ego_frame_id, current_time, ego_frame_id, last_update_time, world_frame_id, ros::Duration(1.0) );
-            listener->lookupTransform(ego_frame_id, current_time, ego_frame_id, last_update_time, world_frame_id, EgoTransformTf);
+            listener->lookupTransform(ego_frame_id, current_time, ego_frame_id, last_update_time, world_frame_id, EgoTransformTf); // DELTA EGO
 
             listener->waitForTransform(world_frame_id, ego_frame_id, current_time, ros::Duration(1.0) );
-            listener->lookupTransform(world_frame_id, ego_frame_id, current_time, egoToWorldTf);
-
+            listener->lookupTransform(world_frame_id, ego_frame_id, current_time, egoToWorldTf); // ABSOLUTE EGO TO WORLD
         }
         catch(tf::TransformException& ex)
         {
@@ -294,9 +324,63 @@ void EgoSphereManagerRos::updateEgoSphere(const ros::TimerEvent&)
     ros::Time publish_time = ros::Time::now();
     ROS_INFO_STREAM(" 3. Publish time: " <<  (publish_time - update_time).toSec());
 
+    ROS_INFO_STREAM("Done. Total update time:"<< (publish_time - current_time).toSec());
+}
+
+
+void EgoSphereManagerRos::updateEgoSphereAbsolute(const ros::TimerEvent&)
+{
+    ROS_INFO_STREAM("Updating Ego Sphere (absolute):");
+
+    ros::Time current_time;
+
+    // 1. get transform from world to ego-sphere frame
+    tf::StampedTransform EgoTransformTf;
+    tf::StampedTransform egoToWorldTf;
+
+    while(nh.ok())
+    {
+        try
+        {
+            listener->waitForTransform(world_frame_id, ego_frame_id, current_time, ros::Duration(1.0) );
+            listener->lookupTransform(world_frame_id, ego_frame_id, current_time, egoToWorldTf);
+        }
+        catch(tf::TransformException& ex)
+        {
+            ROS_ERROR_STREAM( "Transform error: " << ex.what() << ", quitting callback");
+            continue;
+        }
+        break;
+    }
+    last_update_time=current_time;
+
+    pcl_ros::transformAsMatrix(EgoTransformTf, egoTransform);
+    pcl_ros::transformAsMatrix(egoToWorldTf, egoToWorld);
+
+    ros::Time transform_time = ros::Time::now();
+
+    ROS_INFO_STREAM(" 1. transform time: " <<  (transform_time - current_time).toSec());
+
+    ///////////////////////
+    // Update ego-sphere //
+    ///////////////////////
+    ego_sphere->transform( (egoToWorld*previousEgoToWorld.inverse()).cast <double> (), update_mode);
+
+    previousEgoToWorld=egoToWorld;
+
+    ros::Time update_time = ros::Time::now();
+    ROS_INFO_STREAM(" 2. Update time: " <<  (update_time - transform_time).toSec());
+
+    ///////////////////////
+    // Publish structure //
+    ///////////////////////
+
+    publishEgoStructure();
+
+    ros::Time publish_time = ros::Time::now();
+    ROS_INFO_STREAM(" 3. Publish time: " <<  (publish_time - update_time).toSec());
 
     ROS_INFO_STREAM("Done. Total update time:"<< (publish_time - current_time).toSec());
-
 }
 
 void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoData::ConstPtr& stereo_data)
@@ -356,7 +440,6 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
         }
         break;
     }
-
 
     tf::StampedTransform sensorToEgoTf;
     while(nh.ok())
@@ -510,7 +593,6 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
     ros::WallTime moving_time = ros::WallTime::now();
     ROS_INFO_STREAM(" 5. saccade time: " <<  (moving_time - decision_time).toSec());
 
-
     double total_elapsed = (ros::WallTime::now() - start_time).toSec();
 
     ROS_INFO_STREAM("Done. Total insertion time:"<< total_elapsed);
@@ -525,15 +607,15 @@ void EgoSphereManagerRos::insertScan(const PCLPointCloud& point_cloud, const std
     //ego_sphere->insertHashTable(point_cloud, covariances);
     Eigen::Matrix3d sensor_to_normal;
     sensor_to_normal <<  0, 0, 1,
-                        -1, 0, 0,
-                         0,-1, 0;
+            -1, 0, 0,
+            0,-1, 0;
 
     Eigen::Vector3d sensor_direction;//
 
     sensor_direction=sensor_to_normal.transpose()*sensorToWorld.block<3,3>(0,0).cast<double>()*Eigen::Vector3d::UnitZ();
     sensor_direction=Eigen::Vector3d::UnitZ();
 
-    ego_sphere->insertKdTree(point_cloud, covariances, sensor_direction.normalized(), field_of_view);
+    ego_sphere->insertKdTree(point_cloud, covariances, sensor_direction.normalized(), field_of_view, sensory_filtering_sphere_radius);
 }
 
 void EgoSphereManagerRos::publishAll(const foveated_stereo_ros::StereoDataConstPtr& stereo_data)

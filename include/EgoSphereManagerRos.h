@@ -45,6 +45,7 @@ class EgoSphereManagerRos
 private:
     bool update_mode;
     double field_of_view;
+    double sensory_filtering_sphere_radius;
 
     Eigen::Matrix4f sensorToWorld;
     Eigen::Matrix4f sensorToEgo;
@@ -53,7 +54,7 @@ private:
     Eigen::Matrix4f egoToBase;
     Eigen::Matrix4f egoToWorld;
     Eigen::Matrix4f egoTransform;
-
+    Eigen::Matrix4f previousEgoToWorld;
     Eigen::Vector4d fixation_point;
     std::string world_frame_id;
     std::string ego_frame_id;
@@ -78,6 +79,8 @@ private:
 
     double fixation_point_error_tolerance;
     double gaze_timeout;
+    double update_frequency;
+    bool relative_update;
 public:
     typedef pcl::PointCloud<pcl::PointXYZRGB> PCLPointCloud;
 
@@ -87,6 +90,7 @@ public:
     ros::Publisher uncertainty_point_cloud_publisher;
     ros::Publisher point_clouds_publisher;
     ros::Publisher marker_pub;
+    ros::Publisher sensor_direction_pub;
 
     ros::Publisher ses_structure_pub;
 
@@ -95,7 +99,9 @@ public:
     EgoSphereManagerRos(ros::NodeHandle & nh_,ros::NodeHandle & private_node_handle_);
 
     ~EgoSphereManagerRos();
-    void updateEgoSphere(const ros::TimerEvent&);
+    void updateEgoSphereRelative(const ros::TimerEvent&);
+    void updateEgoSphereAbsolute(const ros::TimerEvent&);
+
 
     void insertCloudCallback(const foveated_stereo_ros::StereoData::ConstPtr& stereo_data);
 

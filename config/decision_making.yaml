@@ -1,6 +1,6 @@
 active_vision: true
-closest_point_bound: 0.25
-sigma_scale_upper_bound: 1000.0
+closest_point_bound: 0.3
+sigma_scale_upper_bound: 10.0
 perturb_standard_deviation: [0.05, 0.05, 0.05]
-fixation_point_error_tolerance: 0.005
+fixation_point_error_tolerance: 0.003
 gaze_timeout: 10
