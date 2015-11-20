@@ -10,6 +10,40 @@ bool fileExists(const std::string& filename)
     return false;
 }
 
+
+template<typename T>
+inline std::vector<T> erase_indices(const std::vector<T>& data, std::vector<int>& indicesToDelete/* can't assume copy elision, don't pass-by-value */)
+{
+    if(indicesToDelete.empty())
+        return data;
+
+    std::vector<T> ret;
+    ret.reserve(data.size() - indicesToDelete.size());
+
+    std::sort(indicesToDelete.begin(), indicesToDelete.end());
+
+    // new we can assume there is at least 1 element to delete. copy blocks at a time.
+    typename std::vector<T>::const_iterator itBlockBegin = data.begin();
+    for(std::vector<int>::const_iterator it = indicesToDelete.begin(); it != indicesToDelete.end(); ++ it)
+    {
+        typename std::vector<T>::const_iterator itBlockEnd = data.begin() + *it;
+        if(itBlockBegin != itBlockEnd)
+        {
+            std::copy(itBlockBegin, itBlockEnd, std::back_inserter(ret));
+        }
+        itBlockBegin = itBlockEnd + 1;
+    }
+
+    // copy last block.
+    if(itBlockBegin != data.end())
+    {
+        std::copy(itBlockBegin, data.end(), std::back_inserter(ret));
+    }
+
+    return ret;
+}
+
+
 static int iterations_=0;
 EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle & private_node_handle_) :
     nh(nh_),
@@ -23,9 +57,9 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     int egosphere_nodes;
     double uncertainty_lower_bound;
     double mahalanobis_distance_threshold;
-    double closest_point_bound;
     double sigma_scale_upper_bound;
     double neighbour_angle_threshold;
+    double update_frequency;
 
     std::string data_folder;
     private_node_handle_.param<std::string>("world_frame",world_frame_id,"world");
@@ -37,7 +71,6 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     private_node_handle_.param("egosphere_nodes", egosphere_nodes, 1000);
     private_node_handle_.param("uncertainty_lower_bound", uncertainty_lower_bound, 0.0);
     private_node_handle_.param("active_vision",active_vision,false);
-    private_node_handle_.param("closest_point_bound",closest_point_bound,1.0);
     private_node_handle_.param("sigma_scale_upper_bound",sigma_scale_upper_bound,1.0);
     private_node_handle_.param("mahalanobis_distance_threshold",mahalanobis_distance_threshold,std::numeric_limits<double>::max());
     private_node_handle_.param("neighbour_angle_threshold",neighbour_angle_threshold,1.0);
@@ -89,7 +122,6 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
 
     ROS_INFO_STREAM("egosphere_nodes: "<<egosphere_nodes);
     ROS_INFO_STREAM("uncertainty_lower_bound: "<<uncertainty_lower_bound);
-    ROS_INFO_STREAM("closest_point_bound: "<<closest_point_bound);
 
     ROS_INFO_STREAM("mahalanobis_distance_threshold: "<<mahalanobis_distance_threshold);
     ROS_INFO_STREAM("mean: "<<mean_mat);
@@ -199,15 +231,16 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     // ... some time later restore the class instance to its orginal state
     ROS_INFO("DONE");
 
-    decision_making = boost::shared_ptr<DecisionMaking> (new DecisionMaking(ego_sphere,closest_point_bound,sigma_scale_upper_bound));
+    decision_making = boost::shared_ptr<DecisionMaking> (new DecisionMaking(ego_sphere,sigma_scale_upper_bound));
 
     rgb_point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere", 1);
     uncertainty_point_cloud_publisher  = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere_uncertainty", 1);
     point_clouds_publisher = nh.advertise<foveated_stereo_ros::EgoData>("ego_point_clouds", 1);
+    information_publisher = nh.advertise<std_msgs::Float64>("total_information", 1);
 
     marker_pub = nh.advertise<visualization_msgs::MarkerArray>("covariances_debug", 1);
     ses_structure_pub  = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere_structure", 2);
-    sensor_direction_pub  = nh.advertise<visualization_msgs::Marker>("direction_arrow", 2);
+    sensor_direction_pub  = nh.advertise<geometry_msgs::PointStamped>("direction_arrow", 2);
 
     stereo_data_subscriber_ = new message_filters::Subscriber<foveated_stereo_ros::StereoData> (nh, "stereo_data", 1);
     tf_filter_ = new tf::MessageFilter<foveated_stereo_ros::StereoData> (*stereo_data_subscriber_, *listener, world_frame_id, 1);
@@ -240,18 +273,6 @@ void EgoSphereManagerRos::publishEgoStructure()
     ego_sphere_msg_world.header.frame_id=world_frame_id;
     ego_sphere_msg_world.header.stamp=last_update_time;
     ses_structure_pub.publish(ego_sphere_msg_world);
-
-    visualization_msgs::Marker direction_arrow;
-    direction_arrow.type=visualization_msgs::Marker::ARROW;
-    direction_arrow.action = visualization_msgs::Marker::ADD;
-
-    direction_arrow.header.frame_id=world_frame_id;
-
-    direction_arrow.scale.x=1.0;
-    direction_arrow.scale.y=0.01;
-    direction_arrow.scale.z=0.01;
-
-    sensor_direction_pub.publish(direction_arrow);
 }
 
 EgoSphereManagerRos::~EgoSphereManagerRos()
@@ -267,6 +288,7 @@ EgoSphereManagerRos::~EgoSphereManagerRos()
         delete stereo_data_subscriber_;
         stereo_data_subscriber_ = NULL;
     }
+    ac.cancelAllGoals();
 }
 
 void EgoSphereManagerRos::updateEgoSphereRelative(const ros::TimerEvent&)
@@ -335,13 +357,13 @@ void EgoSphereManagerRos::updateEgoSphereAbsolute(const ros::TimerEvent&)
     ros::Time current_time;
 
     // 1. get transform from world to ego-sphere frame
-    tf::StampedTransform EgoTransformTf;
     tf::StampedTransform egoToWorldTf;
 
     while(nh.ok())
     {
         try
         {
+            current_time = ros::Time::now();
             listener->waitForTransform(world_frame_id, ego_frame_id, current_time, ros::Duration(1.0) );
             listener->lookupTransform(world_frame_id, ego_frame_id, current_time, egoToWorldTf);
         }
@@ -354,7 +376,6 @@ void EgoSphereManagerRos::updateEgoSphereAbsolute(const ros::TimerEvent&)
     }
     last_update_time=current_time;
 
-    pcl_ros::transformAsMatrix(EgoTransformTf, egoTransform);
     pcl_ros::transformAsMatrix(egoToWorldTf, egoToWorld);
 
     ros::Time transform_time = ros::Time::now();
@@ -364,7 +385,7 @@ void EgoSphereManagerRos::updateEgoSphereAbsolute(const ros::TimerEvent&)
     ///////////////////////
     // Update ego-sphere //
     ///////////////////////
-    ego_sphere->transform( (egoToWorld*previousEgoToWorld.inverse()).cast <double> (), update_mode);
+    ego_sphere->transform( (egoToWorld.inverse()*previousEgoToWorld).cast <double> (), update_mode);
 
     previousEgoToWorld=egoToWorld;
 
@@ -469,6 +490,15 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
     pass.setFilterLimits (0.0, 5.0);
     //pass.setFilterLimitsNegative (true);
     pass.filter (pc);
+    pcl::PointIndices removed_indices;
+    pass.getRemovedIndices(removed_indices);
+
+    // WHAT ABOUT FILTERING THE INFORMATIONS?!
+    //ROS_ERROR_STREAM("pc size:"<<pc.size());
+    //ROS_ERROR_STREAM("informations size before:"<< informations.size());
+
+    informations=erase_indices<Eigen::Matrix3d>(informations,removed_indices.indices);
+    //ROS_ERROR_STREAM("informations size after:"<< informations.size());
 
     //////////////////////////////////////////////////////////
     // TRANSFORM SENSOR POINTS TO EGO FRAME FOR DATA FUSION //
@@ -573,11 +603,13 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
                         else
                         {
                             ROS_ERROR("Action failed2: %s",state.toString().c_str());
+                            ac.cancelAllGoals();
                         }
                     }
                     else
                     {
                         ROS_ERROR("Action did not finish before the time out.");
+                        ac.cancelAllGoals();
                         break;
                     }
                 }
@@ -587,9 +619,11 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
         else
         {
             ROS_INFO("Action failed due to timeout: %s",state.toString().c_str());
+            ac.cancelAllGoals();
         }
     }
-
+    ros::TimerEvent aux;
+    updateEgoSphereAbsolute(aux);
     ros::WallTime moving_time = ros::WallTime::now();
     ROS_INFO_STREAM(" 5. saccade time: " <<  (moving_time - decision_time).toSec());
 
@@ -612,9 +646,22 @@ void EgoSphereManagerRos::insertScan(const PCLPointCloud& point_cloud, const std
 
     Eigen::Vector3d sensor_direction;//
 
-    sensor_direction=sensor_to_normal.transpose()*sensorToWorld.block<3,3>(0,0).cast<double>()*Eigen::Vector3d::UnitZ();
-    sensor_direction=Eigen::Vector3d::UnitZ();
+    //sensor_direction=sensor_to_normal.transpose()*sensorToWorld.block<3,3>(0,0).cast<double>()*Eigen::Vector3d::UnitZ();
 
+    sensor_direction=sensorToEgo.block<3,3>(0,0).cast<double>()*Eigen::Vector3d::UnitZ();
+    std::cout << "sensor_direction:"<< sensor_direction.transpose() << std::endl;
+    std::cout << sensorToEgo.block<3,3>(0,0).cast<double>() << std::endl;
+
+    geometry_msgs::PointStamped sensor_direction_msg;
+
+    sensor_direction_msg.header.frame_id=ego_frame_id;
+    sensor_direction_msg.header.stamp=ros::Time::now();
+    sensor_direction_msg.point.x=sensor_direction(0);
+    sensor_direction_msg.point.y=sensor_direction(1);
+    sensor_direction_msg.point.z=sensor_direction(2);
+
+    sensor_direction_pub.publish(sensor_direction_msg);
+    //sensor_direction=Eigen::Vector3d::UnitZ();
     ego_sphere->insertKdTree(point_cloud, covariances, sensor_direction.normalized(), field_of_view, sensory_filtering_sphere_radius);
 }
 
@@ -679,6 +726,21 @@ void EgoSphereManagerRos::publishAll(const foveated_stereo_ros::StereoDataConstP
     ego_data_msg.fixation_point=fixation_point_world_msg;
 
     point_clouds_publisher.publish(ego_data_msg);
+
+    double total_uncertainty=0;
+    for(pcl::PointCloud<pcl::PointXYZI>::iterator pcl_it = point_cloud_uncertainty.begin(); pcl_it != point_cloud_uncertainty.end(); ++pcl_it)
+    {
+        double uncert=log((double)pcl_it->intensity);
+        if(isinf(uncert))
+        {
+            ROS_FATAL("INF!!");
+            exit(-1);
+        }
+        total_uncertainty+=uncert;
+    }
+    std_msgs::Float64 total_uncertainty_msg;
+    total_uncertainty_msg.data=total_uncertainty/point_cloud_uncertainty.points.size();
+    information_publisher.publish(total_uncertainty_msg);
 }
 
 void EgoSphereManagerRos::publishCovarianceMatrices()

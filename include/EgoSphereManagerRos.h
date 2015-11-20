@@ -79,7 +79,6 @@ private:
 
     double fixation_point_error_tolerance;
     double gaze_timeout;
-    double update_frequency;
     bool relative_update;
 public:
     typedef pcl::PointCloud<pcl::PointXYZRGB> PCLPointCloud;
@@ -91,7 +90,7 @@ public:
     ros::Publisher point_clouds_publisher;
     ros::Publisher marker_pub;
     ros::Publisher sensor_direction_pub;
-
+    ros::Publisher information_publisher;
     ros::Publisher ses_structure_pub;
 
     boost::shared_ptr<SphericalShell<std::vector<boost::shared_ptr<MemoryPatch> > > > ego_sphere;
