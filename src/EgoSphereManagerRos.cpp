@@ -10,40 +10,6 @@ bool fileExists(const std::string& filename)
     return false;
 }
 
-
-template<typename T>
-inline std::vector<T> erase_indices(const std::vector<T>& data, std::vector<int>& indicesToDelete/* can't assume copy elision, don't pass-by-value */)
-{
-    if(indicesToDelete.empty())
-        return data;
-
-    std::vector<T> ret;
-    ret.reserve(data.size() - indicesToDelete.size());
-
-    std::sort(indicesToDelete.begin(), indicesToDelete.end());
-
-    // new we can assume there is at least 1 element to delete. copy blocks at a time.
-    typename std::vector<T>::const_iterator itBlockBegin = data.begin();
-    for(std::vector<int>::const_iterator it = indicesToDelete.begin(); it != indicesToDelete.end(); ++ it)
-    {
-        typename std::vector<T>::const_iterator itBlockEnd = data.begin() + *it;
-        if(itBlockBegin != itBlockEnd)
-        {
-            std::copy(itBlockBegin, itBlockEnd, std::back_inserter(ret));
-        }
-        itBlockBegin = itBlockEnd + 1;
-    }
-
-    // copy last block.
-    if(itBlockBegin != data.end())
-    {
-        std::copy(itBlockBegin, data.end(), std::back_inserter(ret));
-    }
-
-    return ret;
-}
-
-
 static int iterations_=0;
 EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle & private_node_handle_) :
     nh(nh_),
@@ -497,12 +463,13 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
     //ROS_ERROR_STREAM("pc size:"<<pc.size());
     //ROS_ERROR_STREAM("informations size before:"<< informations.size());
 
-    informations=erase_indices<Eigen::Matrix3d>(informations,removed_indices.indices);
+    informations=erase_indices<Eigen::Matrix3d>(informations, removed_indices.indices);
     //ROS_ERROR_STREAM("informations size after:"<< informations.size());
 
     //////////////////////////////////////////////////////////
     // TRANSFORM SENSOR POINTS TO EGO FRAME FOR DATA FUSION //
     //////////////////////////////////////////////////////////
+
     pcl_ros::transformAsMatrix(sensorToEgoTf, sensorToEgo);
 
     pcl::transformPointCloud (pc, pc, sensorToEgo*sensorToWorld.inverse());
@@ -540,7 +507,6 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
     /////////
     // ACT //
     /////////
-
 
     Eigen::Vector3d fixation_point_3d=decision_making->getFixationPoint();
     ros::WallTime decision_time = ros::WallTime::now();
@@ -731,10 +697,9 @@ void EgoSphereManagerRos::publishAll(const foveated_stereo_ros::StereoDataConstP
     for(pcl::PointCloud<pcl::PointXYZI>::iterator pcl_it = point_cloud_uncertainty.begin(); pcl_it != point_cloud_uncertainty.end(); ++pcl_it)
     {
         double uncert=log((double)pcl_it->intensity);
-        if(isinf(uncert))
+        if(isinf(uncert)||isnan(uncert))
         {
-            ROS_FATAL("INF!!");
-            exit(-1);
+            continue;
         }
         total_uncertainty+=uncert;
     }
