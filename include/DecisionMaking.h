@@ -9,7 +9,7 @@ public:
 
     DecisionMaking(const boost::shared_ptr<SphericalShell<std::vector<boost::shared_ptr<MemoryPatch> > > > & ego_sphere_, const double & sigma_scale_upper_bound_); // HAS DIRECT ACCESS TO EGO SPHERE
 
-    int getFixationPoint();
+    int getFixationPoint(const double & sensory_filtering_radius);
 
 };
 

@@ -5,7 +5,7 @@ DecisionMaking::DecisionMaking(const boost::shared_ptr<SphericalShell<std::vecto
     sigma_scale_upper_bound(sigma_scale_upper_bound_)
 {}
 
-int DecisionMaking::getFixationPoint()
+int DecisionMaking::getFixationPoint(const double & sensory_filtering_radius)
 {
     Eigen::Vector3d fixation_point(Eigen::Vector3d::Constant(std::numeric_limits<double>::max()));
     double closest_point_confidence_dist=std::numeric_limits<double>::max();
@@ -21,7 +21,11 @@ int DecisionMaking::getFixationPoint()
         double mean=ego_sphere->structure[i]->sensory_data.position.mean.norm();
         if(isnan(mean))
         {
-            ROS_FATAL("FODAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA_SE");
+            ROS_FATAL("ESTA MAL!!!!");
+            continue;
+        }
+        if(mean<sensory_filtering_radius)
+        {
             continue;
         }
         Eigen::Vector3d jacobian(ego_sphere->structure[i]->sensory_data.position.mean.x()/mean,

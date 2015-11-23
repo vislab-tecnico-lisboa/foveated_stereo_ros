@@ -1,5 +1,5 @@
 #include "EgoSphereManagerRos.h"
-
+#include <rosbag/bag.h>
 bool fileExists(const std::string& filename)
 {
     struct stat buf;
@@ -142,7 +142,7 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     tf::StampedTransform transform;
     tf::StampedTransform egoToWorldTf;
 
-    while(nh_.ok())
+    while(nh.ok())
     {
         try
         {
@@ -310,7 +310,7 @@ void EgoSphereManagerRos::updateEgoSphereRelative(const ros::TimerEvent&)
     // Update ego-sphere //
     ///////////////////////
 
-    ego_sphere->transform(egoTransform.cast <double> (), update_mode);
+    ego_sphere->transform(egoTransform.cast <double> (), update_mode, sensory_filtering_sphere_radius);
 
     ros::Time update_time = ros::Time::now();
     ROS_INFO_STREAM(" 2. Update time: " <<  (update_time - transform_time).toSec());
@@ -363,7 +363,7 @@ void EgoSphereManagerRos::updateEgoSphereAbsolute(const ros::TimerEvent&)
     ///////////////////////
     // Update ego-sphere //
     ///////////////////////
-    ego_sphere->transform( (egoToWorld.inverse()*previousEgoToWorld).cast <double> (), update_mode);
+    ego_sphere->transform( (egoToWorld.inverse()*previousEgoToWorld).cast <double> (), update_mode, sensory_filtering_sphere_radius);
 
     previousEgoToWorld=egoToWorld;
 
@@ -519,7 +519,7 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
     /////////
     // ACT //
     /////////
-    int fixation_point_index=decision_making->getFixationPoint();
+    int fixation_point_index=decision_making->getFixationPoint(sensory_filtering_sphere_radius);
 
     if(previous_fixation_point_index==fixation_point_index)
     {
@@ -604,7 +604,7 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
         }
         else
         {
-            ROS_INFO("Action failed due to timeout: %s",state.toString().c_str());
+            ROS_ERROR("Action failed due to timeout: %s",state.toString().c_str());
             ac.cancelAllGoals();
         }
     }
