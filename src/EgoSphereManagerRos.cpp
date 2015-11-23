@@ -15,17 +15,21 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     nh(nh_),
     ac("gaze", true),
     fixation_point(Eigen::Vector4d::Constant(std::numeric_limits<double>::max())),
-    listener(new tf::TransformListener(ros::Duration(30.0)))
+    listener(new tf::TransformListener(ros::Duration(30.0))),
+    previous_fixation_point_index(10000000)
 {
     fixation_point(3)=1; // Homogeneous coordinates
 
     // Declare variables that can be modified by launch file or command line.
     int egosphere_nodes;
-    double uncertainty_lower_bound;
     double mahalanobis_distance_threshold;
     double sigma_scale_upper_bound;
     double neighbour_angle_threshold;
     double update_frequency;
+    double init_scale_mean;
+    double init_scale_information;
+    double pan_abs_limit;
+    double tilt_abs_limit;
 
     std::string data_folder;
     private_node_handle_.param<std::string>("world_frame",world_frame_id,"world");
@@ -35,7 +39,6 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     private_node_handle_.param<std::string>("data_folder", data_folder, "data_folder");
 
     private_node_handle_.param("egosphere_nodes", egosphere_nodes, 1000);
-    private_node_handle_.param("uncertainty_lower_bound", uncertainty_lower_bound, 0.0);
     private_node_handle_.param("active_vision",active_vision,false);
     private_node_handle_.param("sigma_scale_upper_bound",sigma_scale_upper_bound,1.0);
     private_node_handle_.param("mahalanobis_distance_threshold",mahalanobis_distance_threshold,std::numeric_limits<double>::max());
@@ -47,7 +50,11 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     private_node_handle_.param("relative_update",relative_update, true);
     private_node_handle_.param("update_frequency",update_frequency, 20.0);
     private_node_handle_.param("sensory_filtering_sphere_radius",sensory_filtering_sphere_radius, 20.0);
+    private_node_handle_.param("init_scale_mean",init_scale_mean, 50.0);
+    private_node_handle_.param("init_scale_information",init_scale_information, 0.0001);
 
+    private_node_handle_.param("pan_abs_limit",pan_abs_limit, 1.0);
+    private_node_handle_.param("tilt_abs_limit",tilt_abs_limit, 1.0);
 
     XmlRpc::XmlRpcValue mean_list;
     private_node_handle_.getParam("mean", mean_list);
@@ -87,7 +94,6 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
 
 
     ROS_INFO_STREAM("egosphere_nodes: "<<egosphere_nodes);
-    ROS_INFO_STREAM("uncertainty_lower_bound: "<<uncertainty_lower_bound);
 
     ROS_INFO_STREAM("mahalanobis_distance_threshold: "<<mahalanobis_distance_threshold);
     ROS_INFO_STREAM("mean: "<<mean_mat);
@@ -107,7 +113,10 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     ROS_INFO_STREAM("relative_update: "<<relative_update);
     ROS_INFO_STREAM("update_frequency: "<<update_frequency);
     ROS_INFO_STREAM("sensory_filtering_sphere_radius: "<<sensory_filtering_sphere_radius);
-
+    ROS_INFO_STREAM("init_scale_mean: "<<init_scale_mean);
+    ROS_INFO_STREAM("init_scale_information: "<<init_scale_information);
+    ROS_INFO_STREAM("pan_abs_limit: "<<pan_abs_limit);
+    ROS_INFO_STREAM("tilt_abs_limit: "<<tilt_abs_limit);
 
     ROS_DEBUG("Waiting for action server to start.");
 
@@ -173,12 +182,15 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
         ROS_INFO("CREATE NEW EGO SPHERE");
 
         ego_sphere = boost::shared_ptr<SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > > (new SphericalShell<std::vector< boost::shared_ptr<MemoryPatch> > > (egosphere_nodes,
-                                                                                                                                                                             uncertainty_lower_bound,
                                                                                                                                                                              mahalanobis_distance_threshold,
                                                                                                                                                                              mean_mat,
                                                                                                                                                                              standard_deviation_mat,
                                                                                                                                                                              transform.getOrigin().getY(),
-                                                                                                                                                                             neighbour_angle_threshold
+                                                                                                                                                                             neighbour_angle_threshold,
+                                                                                                                                                                             init_scale_mean,
+                                                                                                                                                                             init_scale_information,
+                                                                                                                                                                             pan_abs_limit,
+                                                                                                                                                                             tilt_abs_limit
                                                                                                                                                                              ));
         std::ofstream ofs(ego_file_name.c_str());
         ROS_INFO("SAVE EGOSPHERE");
@@ -507,10 +519,18 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
     /////////
     // ACT //
     /////////
+    int fixation_point_index=decision_making->getFixationPoint();
 
-    Eigen::Vector3d fixation_point_3d=decision_making->getFixationPoint();
+    if(previous_fixation_point_index==fixation_point_index)
+    {
+        ego_sphere->structure[fixation_point_index]->sensory_data.position.reset();
+    }
+
+    Eigen::Vector3d fixation_point_3d=ego_sphere->structure[fixation_point_index]->sensory_data.position.mean;
     ros::WallTime decision_time = ros::WallTime::now();
     ROS_INFO_STREAM(" 4. decision making time: " <<  (decision_time - insert_time).toSec());
+
+
 
     fixation_point(0)=fixation_point_3d(0);
     fixation_point(1)=fixation_point_3d(1);
@@ -615,8 +635,8 @@ void EgoSphereManagerRos::insertScan(const PCLPointCloud& point_cloud, const std
     //sensor_direction=sensor_to_normal.transpose()*sensorToWorld.block<3,3>(0,0).cast<double>()*Eigen::Vector3d::UnitZ();
 
     sensor_direction=sensorToEgo.block<3,3>(0,0).cast<double>()*Eigen::Vector3d::UnitZ();
-    std::cout << "sensor_direction:"<< sensor_direction.transpose() << std::endl;
-    std::cout << sensorToEgo.block<3,3>(0,0).cast<double>() << std::endl;
+    //std::cout << "sensor_direction:"<< sensor_direction.transpose() << std::endl;
+    //std::cout << sensorToEgo.block<3,3>(0,0).cast<double>() << std::endl;
 
     geometry_msgs::PointStamped sensor_direction_msg;
 

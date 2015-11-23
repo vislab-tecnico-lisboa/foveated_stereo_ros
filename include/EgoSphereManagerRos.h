@@ -42,6 +42,7 @@ using namespace message_filters;
 
 class EgoSphereManagerRos
 {
+    int previous_fixation_point_index;
 private:
     bool update_mode;
     double field_of_view;
