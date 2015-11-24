@@ -14,11 +14,14 @@ static int iterations_=0;
 EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle & private_node_handle_) :
     nh(nh_),
     ac("gaze", true),
-    fixation_point(Eigen::Vector4d::Constant(std::numeric_limits<double>::max())),
+    current_fixation_point(Eigen::Vector4d::Constant(std::numeric_limits<double>::max())),
+    next_fixation_point(Eigen::Vector4d::Constant(std::numeric_limits<double>::max())),
     listener(new tf::TransformListener(ros::Duration(30.0))),
-    previous_fixation_point_index(10000000)
+    current_fixation_point_index(10000000)
 {
-    fixation_point(3)=1; // Homogeneous coordinates
+    std::cout << '\a';
+    current_fixation_point(3)=1; // Homogeneous coordinates
+    next_fixation_point(3)=1; // Homogeneous coordinates
 
     // Declare variables that can be modified by launch file or command line.
     int egosphere_nodes;
@@ -204,6 +207,7 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
         }
         ROS_INFO("DONE");
     }
+    current_fixation_point_index=ego_sphere->init_fixation_point_index;
 
     // archive and stream closed when destructors are called
     // ... some time later restore the class instance to its orginal state
@@ -519,22 +523,22 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
     /////////
     // ACT //
     /////////
-    int fixation_point_index=decision_making->getFixationPoint(sensory_filtering_sphere_radius);
+    next_fixation_point_index=decision_making->getFixationPoint(sensory_filtering_sphere_radius);
 
-    if(previous_fixation_point_index==fixation_point_index)
+    /*if(current_fixation_point_index==next_fixation_point_index)
     {
-        ego_sphere->structure[fixation_point_index]->sensory_data.position.reset();
-    }
-
-    Eigen::Vector3d fixation_point_3d=ego_sphere->structure[fixation_point_index]->sensory_data.position.mean;
+        ego_sphere->structure[next_fixation_point_index]->sensory_data.position.reset();
+    }*/
+    current_fixation_point_index=next_fixation_point_index;
+    Eigen::Vector3d fixation_point_3d=ego_sphere->structure[next_fixation_point_index]->sensory_data.position.mean;
     ros::WallTime decision_time = ros::WallTime::now();
     ROS_INFO_STREAM(" 4. decision making time: " <<  (decision_time - insert_time).toSec());
 
 
 
-    fixation_point(0)=fixation_point_3d(0);
-    fixation_point(1)=fixation_point_3d(1);
-    fixation_point(2)=fixation_point_3d(2);
+    next_fixation_point(0)=fixation_point_3d(0);
+    next_fixation_point(1)=fixation_point_3d(1);
+    next_fixation_point(2)=fixation_point_3d(2);
     // send a goal to the action
     move_robot_msgs::GazeGoal goal;
     goal.fixation_point.header.frame_id=ego_frame_id;
@@ -542,9 +546,9 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
     goal.mode=move_robot_msgs::GazeGoal::CARTESIAN;
 
     goal.fixation_point.header.stamp=ros::Time::now();
-    goal.fixation_point.point.x = fixation_point(0);
-    goal.fixation_point.point.y = fixation_point(1);
-    goal.fixation_point.point.z = fixation_point(2);
+    goal.fixation_point.point.x = next_fixation_point(0);
+    goal.fixation_point.point.y = next_fixation_point(1);
+    goal.fixation_point.point.z = next_fixation_point(2);
     goal.fixation_point_error_tolerance = fixation_point_error_tolerance;
 
     ROS_DEBUG("Waiting for action server to start.");
@@ -569,7 +573,7 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
                 Eigen::Vector3d fixation_point_perturb;
                 do
                 {
-                    fixation_point_perturb=perturb(fixation_point, perturb_standard_deviation_mat);
+                    fixation_point_perturb=perturb(next_fixation_point, perturb_standard_deviation_mat);
                     // send a goal to the action
                     goal.fixation_point.header.stamp=ros::Time::now();
                     goal.fixation_point.point.x = fixation_point_perturb(0);
@@ -618,6 +622,9 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
     ROS_INFO_STREAM("Done. Total insertion time:"<< total_elapsed);
 
     ROS_ERROR_STREAM("ITERATION:"<<++iterations_);
+
+    if(iterations_>=100)
+        std::cout << '\a';
 }
 
 
@@ -701,8 +708,12 @@ void EgoSphereManagerRos::publishAll(const foveated_stereo_ros::StereoDataConstP
     ego_data_msg.sensor_point_clouds.uncertainty_point_cloud=sensor_uncertainty_point_cloud_msg_world;
     ego_data_msg.ego_point_clouds=ego_point_clouds_msg;
 
-    Eigen::Vector4f fixation_point_world;
-    fixation_point_world=(egoToWorld)*fixation_point.cast<float>();
+    Eigen::Vector3d current_fixation_point_3d=ego_sphere->structure[current_fixation_point_index]->sensory_data.position.mean;
+    current_fixation_point(0)=current_fixation_point_3d(0);
+    current_fixation_point(1)=current_fixation_point_3d(1);
+    current_fixation_point(2)=current_fixation_point_3d(2);
+
+    Eigen::Vector4f fixation_point_world=(egoToWorld)*current_fixation_point.cast<float>();
     geometry_msgs::PointStamped fixation_point_world_msg;
     fixation_point_world_msg.header.frame_id=world_frame_id;
     fixation_point_world_msg.point.x = fixation_point_world(0);
@@ -710,7 +721,7 @@ void EgoSphereManagerRos::publishAll(const foveated_stereo_ros::StereoDataConstP
     fixation_point_world_msg.point.z = fixation_point_world(2);
 
     ego_data_msg.fixation_point=fixation_point_world_msg;
-
+    ego_data_msg.fixation_point_index=current_fixation_point_index;
     point_clouds_publisher.publish(ego_data_msg);
 
     double total_uncertainty=0;

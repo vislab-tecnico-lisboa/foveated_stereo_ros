@@ -42,7 +42,6 @@ using namespace message_filters;
 
 class EgoSphereManagerRos
 {
-    int previous_fixation_point_index;
 private:
     bool update_mode;
     double field_of_view;
@@ -56,7 +55,10 @@ private:
     Eigen::Matrix4f egoToWorld;
     Eigen::Matrix4f egoTransform;
     Eigen::Matrix4f previousEgoToWorld;
-    Eigen::Vector4d fixation_point;
+    Eigen::Vector4d current_fixation_point;
+    Eigen::Vector4d next_fixation_point;
+    int current_fixation_point_index;
+    int next_fixation_point_index;
     std::string world_frame_id;
     std::string ego_frame_id;
     std::string eyes_center_frame_id;

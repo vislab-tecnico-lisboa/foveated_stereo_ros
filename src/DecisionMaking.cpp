@@ -24,7 +24,7 @@ int DecisionMaking::getFixationPoint(const double & sensory_filtering_radius)
             ROS_FATAL("ESTA MAL!!!!");
             continue;
         }
-        if(mean<sensory_filtering_radius)
+        if(mean<sensory_filtering_radius||ego_sphere->structure[i]->sensory_data.position.mean(2)<0.0)
         {
             continue;
         }
@@ -40,7 +40,7 @@ int DecisionMaking::getFixationPoint(const double & sensory_filtering_radius)
         }
 
         confidence_dist=mean-sigma_scale_upper_bound*sigma;
-
+        //confidence_dist=-sigma_scale_upper_bound*sigma;
         //std::cout << "sigma:"<< sigma << std::endl;
         if(confidence_dist<closest_point_confidence_dist)
         {
