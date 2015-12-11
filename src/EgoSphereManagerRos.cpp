@@ -165,9 +165,20 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
 
     pcl_ros::transformAsMatrix(egoToWorldTf, previousEgoToWorld);
 
+    std::ostringstream ss1;
+    ss1 << std::fixed << std::setprecision(2);
+    ss1 << data_folder+"/ego_sphere_nodes_" + boost::lexical_cast<std::string>(egosphere_nodes) + "_nn_angle_threshold_"<<neighbour_angle_threshold;
+    ss1 << "_mean_" << std::setprecision(2);
+    ss1 << mean_mat.at<double>(0,0) <<"_"<<
+           mean_mat.at<double>(1,0) <<"_"<<
+           mean_mat.at<double>(2,0);
+    ss1 << "_std_dev_" << std::setprecision(2);
+    ss1 << standard_deviation_mat.at<double>(0,0) <<"_"<<
+           standard_deviation_mat.at<double>(1,0) <<"_"<<
+           standard_deviation_mat.at<double>(2,0);
     std::string ego_file_name;
     // 1. with Boost
-    ego_file_name = data_folder+"/ego_sphere_nodes_" + boost::lexical_cast<std::string>(egosphere_nodes) + "_nn_angle_threshold_"+boost::lexical_cast<std::string>(neighbour_angle_threshold);
+    ego_file_name = ss1.str();
     ROS_INFO_STREAM("ego_file_name:"<<ego_file_name);
 
     if(fileExists(ego_file_name))
@@ -241,12 +252,26 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     ROS_INFO("DONE INIT");
 
 
-    bag.open("/home/rui/rosbags/fov90/200by200/logpolar/biased/"+ros::Time::now()+".bag", rosbag::bagmode::Write);
+    std::ostringstream ss;
+    ss << std::fixed << std::setprecision(2);
+    ss << "/home/rui/rosbags/fov90/200by200/logpolar/biased/";
+    ss << "mean_" << std::setprecision(2);
+    ss << mean_mat.at<double>(0,0) <<"_"<<
+          mean_mat.at<double>(1,0) <<"_"<<
+          mean_mat.at<double>(2,0);
+    ss << "_std_dev_" << std::setprecision(2);
+    ss << standard_deviation_mat.at<double>(0,0) <<"_"<<
+          standard_deviation_mat.at<double>(1,0) <<"_"<<
+          standard_deviation_mat.at<double>(2,0) <<"/";
+    ss<< boost::lexical_cast<std::string>(ros::Time::now()) + ".bag";
+
+    std::string rosbag_file;
+    rosbag_file = ss.str();
+
+    std::cout << "rosbag_file" <<rosbag_file << std::endl;
 
 
-
-
-
+    bag.open(rosbag_file, rosbag::bagmode::Write);
 
     return;
 }
@@ -632,8 +657,8 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
 
     ROS_ERROR_STREAM("ITERATION:"<<++iterations_);
 
-    if(iterations_>=100)
-        std::cout << '\a';
+    if(iterations_>=101)
+        exit(-1);
 }
 
 
