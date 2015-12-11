@@ -2,11 +2,11 @@ egosphere_nodes: 20000
 uncertainty_lower_bound: -100
 neighbour_angle_threshold: 0.8 # degrees
 mahalanobis_distance_threshold: 100000000000000.0
-mean: [0.0, 0.0, 0.0]
+mean: [0.0, 1.0, 0.0]
 standard_deviation: [1.0, 1.0, 1.0]
 init_scale_mean: 1000
 init_scale_information: 0.000001
-field_of_view: 134
+field_of_view: 89
 update_mode: true
 relative_update: false
 sensory_filtering_sphere_radius: 0.55
