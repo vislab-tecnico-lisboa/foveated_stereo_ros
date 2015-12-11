@@ -240,6 +240,14 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
 
     ROS_INFO("DONE INIT");
 
+
+    bag.open("/home/rui/rosbags/fov90/200by200/logpolar/biased/"+ros::Time::now()+".bag", rosbag::bagmode::Write);
+
+
+
+
+
+
     return;
 }
 
@@ -271,6 +279,7 @@ EgoSphereManagerRos::~EgoSphereManagerRos()
         stereo_data_subscriber_ = NULL;
     }
     ac.cancelAllGoals();
+    bag.close();
 }
 
 void EgoSphereManagerRos::updateEgoSphereRelative(const ros::TimerEvent&)
@@ -737,6 +746,9 @@ void EgoSphereManagerRos::publishAll(const foveated_stereo_ros::StereoDataConstP
     std_msgs::Float64 total_uncertainty_msg;
     total_uncertainty_msg.data=total_uncertainty/point_cloud_uncertainty.points.size();
     information_publisher.publish(total_uncertainty_msg);
+
+    bag.write("ego_point_clouds",ros::Time::now(), ego_data_msg);
+
 }
 
 void EgoSphereManagerRos::publishCovarianceMatrices()

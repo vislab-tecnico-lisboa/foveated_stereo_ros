@@ -36,12 +36,14 @@
 #include "structures.h"
 #include "EgoSphere.h"
 #include "foveated_stereo_ros/StereoData.h"
-
+#include <rosbag/bag.h>
 using namespace sensor_msgs;
 using namespace message_filters;
 
 class EgoSphereManagerRos
 {
+    rosbag::Bag bag;
+
 private:
     bool update_mode;
     double field_of_view;
