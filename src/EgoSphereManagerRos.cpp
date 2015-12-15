@@ -751,6 +751,8 @@ void EgoSphereManagerRos::publishAll(const foveated_stereo_ros::StereoDataConstP
     current_fixation_point(1)=current_fixation_point_3d(1);
     current_fixation_point(2)=current_fixation_point_3d(2);
 
+    ROS_INFO_STREAM("CURRENT_FIXATION_POINT: "<< current_fixation_point.transpose());
+
     Eigen::Vector4f fixation_point_world=(egoToWorld)*current_fixation_point.cast<float>();
     geometry_msgs::PointStamped fixation_point_world_msg;
     fixation_point_world_msg.header.frame_id=world_frame_id;
