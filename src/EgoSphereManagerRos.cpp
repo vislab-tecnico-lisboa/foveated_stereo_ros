@@ -658,8 +658,12 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
     ROS_ERROR_STREAM("ITERATION:"<<++iterations_);
 
     if(iterations_>=101)
+    {
+        bag.close();
         exit(-1);
+    }
 }
+
 
 
 void EgoSphereManagerRos::insertScan(const PCLPointCloud& point_cloud, const std::vector<Eigen::Matrix3d> & covariances)
