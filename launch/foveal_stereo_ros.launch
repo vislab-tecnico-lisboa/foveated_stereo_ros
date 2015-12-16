@@ -12,7 +12,7 @@
   <arg name="right_camera_info_topic" default="/vizzy/stereo/r_camera/camera_info"/>
 
   <!-- nodelet manager -->
-  <node pkg="nodelet" type="nodelet" name="active_stereo_manager" args="manager" respawn="true" output="screen"/>
+  <!--<node pkg="nodelet" type="nodelet" name="active_stereo_manager" args="manager" respawn="true" output="screen"/>
 
   <node pkg="nodelet" type="nodelet" name="peripheral_foveal_stereo_ros" args="load foveated_stereo_ros/PeripheralFovealStereoRosNodelet active_stereo_manager" respawn="true" output="screen" >
     <rosparam file="$(find foveated_stereo_ros)/config/frames.yaml" command="load" />
@@ -22,7 +22,7 @@
     <remap from="right_image" to="$(arg right_image_topic)"/>
     <remap from="left_camera_info" to="$(arg left_camera_info_topic)"/>
     <remap from="right_camera_info" to="$(arg right_camera_info_topic)"/>
-  </node>
+  </node>-->
 
   <!--<node pkg="nodelet" type="nodelet" name="egosphere" args="load foveated_stereo_ros/EgoSphereManagerRosNodelet active_stereo_manager" respawn="true" output="screen">
     <param name="data_folder" value="$(find foveated_stereo_ros)/data" />

@@ -263,6 +263,8 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     ss << standard_deviation_mat.at<double>(0,0) <<"_"<<
           standard_deviation_mat.at<double>(1,0) <<"_"<<
           standard_deviation_mat.at<double>(2,0) <<"/";
+
+    boost::filesystem::create_directories(ss.str());
     ss<< boost::lexical_cast<std::string>(ros::Time::now()) + ".bag";
 
     std::string rosbag_file;
