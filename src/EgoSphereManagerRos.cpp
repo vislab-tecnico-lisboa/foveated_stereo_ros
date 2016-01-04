@@ -71,6 +71,7 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
         mean_mat.at<double>(i,0)=static_cast<double>(mean_list[i]);
     }
 
+    cv::normalize(mean_mat, mean_mat);
     XmlRpc::XmlRpcValue std_dev_list;
     private_node_handle_.getParam("standard_deviation", std_dev_list);
     ROS_ASSERT(std_dev_list.getType() == XmlRpc::XmlRpcValue::TypeArray);
@@ -251,11 +252,29 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
 
     ROS_INFO("DONE INIT");
 
+    bool logpolar_;
+    private_node_handle_.param("logpolar",logpolar_, true);
 
     std::ostringstream ss;
     ss << std::fixed << std::setprecision(2);
-    ss << "/home/rui/rosbags/fov90/200by200/logpolar/biased/";
-    ss << "mean_" << std::setprecision(2);
+    if(logpolar_)
+    {
+        ss << "/home/rui/rosbags/fov135/200by200/logpolar/sigma_scale_";
+    }
+    else
+    {
+        ss << "/home/rui/rosbags/fov135/200by200/cartesian/sigma_scale_";
+    }
+    if(sigma_scale_upper_bound>1000000.0)
+    {
+        ss << "infinity";
+    }
+    else
+    {
+        ss << std::setprecision(0) << sigma_scale_upper_bound;
+    }
+
+    ss << "/mean_" << std::setprecision(2);
     ss << mean_mat.at<double>(0,0) <<"_"<<
           mean_mat.at<double>(1,0) <<"_"<<
           mean_mat.at<double>(2,0);
