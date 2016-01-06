@@ -259,11 +259,11 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     ss << std::fixed << std::setprecision(2);
     if(logpolar_)
     {
-        ss << "/home/rui/rosbags/fov135/200by200/logpolar/sigma_scale_";
+        ss << "/media/rui/0981-ED8D/rosbags/fov135/200by200/logpolar/sigma_scale_";
     }
     else
     {
-        ss << "/home/rui/rosbags/fov135/200by200/cartesian/sigma_scale_";
+        ss << "/media/rui/0981-ED8D/rosbags/fov135/200by200/cartesian/sigma_scale_";
     }
     if(sigma_scale_upper_bound>1000000.0)
     {

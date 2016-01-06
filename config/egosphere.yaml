@@ -13,5 +13,5 @@ sensory_filtering_sphere_radius: 0.55
 update_frequency: 25
 pan_abs_limit: 0.9
 tilt_abs_limit: 0.3
-logpolar: false
+logpolar: true
 
