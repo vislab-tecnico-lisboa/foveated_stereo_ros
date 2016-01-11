@@ -259,11 +259,11 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     ss << std::fixed << std::setprecision(2);
     if(logpolar_)
     {
-        ss << "/media/rui/0981-ED8D/rosbags/fov135/200by200/logpolar/sigma_scale_";
+        ss << "/media/rui/0981-ED8D/rosbags/fov90/200by200/logpolar/sigma_scale_";
     }
     else
     {
-        ss << "/media/rui/0981-ED8D/rosbags/fov135/200by200/cartesian/sigma_scale_";
+        ss << "/media/rui/0981-ED8D/rosbags/fov90/200by200/cartesian/sigma_scale_";
     }
     if(sigma_scale_upper_bound>1000000.0)
     {
@@ -772,9 +772,10 @@ void EgoSphereManagerRos::publishAll(const foveated_stereo_ros::StereoDataConstP
     current_fixation_point(1)=current_fixation_point_3d(1);
     current_fixation_point(2)=current_fixation_point_3d(2);
 
-    ROS_INFO_STREAM("CURRENT_FIXATION_POINT: "<< current_fixation_point.transpose());
 
     Eigen::Vector4f fixation_point_world=(egoToWorld)*current_fixation_point.cast<float>();
+    ROS_INFO_STREAM("CURRENT_FIXATION_POINT: "<< fixation_point_world.transpose());
+
     geometry_msgs::PointStamped fixation_point_world_msg;
     fixation_point_world_msg.header.frame_id=world_frame_id;
     fixation_point_world_msg.point.x = fixation_point_world(0);
