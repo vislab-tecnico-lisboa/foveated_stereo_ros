@@ -124,6 +124,8 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
 
     ROS_DEBUG("Waiting for action server to start.");
 
+    boost::shared_ptr<UpperConfidenceBound> acquisition_function(new UpperConfidenceBound(sigma_scale_upper_bound));
+
     ac.waitForServer();
 
     ROS_DEBUG("Move to home position.");
@@ -205,7 +207,8 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
                                                                                                                                                                              init_scale_mean,
                                                                                                                                                                              init_scale_information,
                                                                                                                                                                              pan_abs_limit,
-                                                                                                                                                                             tilt_abs_limit
+                                                                                                                                                                             tilt_abs_limit,
+                                                                                                                                                                             acquisition_function
                                                                                                                                                                              ));
         std::ofstream ofs(ego_file_name.c_str());
         ROS_INFO("SAVE EGOSPHERE");
@@ -225,7 +228,7 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     // ... some time later restore the class instance to its orginal state
     ROS_INFO("DONE");
 
-    decision_making = boost::shared_ptr<DecisionMaking> (new DecisionMaking(ego_sphere,sigma_scale_upper_bound));
+    decision_making = boost::shared_ptr<DecisionMaking> (new DecisionMaking(ego_sphere,acquisition_function));
 
     rgb_point_cloud_publisher = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere", 1);
     uncertainty_point_cloud_publisher  = nh.advertise<sensor_msgs::PointCloud2>("ego_sphere_uncertainty", 1);
@@ -574,6 +577,9 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
     ROS_INFO_STREAM(" 6. publish time: " <<  (publish_time_after - publish_time_before).toSec());
 
     publishCovarianceMatrices();
+
+
+    ego_sphere->resample();
 
     /////////
     // ACT //
