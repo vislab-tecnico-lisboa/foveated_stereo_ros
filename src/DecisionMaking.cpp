@@ -1,7 +1,7 @@
 #include "DecisionMaking.h"
 #include <ros/rate.h>
 DecisionMaking::DecisionMaking(const boost::shared_ptr<SphericalShell<std::vector<boost::shared_ptr<MemoryPatch> > > > & ego_sphere_,
-                               const boost::shared_ptr<UpperConfidenceBound> acquisition_function_) :
+                               const boost::shared_ptr<AcquisitionFunction> acquisition_function_) :
     ego_sphere(ego_sphere_),
     acquisition_function(acquisition_function_)
 {}
@@ -41,7 +41,7 @@ int DecisionMaking::getFixationPoint(const double & sensory_filtering_radius)
             continue;
         }
 
-        means_[i]=mean;
+        means_[i]=-mean;
         sigmas_[i]=sigma;
     }
 

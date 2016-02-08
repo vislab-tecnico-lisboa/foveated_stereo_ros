@@ -43,7 +43,7 @@ using namespace message_filters;
 class EgoSphereManagerRos
 {
     rosbag::Bag bag;
-
+    boost::shared_ptr<AcquisitionFunction> acquisition_function;
 private:
     bool update_mode;
     double field_of_view;

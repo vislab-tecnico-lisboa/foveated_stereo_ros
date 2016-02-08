@@ -124,7 +124,7 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
 
     ROS_DEBUG("Waiting for action server to start.");
 
-    boost::shared_ptr<UpperConfidenceBound> acquisition_function(new UpperConfidenceBound(sigma_scale_upper_bound));
+    acquisition_function=boost::shared_ptr<UpperConfidenceBound> (new UpperConfidenceBound(sigma_scale_upper_bound));
 
     ac.waitForServer();
 
@@ -207,8 +207,8 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
                                                                                                                                                                              init_scale_mean,
                                                                                                                                                                              init_scale_information,
                                                                                                                                                                              pan_abs_limit,
-                                                                                                                                                                             tilt_abs_limit,
-                                                                                                                                                                             acquisition_function
+                                                                                                                                                                             tilt_abs_limit
+
                                                                                                                                                                              ));
         std::ofstream ofs(ego_file_name.c_str());
         ROS_INFO("SAVE EGOSPHERE");
@@ -577,10 +577,10 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
     ROS_INFO_STREAM(" 6. publish time: " <<  (publish_time_after - publish_time_before).toSec());
 
     publishCovarianceMatrices();
-
-
-    ego_sphere->resample();
-
+    ros::WallTime resample_time_before = ros::WallTime::now();
+    ego_sphere->resample(acquisition_function);
+    ros::WallTime resample_time_after = ros::WallTime::now();
+    ROS_INFO_STREAM(" 7. resampling time: " <<  (resample_time_after - resample_time_before).toSec());
     /////////
     // ACT //
     /////////
