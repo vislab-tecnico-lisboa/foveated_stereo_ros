@@ -51,6 +51,7 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     private_node_handle_.param("field_of_view",field_of_view,1.0);
     private_node_handle_.param("update_mode",update_mode, true);
     private_node_handle_.param("relative_update",relative_update, true);
+    private_node_handle_.param("resample",resample, false);
     private_node_handle_.param("update_frequency",update_frequency, 20.0);
     private_node_handle_.param("sensory_filtering_sphere_radius",sensory_filtering_sphere_radius, 20.0);
     private_node_handle_.param("init_scale_mean",init_scale_mean, 50.0);
@@ -577,10 +578,14 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
     ROS_INFO_STREAM(" 6. publish time: " <<  (publish_time_after - publish_time_before).toSec());
 
     publishCovarianceMatrices();
-    ros::WallTime resample_time_before = ros::WallTime::now();
-    ego_sphere->resample(acquisition_function);
-    ros::WallTime resample_time_after = ros::WallTime::now();
-    ROS_INFO_STREAM(" 7. resampling time: " <<  (resample_time_after - resample_time_before).toSec());
+
+    if(resample)
+    {
+        ros::WallTime resample_time_before = ros::WallTime::now();
+        ego_sphere->resample(acquisition_function);
+        ros::WallTime resample_time_after = ros::WallTime::now();
+        ROS_INFO_STREAM(" 7. resampling time: " <<  (resample_time_after - resample_time_before).toSec());
+    }
     /////////
     // ACT //
     /////////

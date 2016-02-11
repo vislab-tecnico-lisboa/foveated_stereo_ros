@@ -7,10 +7,11 @@ standard_deviation: [0.4,0.4,0.4]
 init_scale_mean: 1000
 init_scale_information: 0.000001
 field_of_view: 89
-update_mode: true
 sensory_filtering_sphere_radius: 0.55
 update_frequency: 25
 pan_abs_limit: 0.9
 tilt_abs_limit: 0.3
+update_mode: true
 logpolar: true
+resample: true
 

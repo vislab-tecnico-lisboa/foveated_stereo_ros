@@ -85,6 +85,7 @@ private:
     double fixation_point_error_tolerance;
     double gaze_timeout;
     bool relative_update;
+    bool resample;
 public:
     typedef pcl::PointCloud<pcl::PointXYZRGB> PCLPointCloud;
 
