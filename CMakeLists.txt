@@ -1,6 +1,12 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(foveated_stereo_ros)
 
+find_package(PkgConfig)
+pkg_check_modules(BFL REQUIRED orocos-bfl)
+
+include_directories(${BFL_INCLUDE_DIRS})
+link_directories(${BFL_LIBRARY_DIRS})
+
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
@@ -188,5 +194,9 @@ install(TARGETS ego_sphere_manager_ros_nodelet
 install(FILES foveated_stereo_nodelets.xml
         DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
+
+add_executable(tracker_test src/tracker_test/tracker.cpp src/tracker_test/nonlinearanalyticconditionalgaussianodo.cpp src/tracker_test/tracker_node.cpp)
+target_link_libraries(tracker_test ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${BFL_LIBRARIES})
+add_dependencies(tracker_test foveated_stereo_ros_generate_messages_cpp)
 
 

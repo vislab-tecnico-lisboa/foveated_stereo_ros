@@ -107,7 +107,6 @@ public:
     void updateEgoSphereRelative(const ros::TimerEvent&);
     void updateEgoSphereAbsolute(const ros::TimerEvent&);
 
-
     void insertCloudCallback(const foveated_stereo_ros::StereoData::ConstPtr& stereo_data);
 
     void publishAll(const foveated_stereo_ros::StereoDataConstPtr& stereo_data);
@@ -116,8 +115,6 @@ public:
     Eigen::Vector3d perturb(const Eigen::Vector4d & fixation_point, const cv::Mat & scale);
 
     ros::Time last;
-
-
 
     void publishEgoStructure();
 };
