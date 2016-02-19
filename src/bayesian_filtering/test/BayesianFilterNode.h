@@ -30,7 +30,8 @@ class BayesianFilterNode
 {
     typedef boost::shared_ptr<nav_msgs::Odometry const> OdomConstPtr;
     typedef boost::shared_ptr<foveated_stereo_ros::StereoData const> StereoConstPtr;
-    ros::NodeHandle nh;
+
+    ros::NodeHandle nh_, private_node_handle_;
     ros::Subscriber odom_sub;
     ros::Subscriber ranges_sub;
     ros::Publisher pose_pub;

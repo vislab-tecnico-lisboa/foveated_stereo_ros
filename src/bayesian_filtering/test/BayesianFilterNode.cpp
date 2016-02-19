@@ -3,18 +3,23 @@ using namespace MatrixWrapper;
 using namespace BFL;
 using namespace std;
 
-BayesianFilterNode::BayesianFilterNode(const ros::NodeHandle &nh_) :
-    nh(nh_),
+BayesianFilterNode::BayesianFilterNode(const ros::NodeHandle &nh) :
+    nh_(nh),
+    private_node_handle_("~"),
     odom_initialized(false)
 {
-    odom_sub = nh.subscribe("odom", 1, &BayesianFilterNode::odomCallback, this);
-    ranges_sub = nh.subscribe("ranges", 1, &BayesianFilterNode::stereoCallback, this);
-    pose_pub = nh.advertise<geometry_msgs::PoseStamped>("/pose_pf",1);
-    particle_pub = nh.advertise<geometry_msgs::PoseArray>("/particle_cloud",1);
+    odom_sub = nh_.subscribe("odom", 1, &BayesianFilterNode::odomCallback, this);
+    ranges_sub = nh_.subscribe("ranges", 1, &BayesianFilterNode::stereoCallback, this);
+    pose_pub = nh_.advertise<geometry_msgs::PoseStamped>("/pose_pf",1);
+    particle_pub = nh_.advertise<geometry_msgs::PoseArray>("/particle_cloud",1);
     dt = 0.0;
 
-    CreateParticleFilter();
+    double prior_mean_distance;
+    private_node_handle_.param("prior_mean_distance",prior_mean_distance, 50.0);
 
+    ROS_INFO_STREAM("prior_mean_distance: "<<prior_mean_distance);
+
+    CreateParticleFilter();
 }
 
 BayesianFilterNode::~BayesianFilterNode()
@@ -164,14 +169,14 @@ void BayesianFilterNode::odomCallback(const OdomConstPtr & msg)
 
 void BayesianFilterNode::PublishParticles()
 {
-    /*   geometry_msgs::PoseArray particles_msg;
+    geometry_msgs::PoseArray particles_msg;
     particles_msg.header.stamp = ros::Time::now();
-    particles_msg.header.frame_id = "/map";
+    particles_msg.header.frame_id = "/base_footprint";
 
     vector<WeightedSample<ColumnVector> >::iterator sample_it;
     vector<WeightedSample<ColumnVector> > samples;
 
-    samples = filter->getNewSamples();
+    /*samples = filter->getNewSamples();
 
     for(sample_it = samples.begin(); sample_it<samples.end(); sample_it++)
     {
@@ -185,7 +190,6 @@ void BayesianFilterNode::PublishParticles()
         particles_msg.poses.insert(particles_msg.poses.begin(), pose);
     }
     particle_pub.publish(particles_msg);*/
-
 }
 
 void BayesianFilterNode::PublishPose()
