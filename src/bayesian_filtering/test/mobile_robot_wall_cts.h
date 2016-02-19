@@ -33,9 +33,9 @@
 #define OFFSET_WALL (0)//100
 
 // Sizes
-#define STATE_SIZE 3 //state: x,y,theta
-#define INPUT_SIZE 2 //input: v*deltat, omega*deltat
-#define MEAS_SIZE 6  //USmeasurment: delta 6D transformation
+#define STATE_SIZE 3 //state: x,y,z
+#define INPUT_SIZE 6 //input control: 6D transformation params
+#define MEAS_SIZE 3  //USmeasurment: delta 6D transformation
 
 //Initial position and orientation of the mobile robot
 #define X_0 0

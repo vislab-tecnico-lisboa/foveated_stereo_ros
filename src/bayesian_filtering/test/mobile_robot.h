@@ -57,7 +57,7 @@ namespace BFL{
 
     private:
       Gaussian* _system_Uncertainty;
-      NonLinearAnalyticConditionalGaussianMobile* _sys_pdf;
+      NonLinearAnalyticConditionalGaussian3D* _sys_pdf;
       AnalyticSystemModelGaussianUncertainty* _sys_model;
       Gaussian* _measurement_Uncertainty;
       LinearAnalyticConditionalGaussian* _meas_pdf;

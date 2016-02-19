@@ -50,7 +50,7 @@ MobileRobot::MobileRobot():
     _system_Uncertainty = new Gaussian(sys_noise_Mu, sys_noise_Cov);
 
     // create the model
-    _sys_pdf = new NonLinearAnalyticConditionalGaussianMobile(*_system_Uncertainty);
+    _sys_pdf = new NonLinearAnalyticConditionalGaussian3D(*_system_Uncertainty);
     _sys_model = new AnalyticSystemModelGaussianUncertainty(_sys_pdf);
 
     // meas noise

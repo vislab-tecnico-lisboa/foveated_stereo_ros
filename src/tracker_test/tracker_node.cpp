@@ -113,13 +113,12 @@ PedestrianTrackingNode::PedestrianTrackingNode()
     // publish state service
     //state_srv_ = nh_private.advertiseService("get_status", &PedestrianTrackingNode::getStatus, this);
 
-    if (debug_){
+    if (debug_)
+    {
         // open files for debugging
         odom_file_.open("/tmp/odom_file.txt");
         pedestrian_file_.open("/tmp/imu_file.txt");
         corr_file_.open("/tmp/corr_file.txt");
-
-
     }
 }
 

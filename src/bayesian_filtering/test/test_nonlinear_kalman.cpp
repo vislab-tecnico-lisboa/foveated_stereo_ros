@@ -30,7 +30,7 @@
 #include "bayesian_filtering/nonlinearanalyticconditionalgaussian3D.h"//added
 
 #include "mobile_robot.h"
-
+#include <ros/ros.h>
 #include <iostream>
 #include <fstream>
 
@@ -76,18 +76,18 @@ int main(int argc, char** argv)
          << "Test of kalman filter" << endl
          << "Mobile robot localisation example" << endl
          << "==================================================" << endl;
-
-
-    /****************************
-   * NonLinear system model      *
-   ***************************/
-
+    
+    
+    /***************************
+    * NonLinear system model   *
+    ***************************/
+    
     // create gaussian
     ColumnVector sys_noise_Mu(STATE_SIZE);
     sys_noise_Mu(1) = 0.0;
-    sys_noise_Mu(2) = 0.0;
+    sys_noise_Mu(2) = 0.5;
     sys_noise_Mu(3) = 0.0;
-
+    
     SymmetricMatrix sys_noise_Cov(STATE_SIZE);
     sys_noise_Cov = 0.0;
     sys_noise_Cov(1,1) = 1.0;
@@ -99,17 +99,16 @@ int main(int argc, char** argv)
     sys_noise_Cov(3,1) = 0.0;
     sys_noise_Cov(3,2) = 0.0;
     sys_noise_Cov(3,3) = 1.0;
-
+    
     Gaussian system_Uncertainty(sys_noise_Mu, sys_noise_Cov);
-
+    
     // create the model
-    NonLinearAnalyticConditionalGaussianMobile sys_pdf(system_Uncertainty);
+    NonLinearAnalyticConditionalGaussian3D sys_pdf(system_Uncertainty);
     AnalyticSystemModelGaussianUncertainty sys_model(&sys_pdf);
-
-    /*********************************
-   * Initialise measurement model *
-   ********************************/
-
+    
+    /********************************
+     * Initialise measurement model *
+     ********************************/
     // create matrix H for linear measurement model
     double wall_ct = 2/(sqrt(pow(RICO_WALL,2.0) + 1));
     Matrix H(MEAS_SIZE,STATE_SIZE);
@@ -120,18 +119,18 @@ int main(int argc, char** argv)
     // Construct the measurement noise (a scalar in this case)
     ColumnVector meas_noise_Mu(MEAS_SIZE);
     meas_noise_Mu(1) = MU_MEAS_NOISE;
-
+    
     SymmetricMatrix meas_noise_Cov(MEAS_SIZE);
     meas_noise_Cov(1,1) = SIGMA_MEAS_NOISE;
     Gaussian measurement_Uncertainty(meas_noise_Mu, meas_noise_Cov);
-
+    
     // create the measurement model
     LinearAnalyticConditionalGaussian meas_pdf(H, measurement_Uncertainty);
     LinearAnalyticMeasurementModelGaussianUncertainty meas_model(&meas_pdf);
-
+    
     /****************************
-   * Linear prior DENSITY     *
-   ***************************/
+     * Linear prior DENSITY     *
+     ***************************/
     // Continuous Gaussian prior (for Kalman filters)
     ColumnVector prior_Mu(STATE_SIZE);
     prior_Mu(1) = PRIOR_MU_X;
@@ -147,56 +146,73 @@ int main(int argc, char** argv)
     prior_Cov(3,1) = 0.0;
     prior_Cov(3,2) = 0.0;
     prior_Cov(3,3) = PRIOR_COV_THETA;
-    Gaussian prior_cont(prior_Mu,prior_Cov);
+    
+    /*****************************
+    * Construction of the Filter *
+    ******************************/
+    std::vector <ExtendedKalmanFilter*> filters;
+    for(int i=0;i<20000;++i)
+    {
+        Gaussian *prior_cont=new Gaussian(prior_Mu,prior_Cov);
 
-    /******************************
-   * Construction of the Filter *
-   ******************************/
-    ExtendedKalmanFilter filter(&prior_cont);
-
-    /***************************
-   * initialise MOBILE ROBOT *
-   **************************/
+        ExtendedKalmanFilter *filter=new ExtendedKalmanFilter(prior_cont);
+        filters.push_back(filter);
+    }
+    /**************************
+    * initialise MOBILE ROBOT *
+    **************************/
     // Model of mobile robot in world with one wall
     // The model is used to simultate the distance measurements.
     MobileRobot mobile_robot;
-    ColumnVector input(2);
-    input(1) = 0.1;
-    input(2) = 0.0;
-
+    ColumnVector input(INPUT_SIZE);
+    input(1) = 0.1; //delta_x
+    input(2) = 0.0; //delta_y
+    input(3) = 0.0; //delta_z
+    input(4) = 0.0; //delta_yaw
+    input(5) = 0.0; //delta_pitch
+    input(6) = 0.0; //delta_roll
 
     /*******************
-   * ESTIMATION LOOP *
-   *******************/
+    * ESTIMATION LOOP *
+    *******************/
     cout << "MAIN: Starting estimation" << endl;
     unsigned int time_step;
-    for (time_step = 0; time_step < NUM_TIME_STEPS-1; time_step++)
+    for (time_step = 0; time_step < NUM_TIME_STEPS-1; ++time_step)
     {
         // DO ONE STEP WITH MOBILE ROBOT
         mobile_robot.Move(input);
 
         // DO ONE MEASUREMENT
         ColumnVector measurement = mobile_robot.Measure();
+        std::cout << "measurement:"<<measurement<< std::endl;
 
-        // UPDATE FILTER
-        filter.Update(&sys_model,input,&meas_model,measurement);
-        //filter.Update(&sys_model,input);
+        for(int i=0; i<20000;++i)
+        {
+            // UPDATE FILTER
+            filters[i]->Update(&sys_model,input,&meas_model,measurement);
+            //filter.Update(&sys_model,input);
+        }
 
     } // estimation loop
-
-
-
-    Pdf<ColumnVector> * posterior = filter.PostGet();
+    
+    Pdf<ColumnVector> * posterior = filters[0]->PostGet();
     cout << "After " << time_step+1 << " timesteps " << endl;
     cout << " Posterior Mean = " << endl << posterior->ExpectedValueGet() << endl
          << " Covariance = " << endl << posterior->CovarianceGet() << "" << endl;
-
-
+    
     cout << "======================================================" << endl
          << "End of the Kalman filter for mobile robot localisation" << endl
          << "======================================================"
          << endl;
 
-
     return 0;
 }
+
+
+
+
+
+
+
+
+

@@ -195,11 +195,14 @@ install(FILES foveated_stereo_nodelets.xml
         DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
 
-#add_executable(tracker_test src/tracker_test/tracker.cpp src/tracker_test/nonlinearanalyticconditionalgaussianodo.cpp src/tracker_test/tracker_node.cpp)
-#target_link_libraries(tracker_test ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${BFL_LIBRARIES})
-#add_dependencies(tracker_test foveated_stereo_ros_generate_messages_cpp)
+add_executable(tracker_test2 src/tracker_test/tracker.cpp src/tracker_test/nonlinearanalyticconditionalgaussianodo.cpp src/tracker_test/tracker_node.cpp)
+target_link_libraries(tracker_test2 ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${BFL_LIBRARIES})
+add_dependencies(tracker_test2 foveated_stereo_ros_generate_messages_cpp)
 
-add_library(3D_point_estimation_ekf src/bayesian_filtering/nonlinearanalyticconditionalgaussian3D.cpp)
+add_library(3D_point_estimation_ekf src/bayesian_filtering/nonlinearanalyticconditionalgaussian3D.cpp src/bayesian_filtering/nonlinearsystempdf.cpp src/bayesian_filtering/nonlinearmeasurementpdf.cpp)
 
 add_executable(tracker_test src/bayesian_filtering/test/test_nonlinear_kalman.cpp src/bayesian_filtering/test/mobile_robot.cpp)
 target_link_libraries(tracker_test 3D_point_estimation_ekf ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${BFL_LIBRARIES})
+
+add_executable(tracker_node src/bayesian_filtering/test/BayesianFilterNode.cpp)
+target_link_libraries(tracker_node 3D_point_estimation_ekf ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${BFL_LIBRARIES})
