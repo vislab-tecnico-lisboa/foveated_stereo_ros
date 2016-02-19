@@ -1,6 +1,6 @@
 #ifndef BAYESIANFILTERNODE_H
 #define BAYESIANFILTERNODE_H
-#include <filter/extendedkalmanfilter.h>
+//#include <filter/extendedkalmanfilter.h>
 #include <filter/particlefilter.h>
 #include <filter/bootstrapfilter.h>
 
@@ -10,6 +10,8 @@
 #include <pdf/analyticconditionalgaussian.h>
 #include <pdf/linearanalyticconditionalgaussian.h>
 #include "bayesian_filtering/nonlinearanalyticconditionalgaussian3D.h"//added
+#include "bayesian_filtering/nonlinearsystempdf.h"
+#include "bayesian_filtering/nonlinearmeasurementpdf.h"
 
 #include <iostream>
 #include <fstream>
@@ -36,10 +38,10 @@ class BayesianFilterNode
 
     boost::shared_ptr<BFL::BootstrapFilter<BFL::ColumnVector,BFL::ColumnVector> > filter;
 
-    boost::shared_ptr<BFL::NonLinearAnalyticConditionalGaussian3D> sys_pdf;
+    boost::shared_ptr<BFL::NonlinearSystemPdf> sys_pdf;
     boost::shared_ptr<BFL::SystemModel<BFL::ColumnVector> > sys_model;
     boost::shared_ptr<BFL::LinearAnalyticConditionalGaussian> meas_pdf;
-    boost::shared_ptr<BFL::MeasurementModel<BFL::ColumnVector,BFL::ColumnVector> > meas_model;
+    boost::shared_ptr<BFL::LinearAnalyticMeasurementModelGaussianUncertainty> meas_model;
     boost::shared_ptr<BFL::MCPdf<BFL::ColumnVector> > prior_discr;
 
     double dt;

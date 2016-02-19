@@ -32,19 +32,48 @@ NonlinearSystemPdf::NonlinearSystemPdf(const Gaussian& additiveNoise)
     _additiveNoise = additiveNoise;
 }
 
-
 NonlinearSystemPdf::~NonlinearSystemPdf(){}
 
-
-bool NonlinearSystemPdf::SampleFrom (Sample<ColumnVector>& one_sample, int method, void * args) const
+bool NonlinearSystemPdf::SampleFrom(Sample<ColumnVector>& one_sample, int method, void * args) const
 {
     ColumnVector state = ConditionalArgumentGet(0);
-    ColumnVector vel   = ConditionalArgumentGet(1);
+    ColumnVector input  = ConditionalArgumentGet(1); // Transformation
 
-    // system update
-    state(1) += cos(state(3)) * vel(1);
-    state(2) += sin(state(3)) * vel(1);
-    state(3) += vel(2);
+    //std::cout << "input:"<<input << std::endl;
+    // Construct homogeneous transformation matrix
+    Matrix T_homogeneous(4,4);
+    //T_homogeneous=0;
+
+    for(unsigned int row=1; row<=4; ++row)
+    {
+        for(unsigned int col=1; col<=4; ++col)
+        {
+            unsigned int index=col+(row-1)*4;
+            T_homogeneous(row,col)=input(index);
+        }
+    }
+    std::cout << T_homogeneous << std::endl;
+    // Rotation
+    T_homogeneous(1,1)=1.0;
+    T_homogeneous(2,2)=1.0;
+    T_homogeneous(3,3)=1.0;
+
+    // Translation
+    T_homogeneous(1,4)=input(1); // delta_x
+    T_homogeneous(2,4)=input(2); // delta_y
+    T_homogeneous(3,4)=input(3); // delta_z
+    T_homogeneous(4,4)=1.0;
+
+    // Construct homogeneous state vector
+    ColumnVector state_homogeneous(4);
+    state_homogeneous=0;
+    state_homogeneous(1)=state(1);     state_homogeneous(2)=state(2);    state_homogeneous(3)=state(3);    state_homogeneous(4)=1.0;
+
+    // Apply transformation
+    state_homogeneous=T_homogeneous * state_homogeneous;
+
+    // Convert back to state coordinates
+    state(1)=state_homogeneous(1);   state(2)=state_homogeneous(2);  state(3)=state_homogeneous(3);
 
     // sample from additive noise
     Sample<ColumnVector> noise;

@@ -12,11 +12,8 @@ BayesianFilterNode::BayesianFilterNode(const ros::NodeHandle &nh_) :
     pose_pub = nh.advertise<geometry_msgs::PoseStamped>("/pose_pf",1);
     particle_pub = nh.advertise<geometry_msgs::PoseArray>("/particle_cloud",1);
     dt = 0.0;
-    //sys_model = NULL;
-    //meas_model = NULL;
-    std::cout << "YAH"<< std::endl;
+
     CreateParticleFilter();
-    std::cout << "YAH2"<< std::endl;
 
 }
 
@@ -31,46 +28,47 @@ void BayesianFilterNode::CreateParticleFilter()
 
     // create gaussian
     ColumnVector sys_noise_Mu(STATE_SIZE);
-    sys_noise_Mu(1) = MU_SYSTEM_NOISE_X;
-    sys_noise_Mu(2) = MU_SYSTEM_NOISE_Y;
-    sys_noise_Mu(3) = MU_SYSTEM_NOISE_THETA;
+    sys_noise_Mu(1) = 0.0;
+    sys_noise_Mu(2) = 0.0;
+    sys_noise_Mu(3) = 0.0;
 
     SymmetricMatrix sys_noise_Cov(STATE_SIZE);
     sys_noise_Cov = 0.0;
-    sys_noise_Cov(1,1) = SIGMA_SYSTEM_NOISE_X;
+    sys_noise_Cov(1,1) = 1.0;
     sys_noise_Cov(1,2) = 0.0;
     sys_noise_Cov(1,3) = 0.0;
     sys_noise_Cov(2,1) = 0.0;
-    sys_noise_Cov(2,2) = SIGMA_SYSTEM_NOISE_Y;
+    sys_noise_Cov(2,2) = 1.0;
     sys_noise_Cov(2,3) = 0.0;
     sys_noise_Cov(3,1) = 0.0;
     sys_noise_Cov(3,2) = 0.0;
-    sys_noise_Cov(3,3) = SIGMA_SYSTEM_NOISE_THETA;
+    sys_noise_Cov(3,3) = 1.0;
 
     Gaussian system_Uncertainty(sys_noise_Mu, sys_noise_Cov);
 
     // create the nonlinear system model
-    sys_pdf = boost::shared_ptr<BFL::NonLinearAnalyticConditionalGaussian3D> (new  BFL::NonLinearAnalyticConditionalGaussian3D(system_Uncertainty));
+    sys_pdf = boost::shared_ptr<BFL::NonlinearSystemPdf> (new  BFL::NonlinearSystemPdf(system_Uncertainty));
     sys_model = boost::shared_ptr<BFL::SystemModel<ColumnVector> > (new BFL::SystemModel<ColumnVector> (sys_pdf.get()));
 
     /*********************************
      * NonLinear Measurement model   *
      ********************************/
+
     // Construct the measurement noise (a scalar in this case)
     ColumnVector meas_noise_Mu(MEAS_SIZE);
     meas_noise_Mu(1) = MU_MEAS_NOISE;
     meas_noise_Mu(2) = MU_MEAS_NOISE;
     meas_noise_Mu(3) = MU_MEAS_NOISE;
     SymmetricMatrix meas_noise_Cov(MEAS_SIZE);
-    meas_noise_Cov(1,1) = SIGMA_MEAS_NOISE;
+    meas_noise_Cov(1,1) = 1.0;
     meas_noise_Cov(1,2) = 0.0;
     meas_noise_Cov(1,3) = 0.0;
     meas_noise_Cov(2,1) = 0.0;
-    meas_noise_Cov(2,2) = SIGMA_MEAS_NOISE;
+    meas_noise_Cov(2,2) = 1.0;
     meas_noise_Cov(2,3) = 0.0;
     meas_noise_Cov(3,1) = 0.0;
     meas_noise_Cov(3,2) = 0.0;
-    meas_noise_Cov(3,3) = SIGMA_MEAS_NOISE;
+    meas_noise_Cov(3,3) = 1.0;
 
     Gaussian measurement_Uncertainty(meas_noise_Mu, meas_noise_Cov);
 
@@ -80,7 +78,7 @@ void BayesianFilterNode::CreateParticleFilter()
     H(2,2) = 1.0;
     H(3,3) = 1.0;
     meas_pdf = boost::shared_ptr<BFL::LinearAnalyticConditionalGaussian>(new BFL::LinearAnalyticConditionalGaussian(H,measurement_Uncertainty));
-    meas_model = boost::shared_ptr<MeasurementModel<ColumnVector,ColumnVector> >(new BFL::MeasurementModel<ColumnVector,ColumnVector>(meas_pdf.get()));
+    meas_model = boost::shared_ptr<BFL::LinearAnalyticMeasurementModelGaussianUncertainty>(new BFL::LinearAnalyticMeasurementModelGaussianUncertainty(meas_pdf.get()));
 
     /****************************
      * Linear prior DENSITY     *
@@ -148,16 +146,20 @@ void BayesianFilterNode::odomCallback(const OdomConstPtr & msg)
     tf::poseMsgToTF(last_odom_msg->pose.pose, old_transform);
     new_transform=new_transform*old_transform.inverse();
     decomposeTransform(new_transform,transf_matrix);
-    std::cout << "transf_matrix:"<< transf_matrix << std::endl;
+    //std::cout << "transf_matrix:"<< transf_matrix << std::endl;
 
-    ColumnVector input(6);
-    /*input(1) = msg->pose.pose.position.x;
-    input(2) = msg->pose.pose.position.x;
-    input(3) = msg->pose.pose.position.x;
-    input(4) = msg->pose.pose.orientation.x;*/
+    ColumnVector input(16);
+    for(unsigned int row=1; row<=4; ++row)
+    {
+        for(unsigned int col=1; col<=4; ++col)
+        {
+            unsigned int index=col+(row-1)*4;
+            //std::cout << index << std::endl;
+            input(index)=transf_matrix(row,col);
+        }
+    }
 
-    //if (LastNavDataMsg.state==3 || LastNavDataMsg.state==7 || LastNavDataMsg.state==4)
-    //    filter->Update(sys_model,input);
+    filter->Update(sys_model.get(),input);
 }
 
 void BayesianFilterNode::PublishParticles()
