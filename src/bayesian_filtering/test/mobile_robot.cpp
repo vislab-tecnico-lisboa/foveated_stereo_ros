@@ -29,13 +29,13 @@ MobileRobot::MobileRobot():
     // initial state
     _state(1) = X_0;
     _state(2) = Y_0;
-    _state(3) = THETA_0;
+    _state(3) = Z_0;
 
     // sys noise
     ColumnVector sys_noise_Mu(STATE_SIZE);
     sys_noise_Mu(1) = MU_SYSTEM_NOISE_X_ROB;
     sys_noise_Mu(2) = MU_SYSTEM_NOISE_Y_ROB;
-    sys_noise_Mu(3) = MU_SYSTEM_NOISE_THETA_ROB;
+    sys_noise_Mu(3) = MU_SYSTEM_NOISE_Z_ROB;
     SymmetricMatrix sys_noise_Cov(STATE_SIZE);
     sys_noise_Cov = 0.0;
     sys_noise_Cov(1,1) = SIGMA_SYSTEM_NOISE_X_ROB;
@@ -46,7 +46,7 @@ MobileRobot::MobileRobot():
     sys_noise_Cov(2,3) = 0.0;
     sys_noise_Cov(3,1) = 0.0;
     sys_noise_Cov(3,2) = 0.0;
-    sys_noise_Cov(3,3) = SIGMA_SYSTEM_NOISE_THETA_ROB;
+    sys_noise_Cov(3,3) = SIGMA_SYSTEM_NOISE_Z_ROB;
     _system_Uncertainty = new Gaussian(sys_noise_Mu, sys_noise_Cov);
 
     // create the model

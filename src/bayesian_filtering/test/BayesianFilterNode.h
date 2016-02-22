@@ -2,7 +2,7 @@
 #define BAYESIANFILTERNODE_H
 //#include <filter/extendedkalmanfilter.h>
 #include <filter/particlefilter.h>
-#include <filter/bootstrapfilter.h>
+#include "bayesian_filtering/customparticlefilter.h"
 
 #include <model/linearanalyticsystemmodel_gaussianuncertainty.h>
 #include <model/linearanalyticmeasurementmodel_gaussianuncertainty.h>
@@ -16,15 +16,25 @@
 #include <iostream>
 #include <fstream>
 
-// Include file with properties
-#include "mobile_robot_wall_cts.h"
-
 #include <ros/ros.h>
 #include <nav_msgs/Odometry.h>
 #include <foveated_stereo_ros/StereoData.h>
 #include <geometry_msgs/PoseStamped.h>
 #include <geometry_msgs/PoseArray.h>
 #include <tf/transform_datatypes.h>
+
+#include <pcl/point_cloud.h>
+#include <pcl/common/common.h>
+#include <pcl/filters/passthrough.h>
+#include <pcl_conversions/pcl_conversions.h>
+#include <pcl_ros/transforms.h>
+#include <pcl/filters/extract_indices.h>
+
+#include <tf/transform_listener.h>
+#include <pose_cov_ops/pose_cov_ops.h>
+// Sizes
+#define STATE_SIZE 3 //state: x,y,z
+#define MEAS_SIZE 3  // measurment: 3D points
 
 class BayesianFilterNode
 {
@@ -33,11 +43,12 @@ class BayesianFilterNode
 
     ros::NodeHandle nh_, private_node_handle_;
     ros::Subscriber odom_sub;
-    ros::Subscriber ranges_sub;
+    ros::Subscriber stereo_sub;
     ros::Publisher pose_pub;
     ros::Publisher particle_pub;
+    boost::shared_ptr<tf::TransformListener> listener;
 
-    boost::shared_ptr<BFL::BootstrapFilter<BFL::ColumnVector,BFL::ColumnVector> > filter;
+    boost::shared_ptr<CustomParticleFilter> filter;
 
     boost::shared_ptr<BFL::NonlinearSystemPdf> sys_pdf;
     boost::shared_ptr<BFL::SystemModel<BFL::ColumnVector> > sys_model;
@@ -53,30 +64,16 @@ public:
     BayesianFilterNode(const ros::NodeHandle &nh_);
 
     ~BayesianFilterNode();
-    void CreateParticleFilter();
+    void createParticleFilter(const double & prior_mean,
+                              const double & prior_std_dev,
+                              const int & particles_number);
     void stereoCallback(const StereoConstPtr & msg);
     void odomCallback(const OdomConstPtr & msg);
 
     void PublishParticles();
     void PublishPose();
 
-    void decomposeTransform(const tf::Pose& transform, BFL::Matrix& transf_matrix)
-    {
-        transf_matrix=0.0;
-        transf_matrix(4,4)=1.0;
-
-        for(int row=0; row<3;++row)
-        {
-            // rotation
-            for(int col=0; col<3; ++col)
-            {
-                transf_matrix(row+1,col+1)=transform.getBasis().getRow(row)[col];
-            }
-
-            // translation
-            transf_matrix(row+1,4)=transform.getOrigin()[row];
-        }
-    }
+    void decomposeTransform(const tf::Pose& transform, BFL::Matrix& transf_matrix);
 };
 
 #endif // BAYESIANFILTERNODE_H

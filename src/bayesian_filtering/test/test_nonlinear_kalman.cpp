@@ -135,7 +135,7 @@ int main(int argc, char** argv)
     ColumnVector prior_Mu(STATE_SIZE);
     prior_Mu(1) = PRIOR_MU_X;
     prior_Mu(2) = PRIOR_MU_Y;
-    prior_Mu(3) = PRIOR_MU_THETA;
+    prior_Mu(3) = PRIOR_MU_Z;
     SymmetricMatrix prior_Cov(STATE_SIZE);
     prior_Cov(1,1) = PRIOR_COV_X;
     prior_Cov(1,2) = 0.0;
@@ -145,7 +145,7 @@ int main(int argc, char** argv)
     prior_Cov(2,3) = 0.0;
     prior_Cov(3,1) = 0.0;
     prior_Cov(3,2) = 0.0;
-    prior_Cov(3,3) = PRIOR_COV_THETA;
+    prior_Cov(3,3) = PRIOR_COV_Z;
     
     /*****************************
     * Construction of the Filter *

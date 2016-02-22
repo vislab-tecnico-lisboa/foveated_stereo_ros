@@ -39,7 +39,7 @@ bool NonlinearSystemPdf::SampleFrom(Sample<ColumnVector>& one_sample, int method
     ColumnVector state = ConditionalArgumentGet(0);
     ColumnVector input  = ConditionalArgumentGet(1); // Transformation
 
-    //std::cout << "input:"<<input << std::endl;
+
     // Construct homogeneous transformation matrix
     Matrix T_homogeneous(4,4);
     //T_homogeneous=0;
@@ -52,17 +52,6 @@ bool NonlinearSystemPdf::SampleFrom(Sample<ColumnVector>& one_sample, int method
             T_homogeneous(row,col)=input(index);
         }
     }
-    std::cout << T_homogeneous << std::endl;
-    // Rotation
-    T_homogeneous(1,1)=1.0;
-    T_homogeneous(2,2)=1.0;
-    T_homogeneous(3,3)=1.0;
-
-    // Translation
-    T_homogeneous(1,4)=input(1); // delta_x
-    T_homogeneous(2,4)=input(2); // delta_y
-    T_homogeneous(3,4)=input(3); // delta_z
-    T_homogeneous(4,4)=1.0;
 
     // Construct homogeneous state vector
     ColumnVector state_homogeneous(4);
@@ -75,15 +64,22 @@ bool NonlinearSystemPdf::SampleFrom(Sample<ColumnVector>& one_sample, int method
     // Convert back to state coordinates
     state(1)=state_homogeneous(1);   state(2)=state_homogeneous(2);  state(3)=state_homogeneous(3);
 
+
     // sample from additive noise
     Sample<ColumnVector> noise;
     _additiveNoise.SampleFrom(noise, method, args);
 
     // store results in one_sample
-    one_sample.ValueSet(state + noise.ValueGet());
+    one_sample.ValueSet(state+noise.ValueGet());
+
 
     return true;
 }
+void NonlinearSystemPdf::AdditiveNoiseSigmaSet(const MatrixWrapper::SymmetricMatrix &sigma)
+{
+    _additiveNoise.CovarianceSet(sigma);
+}
+
 
 }//namespace BFL
 

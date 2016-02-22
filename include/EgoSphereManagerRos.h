@@ -14,6 +14,8 @@
 #include <pcl/common/common.h>
 #include <pcl/filters/passthrough.h>
 #include <pcl_conversions/pcl_conversions.h>
+#include <pcl_ros/transforms.h>
+#include <pcl/filters/extract_indices.h>
 
 #include <tf/transform_listener.h>
 #include <sensor_msgs/image_encodings.h>
@@ -23,14 +25,12 @@
 #include <sensor_msgs/image_encodings.h>
 #include <image_transport/image_transport.h>
 #include <tf/message_filter.h>
-#include <pcl_ros/transforms.h>
+
 
 #include <visualization_msgs/MarkerArray.h>
-#include <pcl/filters/extract_indices.h>
 #include <actionlib/client/simple_action_client.h>
 #include <actionlib/client/terminal_state.h>
 #include <move_robot_msgs/GazeAction.h>
-#include <pcl_ros/transforms.h>
 #include <foveated_stereo_ros/EgoData.h>
 #include "DecisionMaking.h"
 #include "structures.h"
@@ -74,7 +74,6 @@ private:
     tf::MessageFilter<foveated_stereo_ros::StereoData>* tf_filter_;
 
     ros::Timer update_timer;
-
 
     actionlib::SimpleActionClient<move_robot_msgs::GazeAction> ac;
     bool active_vision;

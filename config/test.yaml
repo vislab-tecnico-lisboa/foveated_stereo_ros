@@ -1,0 +1,3 @@
+prior_mean: 1.0
+prior_std_dev: 0.005
+particles_number: 10000

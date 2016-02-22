@@ -57,14 +57,14 @@
 namespace estimation
 {
 
-class PedestrianTracking
+class Mapping
 {
 public:
   /// constructor
-  PedestrianTracking();
+  Mapping();
 
   /// destructor
-  virtual ~PedestrianTracking();
+  virtual ~Mapping();
 
   /** update the extended Kalman filter
    * \param odom_active specifies if the odometry sensor is active or not
@@ -75,7 +75,7 @@ public:
    * \param diagnostics_res returns false if the diagnostics found that the sensor measurements are inconsistent
    * returns true on successfull update
    */
-  bool update(bool odom_active, bool pedestrian_active, const ros::Time& filter_time, bool& diagnostics_res);
+  bool update(bool odom_active, bool stereo_active, const ros::Time& filter_time, bool& diagnostics_res);
 
   /** initialize the extended Kalman filter
    * \param prior the prior robot pose
@@ -147,18 +147,19 @@ private:
   BFL::NonLinearAnalyticConditionalGaussianOdo*           sys_pdf_;
   BFL::LinearAnalyticConditionalGaussian*                 odom_meas_pdf_;
   BFL::LinearAnalyticMeasurementModelGaussianUncertainty* odom_meas_model_;
-  BFL::LinearAnalyticConditionalGaussian*                 pedestrian_meas_pdf_;
-  BFL::LinearAnalyticMeasurementModelGaussianUncertainty* pedestrian_meas_model_;
+  BFL::LinearAnalyticConditionalGaussian*                 stereo_meas_pdf_;
+  BFL::LinearAnalyticMeasurementModelGaussianUncertainty* stereo_meas_model_;
   BFL::Gaussian*                                          prior_;
   BFL::ExtendedKalmanFilter*                              filter_;
-  MatrixWrapper::SymmetricMatrix                          odom_covariance_, pedestrian_covariance_;
+  MatrixWrapper::SymmetricMatrix                          odom_covariance_, stereo_covariance_;
 
+public:
   // vars
   MatrixWrapper::ColumnVector vel_desi_, filter_estimate_old_vec_;
   tf::Transform filter_estimate_old_;
-  tf::StampedTransform odom_meas_, odom_meas_old_, pedestrian_meas_, pedestrian_meas_old_;
+  tf::StampedTransform odom_meas_, odom_meas_old_, stereo_meas_, stereo_meas_old_;
   ros::Time filter_time_old_;
-  bool filter_initialized_, odom_initialized_, pedestrian_initialized_;
+  bool filter_initialized_, odom_initialized_, stereo_initialized_;
 
   // diagnostics
   double diagnostics_odom_rot_rel_, diagnostics_imu_rot_rel_;
@@ -167,6 +168,7 @@ private:
   tf::Transformer transformer_;
 
   std::string output_frame_;
+  std::string egocentric_frame_;
   std::string base_footprint_frame_;
 
 }; // class

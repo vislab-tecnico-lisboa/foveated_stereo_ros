@@ -25,25 +25,26 @@
 
 namespace BFL
 {
-  /// Non Linear Conditional Gaussian
-  class NonlinearSystemPdf : public ConditionalPdf<MatrixWrapper::ColumnVector, MatrixWrapper::ColumnVector>
-    {
-    public:
-      /// Constructor
-      /** @param additiveNoise Pdf representing the additive Gaussian uncertainty
+/// Non Linear Conditional Gaussian
+class NonlinearSystemPdf : public ConditionalPdf<MatrixWrapper::ColumnVector, MatrixWrapper::ColumnVector>
+{
+public:
+    /// Constructor
+    /** @param additiveNoise Pdf representing the additive Gaussian uncertainty
       */
-      NonlinearSystemPdf( const Gaussian& additiveNoise);
+    NonlinearSystemPdf( const Gaussian& additiveNoise);
 
-      /// Destructor
-      virtual ~NonlinearSystemPdf();
+    /// Destructor
+    virtual ~NonlinearSystemPdf();
 
-      // implement this virtual function for system model of a particle filter
-      virtual bool SampleFrom (Sample<MatrixWrapper::ColumnVector>& one_sample, int method=DEFAULT, void * args=NULL) const;
+    // implement this virtual function for system model of a particle filter
+    virtual bool SampleFrom (Sample<MatrixWrapper::ColumnVector>& one_sample, int method=DEFAULT, void * args=NULL) const;
 
-    private:
-      Gaussian _additiveNoise;
+    virtual void AdditiveNoiseSigmaSet(const MatrixWrapper::SymmetricMatrix &sigma);
+private:
+    Gaussian _additiveNoise;
 
-    };
+};
 
 } // End namespace BFL
 
