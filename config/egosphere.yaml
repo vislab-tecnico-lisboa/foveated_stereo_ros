@@ -13,5 +13,6 @@ pan_abs_limit: 0.9
 tilt_abs_limit: 0.3
 update_mode: true
 logpolar: true
-resample: true
+resample: false
+ucb: false
 
