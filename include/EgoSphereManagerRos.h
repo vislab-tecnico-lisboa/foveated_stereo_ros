@@ -30,7 +30,7 @@
 #include <visualization_msgs/MarkerArray.h>
 #include <actionlib/client/simple_action_client.h>
 #include <actionlib/client/terminal_state.h>
-#include <move_robot_msgs/GazeAction.h>
+#include <vizzy_msgs/GazeAction.h>
 #include <foveated_stereo_ros/EgoData.h>
 #include "DecisionMaking.h"
 #include "structures.h"
@@ -75,7 +75,7 @@ private:
 
     ros::Timer update_timer;
 
-    actionlib::SimpleActionClient<move_robot_msgs::GazeAction> ac;
+    actionlib::SimpleActionClient<vizzy_msgs::GazeAction> ac;
     bool active_vision;
     ros::Time last_update_time;
 

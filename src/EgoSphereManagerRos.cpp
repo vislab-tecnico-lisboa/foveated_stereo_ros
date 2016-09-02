@@ -33,7 +33,7 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     double pior_std_dev_distance;
     double pan_abs_limit;
     double tilt_abs_limit;
-
+    bool ucb;
     std::string data_folder;
     private_node_handle_.param<std::string>("world_frame",world_frame_id,"world");
     private_node_handle_.param<std::string>("ego_frame",ego_frame_id,"eyes_center_vision_link");
@@ -59,6 +59,7 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
 
     private_node_handle_.param("pan_abs_limit",pan_abs_limit, 1.0);
     private_node_handle_.param("tilt_abs_limit",tilt_abs_limit, 1.0);
+    private_node_handle_.param("ucb",ucb, true);
 
     XmlRpc::XmlRpcValue mean_list;
     private_node_handle_.getParam("mean", mean_list);
@@ -122,18 +123,25 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     ROS_INFO_STREAM("pior_std_dev_distance: "<<pior_std_dev_distance);
     ROS_INFO_STREAM("pan_abs_limit: "<<pan_abs_limit);
     ROS_INFO_STREAM("tilt_abs_limit: "<<tilt_abs_limit);
+    ROS_INFO_STREAM("ucb: "<<ucb);
 
     ROS_DEBUG("Waiting for action server to start.");
 
-    acquisition_function=boost::shared_ptr<UpperConfidenceBound> (new UpperConfidenceBound(sigma_scale_upper_bound));
-
+    if(ucb)
+    {
+        acquisition_function=boost::shared_ptr<UpperConfidenceBound> (new UpperConfidenceBound(sigma_scale_upper_bound));
+    }
+    else
+    {
+        acquisition_function=boost::shared_ptr<ExpectedImprovement> (new ExpectedImprovement());
+    }
     ac.waitForServer();
 
     ROS_DEBUG("Move to home position.");
-    move_robot_msgs::GazeGoal goal;
+    vizzy_msgs::GazeGoal goal;
     goal.fixation_point.header.frame_id=ego_frame_id;
-    goal.type=move_robot_msgs::GazeGoal::HOME;
-    goal.mode=move_robot_msgs::GazeGoal::JOINT;
+    goal.type=vizzy_msgs::GazeGoal::HOME;
+    goal.mode=vizzy_msgs::GazeGoal::JOINT;
     goal.fixation_point.header.stamp=ros::Time::now();
     ac.sendGoal(goal);
 
@@ -606,10 +614,10 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
     next_fixation_point(1)=fixation_point_3d(1);
     next_fixation_point(2)=fixation_point_3d(2);
     // send a goal to the action
-    move_robot_msgs::GazeGoal goal;
+    vizzy_msgs::GazeGoal goal;
     goal.fixation_point.header.frame_id=ego_frame_id;
-    goal.type=move_robot_msgs::GazeGoal::FIXATION_POINT;
-    goal.mode=move_robot_msgs::GazeGoal::CARTESIAN;
+    goal.type=vizzy_msgs::GazeGoal::FIXATION_POINT;
+    goal.mode=vizzy_msgs::GazeGoal::CARTESIAN;
 
     goal.fixation_point.header.stamp=ros::Time::now();
     goal.fixation_point.point.x = next_fixation_point(0);
