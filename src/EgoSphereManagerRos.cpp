@@ -269,22 +269,38 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
 
     std::ostringstream ss;
     ss << std::fixed << std::setprecision(2);
-    if(logpolar_)
+    if(ucb)
     {
-        ss << "/media/rui/0981-ED8D/rosbags_new/fov135/200by200/logpolar/sigma_scale_";
+        if(logpolar_)
+        {
+            ss << "/media/rui/0981-ED8D/rosbags/fov135/200by200/logpolar/sigma_scale_";
+        }
+        else
+        {
+            ss << "/media/rui/0981-ED8D/rosbags/fov135/200by200/cartesian/sigma_scale_";
+        }
+        if(sigma_scale_upper_bound>1000000.0)
+        {
+            ss << "infinity";
+        }
+        else
+        {
+            ss << std::setprecision(2) << sigma_scale_upper_bound;
+        }
     }
     else
     {
-        ss << "/media/rui/0981-ED8D/rosbags_new/fov135/200by200/cartesian/sigma_scale_";
+        if(logpolar_)
+        {
+            ss << "/media/rui/0981-ED8D/rosbags/fov135/200by200/logpolar/ei";
+        }
+        else
+        {
+            ss << "/media/rui/0981-ED8D/rosbags/fov135/200by200/cartesian/ei";
+        }
     }
-    if(sigma_scale_upper_bound>1000000.0)
-    {
-        ss << "infinity";
-    }
-    else
-    {
-        ss << std::setprecision(0) << sigma_scale_upper_bound;
-    }
+
+
 
     ss << "/mean_" << std::setprecision(2);
     ss << mean_mat.at<double>(0,0) <<"_"<<
@@ -697,7 +713,7 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
 
     ROS_ERROR_STREAM("ITERATION:"<<++iterations_);
 
-    if(iterations_>=101)
+    if(iterations_>=51)
     {
         bag.close();
         exit(-1);
