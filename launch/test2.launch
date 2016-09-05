@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<!-- ROS head file to simulate vizzy in gazebo   -->
+<launch>
+  <arg name="stereo_topic" default="/stereo_data"/>
+  <node pkg="foveated_stereo_ros" type="tracker_node" name="egosphere" respawn="true" output="screen">
+    <rosparam file="$(find foveated_stereo_ros)/config/test.yaml" command="load" />
+    <remap from="stereo" to="$(arg stereo_topic)"/>
+  </node>
+</launch>

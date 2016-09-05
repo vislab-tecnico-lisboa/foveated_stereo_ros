@@ -458,7 +458,7 @@ public:
 
                 if(isnan(informations_determinants.at<double>(r,c))||isnan(log(informations_determinants.at<double>(r,c))))
                     continue;
-                //foveated_stereo_ros::Covariance covariance_msg;
+                foveated_stereo_ros::Covariance covariance_msg;
                 foveated_stereo_ros::Information information_msg;
 
                 Eigen::Matrix<double,3,3> information_eigen;
@@ -469,12 +469,12 @@ public:
                     for(int j=0; j<3; ++j)
                     {
                         int index=j+i*3;
-                        //covariance_msg.covariance[index]=sdd.cov_3d[r][c].at<double>(i,j);
+                        covariance_msg.covariance[index]=sdd.cov_3d[r][c].at<double>(i,j);
                         information_msg.information[index]=sdd.information_3d[r][c].at<double>(i,j);
                     }
                 }
 
-                //stereo_msg.covariances.push_back(covariance_msg);
+                stereo_msg.covariances.push_back(covariance_msg);
                 stereo_msg.informations.push_back(information_msg);
             }
         }

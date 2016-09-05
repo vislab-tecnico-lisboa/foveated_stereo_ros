@@ -29,11 +29,11 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     double sigma_scale_upper_bound;
     double neighbour_angle_threshold;
     double update_frequency;
-    double init_scale_mean;
-    double init_scale_information;
+    double prior_mean_distance;
+    double pior_std_dev_distance;
     double pan_abs_limit;
     double tilt_abs_limit;
-
+    bool ucb;
     std::string data_folder;
     private_node_handle_.param<std::string>("world_frame",world_frame_id,"world");
     private_node_handle_.param<std::string>("ego_frame",ego_frame_id,"eyes_center_vision_link");
@@ -47,18 +47,19 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     private_node_handle_.param("mahalanobis_distance_threshold",mahalanobis_distance_threshold,std::numeric_limits<double>::max());
     private_node_handle_.param("neighbour_angle_threshold",neighbour_angle_threshold,1.0);
     private_node_handle_.param("fixation_point_error_tolerance",fixation_point_error_tolerance,0.01);
-    private_node_handle_.param("gaze_timeout",gaze_timeout,1.0);
+    private_node_handle_.param("gaze_timeout",gaze_timeout,100.0);
     private_node_handle_.param("field_of_view",field_of_view,1.0);
     private_node_handle_.param("update_mode",update_mode, true);
     private_node_handle_.param("relative_update",relative_update, true);
     private_node_handle_.param("resample",resample, false);
     private_node_handle_.param("update_frequency",update_frequency, 20.0);
     private_node_handle_.param("sensory_filtering_sphere_radius",sensory_filtering_sphere_radius, 20.0);
-    private_node_handle_.param("init_scale_mean",init_scale_mean, 50.0);
-    private_node_handle_.param("init_scale_information",init_scale_information, 0.0001);
+    private_node_handle_.param("prior_mean_distance",prior_mean_distance, 50.0);
+    private_node_handle_.param("pior_std_dev_distance",pior_std_dev_distance, 0.0001);
 
     private_node_handle_.param("pan_abs_limit",pan_abs_limit, 1.0);
     private_node_handle_.param("tilt_abs_limit",tilt_abs_limit, 1.0);
+    private_node_handle_.param("ucb",ucb, true);
 
     XmlRpc::XmlRpcValue mean_list;
     private_node_handle_.getParam("mean", mean_list);
@@ -118,22 +119,29 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     ROS_INFO_STREAM("relative_update: "<<relative_update);
     ROS_INFO_STREAM("update_frequency: "<<update_frequency);
     ROS_INFO_STREAM("sensory_filtering_sphere_radius: "<<sensory_filtering_sphere_radius);
-    ROS_INFO_STREAM("init_scale_mean: "<<init_scale_mean);
-    ROS_INFO_STREAM("init_scale_information: "<<init_scale_information);
+    ROS_INFO_STREAM("prior_mean_distance: "<<prior_mean_distance);
+    ROS_INFO_STREAM("pior_std_dev_distance: "<<pior_std_dev_distance);
     ROS_INFO_STREAM("pan_abs_limit: "<<pan_abs_limit);
     ROS_INFO_STREAM("tilt_abs_limit: "<<tilt_abs_limit);
+    ROS_INFO_STREAM("ucb: "<<ucb);
 
     ROS_DEBUG("Waiting for action server to start.");
 
-    acquisition_function=boost::shared_ptr<UpperConfidenceBound> (new UpperConfidenceBound(sigma_scale_upper_bound));
-
+    if(ucb)
+    {
+        acquisition_function=boost::shared_ptr<UpperConfidenceBound> (new UpperConfidenceBound(sigma_scale_upper_bound));
+    }
+    else
+    {
+        acquisition_function=boost::shared_ptr<ExpectedImprovement> (new ExpectedImprovement());
+    }
     ac.waitForServer();
 
     ROS_DEBUG("Move to home position.");
-    move_robot_msgs::GazeGoal goal;
+    vizzy_msgs::GazeGoal goal;
     goal.fixation_point.header.frame_id=ego_frame_id;
-    goal.type=move_robot_msgs::GazeGoal::HOME;
-    goal.mode=move_robot_msgs::GazeGoal::JOINT;
+    goal.type=vizzy_msgs::GazeGoal::HOME;
+    goal.mode=vizzy_msgs::GazeGoal::JOINT;
     goal.fixation_point.header.stamp=ros::Time::now();
     ac.sendGoal(goal);
 
@@ -205,8 +213,8 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
                                                                                                                                                                              standard_deviation_mat,
                                                                                                                                                                              transform.getOrigin().getY(),
                                                                                                                                                                              neighbour_angle_threshold,
-                                                                                                                                                                             init_scale_mean,
-                                                                                                                                                                             init_scale_information,
+                                                                                                                                                                             prior_mean_distance,
+                                                                                                                                                                             pior_std_dev_distance,
                                                                                                                                                                              pan_abs_limit,
                                                                                                                                                                              tilt_abs_limit
 
@@ -263,11 +271,11 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     ss << std::fixed << std::setprecision(2);
     if(logpolar_)
     {
-        ss << "/media/rui/0981-ED8D/rosbags/fov90/200by200/logpolar/sigma_scale_";
+        ss << "/media/rui/0981-ED8D/rosbags_new/fov135/200by200/logpolar/sigma_scale_";
     }
     else
     {
-        ss << "/media/rui/0981-ED8D/rosbags/fov90/200by200/cartesian/sigma_scale_";
+        ss << "/media/rui/0981-ED8D/rosbags_new/fov135/200by200/cartesian/sigma_scale_";
     }
     if(sigma_scale_upper_bound>1000000.0)
     {
@@ -579,13 +587,13 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
 
     publishCovarianceMatrices();
 
-    if(resample)
+    /*if(resample)
     {
         ros::WallTime resample_time_before = ros::WallTime::now();
         ego_sphere->resample(acquisition_function);
         ros::WallTime resample_time_after = ros::WallTime::now();
         ROS_INFO_STREAM(" 7. resampling time: " <<  (resample_time_after - resample_time_before).toSec());
-    }
+    }*/
     /////////
     // ACT //
     /////////
@@ -606,10 +614,10 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
     next_fixation_point(1)=fixation_point_3d(1);
     next_fixation_point(2)=fixation_point_3d(2);
     // send a goal to the action
-    move_robot_msgs::GazeGoal goal;
+    vizzy_msgs::GazeGoal goal;
     goal.fixation_point.header.frame_id=ego_frame_id;
-    goal.type=move_robot_msgs::GazeGoal::FIXATION_POINT;
-    goal.mode=move_robot_msgs::GazeGoal::CARTESIAN;
+    goal.type=vizzy_msgs::GazeGoal::FIXATION_POINT;
+    goal.mode=vizzy_msgs::GazeGoal::CARTESIAN;
 
     goal.fixation_point.header.stamp=ros::Time::now();
     goal.fixation_point.point.x = next_fixation_point(0);
@@ -762,7 +770,7 @@ void EgoSphereManagerRos::publishAll(const foveated_stereo_ros::StereoDataConstP
 
 
     foveated_stereo_ros::PointClouds ego_point_clouds_msg;
-    ego_point_clouds_msg.rgb_point_cloud=rgb_point_cloud_msg;
+    //ego_point_clouds_msg.rgb_point_cloud=rgb_point_cloud_msg;
     ego_point_clouds_msg.uncertainty_point_cloud=uncertainty_point_cloud_msg;
 
     foveated_stereo_ros::EgoData ego_data_msg;
@@ -774,8 +782,8 @@ void EgoSphereManagerRos::publishAll(const foveated_stereo_ros::StereoDataConstP
 
     pcl_ros::transformPointCloud(sensorToWorld, stereo_data->point_clouds.uncertainty_point_cloud, sensor_uncertainty_point_cloud_msg_world);
 
-    ego_data_msg.sensor_point_clouds.rgb_point_cloud=sensor_rgb_point_cloud_msg_world;
-    ego_data_msg.sensor_point_clouds.uncertainty_point_cloud=sensor_uncertainty_point_cloud_msg_world;
+    //ego_data_msg.sensor_point_clouds.rgb_point_cloud=sensor_rgb_point_cloud_msg_world;
+    //ego_data_msg.sensor_point_clouds.uncertainty_point_cloud=sensor_uncertainty_point_cloud_msg_world;
     ego_data_msg.ego_point_clouds=ego_point_clouds_msg;
 
     Eigen::Vector3d current_fixation_point_3d=ego_sphere->structure[current_fixation_point_index]->sensory_data.position.mean;

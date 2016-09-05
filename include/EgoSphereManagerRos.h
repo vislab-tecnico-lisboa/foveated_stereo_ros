@@ -14,6 +14,8 @@
 #include <pcl/common/common.h>
 #include <pcl/filters/passthrough.h>
 #include <pcl_conversions/pcl_conversions.h>
+#include <pcl_ros/transforms.h>
+#include <pcl/filters/extract_indices.h>
 
 #include <tf/transform_listener.h>
 #include <sensor_msgs/image_encodings.h>
@@ -23,20 +25,19 @@
 #include <sensor_msgs/image_encodings.h>
 #include <image_transport/image_transport.h>
 #include <tf/message_filter.h>
-#include <pcl_ros/transforms.h>
+
 
 #include <visualization_msgs/MarkerArray.h>
-#include <pcl/filters/extract_indices.h>
 #include <actionlib/client/simple_action_client.h>
 #include <actionlib/client/terminal_state.h>
-#include <move_robot_msgs/GazeAction.h>
-#include <pcl_ros/transforms.h>
+#include <vizzy_msgs/GazeAction.h>
 #include <foveated_stereo_ros/EgoData.h>
 #include "DecisionMaking.h"
 #include "structures.h"
 #include "EgoSphere.h"
 #include "foveated_stereo_ros/StereoData.h"
 #include <rosbag/bag.h>
+#include "ExpectedImprovement.h"
 using namespace sensor_msgs;
 using namespace message_filters;
 
@@ -75,8 +76,7 @@ private:
 
     ros::Timer update_timer;
 
-
-    actionlib::SimpleActionClient<move_robot_msgs::GazeAction> ac;
+    actionlib::SimpleActionClient<vizzy_msgs::GazeAction> ac;
     bool active_vision;
     ros::Time last_update_time;
 

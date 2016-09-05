@@ -46,12 +46,12 @@ using namespace ros;
 namespace estimation
 {
 // constructor
-PedestrianTracking::PedestrianTracking():
+Mapping::Mapping():
     prior_(NULL),
     filter_(NULL),
     filter_initialized_(false),
     odom_initialized_(false),
-    pedestrian_initialized_(false),
+    stereo_initialized_(false),
     output_frame_(std::string("odom_combined")),
     base_footprint_frame_(std::string("base_footprint"))
 {
@@ -73,34 +73,33 @@ PedestrianTracking::PedestrianTracking():
     odom_meas_pdf_   = new LinearAnalyticConditionalGaussian(Hodom, measurement_Uncertainty_Odom);
     odom_meas_model_ = new LinearAnalyticMeasurementModelGaussianUncertainty(odom_meas_pdf_);
 
-    // create MEASUREMENT MODEL PEDESTRIAN
-    ColumnVector measNoiseImu_Mu(3);  measNoiseImu_Mu = 0;
-    SymmetricMatrix measNoiseImu_Cov(3);  measNoiseImu_Cov = 0;
-    for (unsigned int i=1; i<=3; i++) measNoiseImu_Cov(i,i) = 1;
-    Gaussian measurement_Uncertainty_Imu(measNoiseImu_Mu, measNoiseImu_Cov);
-    Matrix Himu(3,6);  Himu = 0;
-    Himu(1,4) = 1;    Himu(2,5) = 1;    Himu(3,6) = 1;
-    pedestrian_meas_pdf_   = new LinearAnalyticConditionalGaussian(Himu, measurement_Uncertainty_Imu);
-    pedestrian_meas_model_ = new LinearAnalyticMeasurementModelGaussianUncertainty(pedestrian_meas_pdf_);
+    // create MEASUREMENT MODEL STEREO
+    ColumnVector measNoiseStereo_Mu(3);  measNoiseStereo_Mu = 0;
+    SymmetricMatrix measNoiseStereo_Cov(3);  measNoiseStereo_Cov = 0;
+    for (unsigned int i=1; i<=3; i++) measNoiseStereo_Cov(i,i) = 1;
+    Gaussian measurement_Uncertainty_Stereo(measNoiseStereo_Mu, measNoiseStereo_Cov);
+    Matrix Hstereo(3,6);  Hstereo = 0;
+    Hstereo(1,4) = 1;    Hstereo(2,5) = 1;    Hstereo(3,6) = 1;
+    stereo_meas_pdf_   = new LinearAnalyticConditionalGaussian(Hstereo, measurement_Uncertainty_Stereo);
+    stereo_meas_model_ = new LinearAnalyticMeasurementModelGaussianUncertainty(stereo_meas_pdf_);
 };
 
 
 
 // destructor
-PedestrianTracking::~PedestrianTracking(){
+Mapping::~Mapping(){
     if (filter_) delete filter_;
     if (prior_)  delete prior_;
     delete odom_meas_model_;
     delete odom_meas_pdf_;
-    delete pedestrian_meas_model_;
-    delete pedestrian_meas_pdf_;
+    delete stereo_meas_model_;
+    delete stereo_meas_pdf_;
     delete sys_pdf_;
     delete sys_model_;
-};
-
+}
 
 // initialize prior density of filter
-void PedestrianTracking::initialize(const Transform& prior, const Time& time)
+void Mapping::initialize(const Transform& prior, const Time& time)
 {
     // set prior of filter
     ColumnVector prior_Mu(6);
@@ -116,7 +115,6 @@ void PedestrianTracking::initialize(const Transform& prior, const Time& time)
     filter_ = new ExtendedKalmanFilter(prior_);
 
     // remember prior
-    addMeasurement(StampedTransform(prior, time, output_frame_, base_footprint_frame_));
     filter_estimate_old_vec_ = prior_Mu;
     filter_estimate_old_ = prior;
     filter_time_old_     = time;
@@ -126,7 +124,7 @@ void PedestrianTracking::initialize(const Transform& prior, const Time& time)
 }
 
 // update filter
-bool PedestrianTracking::update(bool odom_active, bool pedestrian_active, const Time&  filter_time, bool& diagnostics_res)
+bool Mapping::update(bool odom_active, bool stereo_active, const Time&  filter_time, bool& diagnostics_res)
 {
     // only update filter when it is initialized
     if (!filter_initialized_)
@@ -191,38 +189,38 @@ bool PedestrianTracking::update(bool odom_active, bool pedestrian_active, const 
     else odom_initialized_ = false;
 
 
-    // process pedestrian measurement
+    // process stereo measurement
     // -----------------------
-    if (pedestrian_active)
+    if (stereo_active)
     {
-        if (!transformer_.canTransform(base_footprint_frame_,"imu", filter_time))
+        if (!transformer_.canTransform(base_footprint_frame_,"stereo", filter_time))
         {
             ROS_ERROR("filter time older than imu message buffer");
             return false;
         }
-        transformer_.lookupTransform("imu", base_footprint_frame_, filter_time, pedestrian_meas_);
-        if (pedestrian_initialized_)
+        transformer_.lookupTransform("stereo", base_footprint_frame_, filter_time, stereo_meas_);
+        if (stereo_initialized_)
         {
             // convert absolute imu yaw measurement to relative imu yaw measurement
-            Transform pedestrian_rel_frame =  filter_estimate_old_ * pedestrian_meas_old_.inverse() * pedestrian_meas_;
-            ColumnVector pedestrian_rel(3); double tmp;
-            decomposeTransform(pedestrian_rel_frame, tmp, tmp, tmp, tmp, tmp, pedestrian_rel(3));
-            decomposeTransform(pedestrian_meas_,     tmp, tmp, tmp, pedestrian_rel(1), pedestrian_rel(2), tmp);
-            angleOverflowCorrect(pedestrian_rel(3), filter_estimate_old_vec_(6));
-            diagnostics_imu_rot_rel_ = pedestrian_rel(3);
+            Transform stereo_rel_frame =  filter_estimate_old_ * stereo_meas_old_.inverse() * stereo_meas_;
+            ColumnVector stereo_rel(3); double tmp;
+            decomposeTransform(stereo_rel_frame, tmp, tmp, tmp, tmp, tmp, stereo_rel(3));
+            decomposeTransform(stereo_meas_,     tmp, tmp, tmp, stereo_rel(1), stereo_rel(2), tmp);
+            angleOverflowCorrect(stereo_rel(3), filter_estimate_old_vec_(6));
+            diagnostics_imu_rot_rel_ = stereo_rel(3);
             // update filter
-            pedestrian_meas_pdf_->AdditiveNoiseSigmaSet(pedestrian_covariance_ * pow(dt,2));
-            filter_->Update(pedestrian_meas_model_,  pedestrian_rel);
+            stereo_meas_pdf_->AdditiveNoiseSigmaSet(stereo_covariance_ * pow(dt,2));
+            filter_->Update(stereo_meas_model_,  stereo_rel);
         }
         else
         {
-            pedestrian_initialized_ = true;
+            stereo_initialized_ = true;
             diagnostics_imu_rot_rel_ = 0;
         }
-        pedestrian_meas_old_ = pedestrian_meas_;
+        stereo_meas_old_ = stereo_meas_;
     }
     // sensor not active
-    else pedestrian_initialized_ = false;
+    else stereo_initialized_ = false;
 
 
     // remember last estimate
@@ -235,7 +233,7 @@ bool PedestrianTracking::update(bool odom_active, bool pedestrian_active, const 
 
     // diagnostics
     diagnostics_res = true;
-    if (odom_active && pedestrian_active)
+    if (odom_active && stereo_active)
     {
         double diagnostics = fabs(diagnostics_odom_rot_rel_ - diagnostics_imu_rot_rel_)/dt;
         if (diagnostics > 0.3 && dt > 0.01)
@@ -247,7 +245,7 @@ bool PedestrianTracking::update(bool odom_active, bool pedestrian_active, const 
     return true;
 }
 
-void PedestrianTracking::addMeasurement(const StampedTransform& meas)
+void Mapping::addMeasurement(const StampedTransform& meas)
 {
     ROS_DEBUG("AddMeasurement from %s to %s:  (%f, %f, %f)  (%f, %f, %f, %f)",
               meas.frame_id_.c_str(), meas.child_frame_id_.c_str(),
@@ -257,7 +255,7 @@ void PedestrianTracking::addMeasurement(const StampedTransform& meas)
     transformer_.setTransform( meas );
 }
 
-void PedestrianTracking::addMeasurement(const StampedTransform& meas, const MatrixWrapper::SymmetricMatrix& covar)
+void Mapping::addMeasurement(const StampedTransform& meas, const MatrixWrapper::SymmetricMatrix& covar)
 {
     // check covariance
     for (unsigned int i=0; i<covar.rows(); i++)
@@ -271,19 +269,19 @@ void PedestrianTracking::addMeasurement(const StampedTransform& meas, const Matr
     // add measurements
     addMeasurement(meas);
     if (meas.child_frame_id_ == "wheelodom") odom_covariance_ = covar;
-    else if (meas.child_frame_id_ == "imu")  pedestrian_covariance_  = covar;
+    else if (meas.child_frame_id_ == "stereo")  stereo_covariance_  = covar;
     else ROS_ERROR("Adding a measurement for an unknown sensor %s", meas.child_frame_id_.c_str());
 }
 
 
 // get latest filter posterior as vector
-void PedestrianTracking::getEstimate(MatrixWrapper::ColumnVector& estimate)
+void Mapping::getEstimate(MatrixWrapper::ColumnVector& estimate)
 {
     estimate = filter_estimate_old_vec_;
 }
 
 // get filter posterior at time 'time' as Transform
-void PedestrianTracking::getEstimate(Time time, Transform& estimate)
+void Mapping::getEstimate(Time time, Transform& estimate)
 {
     StampedTransform tmp;
     if (!transformer_.canTransform(base_footprint_frame_,output_frame_, time))
@@ -296,7 +294,7 @@ void PedestrianTracking::getEstimate(Time time, Transform& estimate)
 }
 
 // get filter posterior at time 'time' as Stamped Transform
-void PedestrianTracking::getEstimate(Time time, StampedTransform& estimate)
+void Mapping::getEstimate(Time time, StampedTransform& estimate)
 {
     if (!transformer_.canTransform(output_frame_, base_footprint_frame_, time)){
         ROS_ERROR("Cannot get transform at time %f", time.toSec());
@@ -306,11 +304,12 @@ void PedestrianTracking::getEstimate(Time time, StampedTransform& estimate)
 }
 
 // get most recent filter posterior as PoseWithCovarianceStamped
-void PedestrianTracking::getEstimate(geometry_msgs::PoseWithCovarianceStamped& estimate)
+void Mapping::getEstimate(geometry_msgs::PoseWithCovarianceStamped& estimate)
 {
     // pose
     StampedTransform tmp;
-    if (!transformer_.canTransform(output_frame_, base_footprint_frame_, ros::Time())){
+    if (!transformer_.canTransform(output_frame_, base_footprint_frame_, ros::Time()))
+    {
         ROS_ERROR("Cannot get transform at time %f", 0.0);
         return;
     }
@@ -329,14 +328,14 @@ void PedestrianTracking::getEstimate(geometry_msgs::PoseWithCovarianceStamped& e
 }
 
 // correct for angle overflow
-void PedestrianTracking::angleOverflowCorrect(double& a, double ref)
+void Mapping::angleOverflowCorrect(double& a, double ref)
 {
     while ((a-ref) >  M_PI) a -= 2*M_PI;
     while ((a-ref) < -M_PI) a += 2*M_PI;
 }
 
 // decompose Transform into x,y,z,Rx,Ry,Rz
-void PedestrianTracking::decomposeTransform(const StampedTransform& trans, double& x, double& y, double&z, double&Rx, double& Ry, double& Rz)
+void Mapping::decomposeTransform(const StampedTransform& trans, double& x, double& y, double&z, double&Rx, double& Ry, double& Rz)
 {
     x = trans.getOrigin().x();
     y = trans.getOrigin().y();
@@ -345,7 +344,7 @@ void PedestrianTracking::decomposeTransform(const StampedTransform& trans, doubl
 }
 
 // decompose Transform into x,y,z,Rx,Ry,Rz
-void PedestrianTracking::decomposeTransform(const Transform& trans, double& x, double& y, double&z, double&Rx, double& Ry, double& Rz)
+void Mapping::decomposeTransform(const Transform& trans, double& x, double& y, double&z, double&Rx, double& Ry, double& Rz)
 {
     x = trans.getOrigin().x();
     y = trans.getOrigin().y();
@@ -353,14 +352,14 @@ void PedestrianTracking::decomposeTransform(const Transform& trans, double& x, d
     trans.getBasis().getEulerYPR(Rz, Ry, Rx);
 }
 
-void PedestrianTracking::setOutputFrame(const std::string& output_frame)
+void Mapping::setOutputFrame(const std::string& output_frame)
 {
     output_frame_ = output_frame;
 }
 
-void PedestrianTracking::setBaseFootprintFrame(const std::string& base_frame)
+void Mapping::setBaseFootprintFrame(const std::string& base_frame)
 {
     base_footprint_frame_ = base_frame;
 }
 
-}; // namespace
+} // namespace
