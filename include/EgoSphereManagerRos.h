@@ -37,6 +37,7 @@
 #include "EgoSphere.h"
 #include "foveated_stereo_ros/StereoData.h"
 #include <rosbag/bag.h>
+#include "ExpectedImprovement.h"
 using namespace sensor_msgs;
 using namespace message_filters;
 

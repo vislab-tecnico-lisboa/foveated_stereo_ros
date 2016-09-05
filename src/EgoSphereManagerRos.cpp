@@ -47,7 +47,7 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     private_node_handle_.param("mahalanobis_distance_threshold",mahalanobis_distance_threshold,std::numeric_limits<double>::max());
     private_node_handle_.param("neighbour_angle_threshold",neighbour_angle_threshold,1.0);
     private_node_handle_.param("fixation_point_error_tolerance",fixation_point_error_tolerance,0.01);
-    private_node_handle_.param("gaze_timeout",gaze_timeout,1.0);
+    private_node_handle_.param("gaze_timeout",gaze_timeout,100.0);
     private_node_handle_.param("field_of_view",field_of_view,1.0);
     private_node_handle_.param("update_mode",update_mode, true);
     private_node_handle_.param("relative_update",relative_update, true);
@@ -271,11 +271,11 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     ss << std::fixed << std::setprecision(2);
     if(logpolar_)
     {
-        ss << "/media/rui/0981-ED8D/rosbags/fov90/200by200/logpolar/sigma_scale_";
+        ss << "/media/rui/0981-ED8D/rosbags_new/fov135/200by200/logpolar/sigma_scale_";
     }
     else
     {
-        ss << "/media/rui/0981-ED8D/rosbags/fov90/200by200/cartesian/sigma_scale_";
+        ss << "/media/rui/0981-ED8D/rosbags_new/fov135/200by200/cartesian/sigma_scale_";
     }
     if(sigma_scale_upper_bound>1000000.0)
     {
@@ -587,13 +587,13 @@ void EgoSphereManagerRos::insertCloudCallback(const foveated_stereo_ros::StereoD
 
     publishCovarianceMatrices();
 
-    if(resample)
+    /*if(resample)
     {
         ros::WallTime resample_time_before = ros::WallTime::now();
         ego_sphere->resample(acquisition_function);
         ros::WallTime resample_time_after = ros::WallTime::now();
         ROS_INFO_STREAM(" 7. resampling time: " <<  (resample_time_after - resample_time_before).toSec());
-    }
+    }*/
     /////////
     // ACT //
     /////////
@@ -770,7 +770,7 @@ void EgoSphereManagerRos::publishAll(const foveated_stereo_ros::StereoDataConstP
 
 
     foveated_stereo_ros::PointClouds ego_point_clouds_msg;
-    ego_point_clouds_msg.rgb_point_cloud=rgb_point_cloud_msg;
+    //ego_point_clouds_msg.rgb_point_cloud=rgb_point_cloud_msg;
     ego_point_clouds_msg.uncertainty_point_cloud=uncertainty_point_cloud_msg;
 
     foveated_stereo_ros::EgoData ego_data_msg;
@@ -782,8 +782,8 @@ void EgoSphereManagerRos::publishAll(const foveated_stereo_ros::StereoDataConstP
 
     pcl_ros::transformPointCloud(sensorToWorld, stereo_data->point_clouds.uncertainty_point_cloud, sensor_uncertainty_point_cloud_msg_world);
 
-    ego_data_msg.sensor_point_clouds.rgb_point_cloud=sensor_rgb_point_cloud_msg_world;
-    ego_data_msg.sensor_point_clouds.uncertainty_point_cloud=sensor_uncertainty_point_cloud_msg_world;
+    //ego_data_msg.sensor_point_clouds.rgb_point_cloud=sensor_rgb_point_cloud_msg_world;
+    //ego_data_msg.sensor_point_clouds.uncertainty_point_cloud=sensor_uncertainty_point_cloud_msg_world;
     ego_data_msg.ego_point_clouds=ego_point_clouds_msg;
 
     Eigen::Vector3d current_fixation_point_3d=ego_sphere->structure[current_fixation_point_index]->sensory_data.position.mean;
