@@ -123,7 +123,7 @@ add_dependencies(peripheral_foveal_stereo_ros_node foveated_stereo_ros_gencpp)
 
 
 ## Declare a cpp executable
-add_executable(ego_sphere_manager_ros_node src/EgoSphereManagerRos.cpp src/DecisionMaking.cpp src/ExpectedImprovement.cpp src/UpperConfidenceBound.cpp src/AcquisitionFunction.cpp)
+add_executable(ego_sphere_manager_ros_node src/EgoSphereManagerRos.cpp src/DecisionMaking.cpp src/ExpectedImprovement.cpp src/ProbabilityOfImprovement.cpp src/UpperConfidenceBound.cpp src/AcquisitionFunction.cpp)
 
 ## Specify libraries to link a library or executable target against
 target_link_libraries(ego_sphere_manager_ros_node

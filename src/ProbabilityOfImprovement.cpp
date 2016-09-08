@@ -1,9 +1,9 @@
-#include "ExpectedImprovement.h"
+#include "ProbabilityOfImprovement.h"
 
-ExpectedImprovement::ExpectedImprovement()
+ProbabilityOfImprovement::ProbabilityOfImprovement()
 {}
 
-int ExpectedImprovement::getArgMax(const std::vector<double> & means_, const std::vector<double> & standard_deviation_)
+int ProbabilityOfImprovement::getArgMax(const std::vector<double> & means_, const std::vector<double> & standard_deviation_)
 {
     double max_value=*std::max_element(means_.begin(),means_.end());
 
@@ -22,7 +22,7 @@ int ExpectedImprovement::getArgMax(const std::vector<double> & means_, const std
     return argmax;
 }
 
-double ExpectedImprovement::getValue(const double & mean_, const double & standard_deviation_, const double & best_value_)
+double ProbabilityOfImprovement::getValue(const double & mean_, const double & standard_deviation_, const double & best_value_)
 {
     // standard normal distribution object:
     //std::cout << "standard_deviation_:"<< standard_deviation_ << std::endl;
@@ -38,27 +38,14 @@ double ExpectedImprovement::getValue(const double & mean_, const double & standa
     //double cumulative=boost::math::cdf(normal_dist, 0)-boost::math::cdf(normal_dist, best_value_);
     double cumulative=boost::math::cdf(complement(normal_dist, best_value_));
 
-    double prob;
 
-    // points should always be negative
-    if(mean_>0||best_value_>0)
-    {
-        prob=0;
-    }
-    else
-    {
-        //std::cout << boost::math::pdf(normal_dist,best_value_) << std::endl;
-        //prob=boost::math::pdf(normal_dist,best_value_)/cumulative;
-        prob=boost::math::pdf(normal_dist,best_value_);
-
-    }
 
     //std::cout <<"prob:"<<prob<< std::endl;
-    //std::cout <<"cumulative:"<<cumulative<< std::endl;
+    std::cout <<"cumulative:"<<cumulative<< std::endl;
 
-    double expected_improvement= (best_value_-mean_)*cumulative + standard_deviation_*prob;
+    double probability_of_improvement=cumulative;
     //std::cout << "expected imp:"<<expected_improvement<<std::endl;
-    return expected_improvement;
+    return probability_of_improvement;
 }
 
 

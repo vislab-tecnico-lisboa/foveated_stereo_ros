@@ -21,5 +21,7 @@ int UpperConfidenceBound::getArgMax(const std::vector<double> & means_, const st
 
 double UpperConfidenceBound::getValue(const double & mean_, const double & standard_deviation_)
 {
+    //return scale*standard_deviation_;
+
     return mean_+scale*standard_deviation_;
 }

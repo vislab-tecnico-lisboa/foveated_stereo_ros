@@ -133,7 +133,7 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     }
     else
     {
-        acquisition_function=boost::shared_ptr<ExpectedImprovement> (new ExpectedImprovement());
+        acquisition_function=boost::shared_ptr<ProbabilityOfImprovement> (new ProbabilityOfImprovement());
     }
     ac.waitForServer();
 
@@ -292,11 +292,11 @@ EgoSphereManagerRos::EgoSphereManagerRos(ros::NodeHandle & nh_, ros::NodeHandle 
     {
         if(logpolar_)
         {
-            ss << "/media/rui/0981-ED8D/rosbags/fov135/200by200/logpolar/ei";
+            ss << "/media/rui/0981-ED8D/rosbags/fov135/200by200/logpolar/pi";
         }
         else
         {
-            ss << "/media/rui/0981-ED8D/rosbags/fov135/200by200/cartesian/ei";
+            ss << "/media/rui/0981-ED8D/rosbags/fov135/200by200/cartesian/pi";
         }
     }
 
@@ -809,7 +809,7 @@ void EgoSphereManagerRos::publishAll(const foveated_stereo_ros::StereoDataConstP
 
 
     Eigen::Vector4f fixation_point_world=(egoToWorld)*current_fixation_point.cast<float>();
-    ROS_INFO_STREAM("CURRENT_FIXATION_POINT: "<< fixation_point_world.transpose());
+    ROS_ERROR_STREAM("CURRENT_FIXATION_POINT: "<< fixation_point_world.transpose());
 
     geometry_msgs::PointStamped fixation_point_world_msg;
     fixation_point_world_msg.header.frame_id=world_frame_id;
