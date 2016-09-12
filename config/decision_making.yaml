@@ -1,5 +1,5 @@
 active_vision: true
-sigma_scale_upper_bound: 0.01
+sigma_scale_upper_bound: 0
 perturb_standard_deviation: [0.05, 0.05, 0.05]
 fixation_point_error_tolerance: 0.0005
 gaze_timeout: 6
