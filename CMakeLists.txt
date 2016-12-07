@@ -136,7 +136,6 @@ target_link_libraries(ego_sphere_manager_ros_node
 add_dependencies(ego_sphere_manager_ros_node foveated_stereo_ros_gencpp)
 
 
-add_executable(testiculo src/testiculo.cpp src/ExpectedImprovement.cpp src/AcquisitionFunction.cpp)
 
 
 #####################
