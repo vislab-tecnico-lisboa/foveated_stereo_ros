@@ -456,7 +456,7 @@ public:
             {
                 //if(isnan(informations_determinants.at<double>(r,c))||isnan(log(informations_determinants.at<double>(r,c)))||log(informations_determinants.at<double>(r,c))<information_lower_bound)
 
-                if(isnan(informations_determinants.at<double>(r,c))||isnan(log(informations_determinants.at<double>(r,c))))
+                if(std::isnan(informations_determinants.at<double>(r,c))||std::isnan(log(informations_determinants.at<double>(r,c))))
                     continue;
                 foveated_stereo_ros::Covariance covariance_msg;
                 foveated_stereo_ros::Information information_msg;
@@ -522,7 +522,7 @@ public:
             for(int c=0; c<sdd.information_3d[r].size();c=c+jump)
                 //for(int c=ignore_border_left; c<sdd.information_3d[r].size();c=c+jump)
             {
-                if(isnan(informations_determinants.at<double>(r,c))||isnan(log(informations_determinants.at<double>(r,c))))
+                if(std::isnan(informations_determinants.at<double>(r,c))||std::isnan(log(informations_determinants.at<double>(r,c))))
 
                     //if(isnan(informations_determinants.at<double>(r,c))||isnan(log(informations_determinants.at<double>(r,c)))||log(informations_determinants.at<double>(r,c))<information_lower_bound)
                 {

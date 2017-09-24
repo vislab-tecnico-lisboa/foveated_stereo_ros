@@ -18,7 +18,7 @@ int ExpectedImprovement::getArgMax(const std::vector<double> & means_, const std
             argmax=i;
         }
     }
-    std::cout << "max: "<< max <<std::endl;
+    //std::cout << "max: "<< max <<std::endl;
     return argmax;
 }
 

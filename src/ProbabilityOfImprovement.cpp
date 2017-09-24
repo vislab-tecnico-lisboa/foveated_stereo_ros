@@ -18,7 +18,7 @@ int ProbabilityOfImprovement::getArgMax(const std::vector<double> & means_, cons
             argmax=i;
         }
     }
-    std::cout << "max: "<< max <<std::endl;
+    //std::cout << "max: "<< max <<std::endl;
     return argmax;
 }
 
@@ -41,7 +41,7 @@ double ProbabilityOfImprovement::getValue(const double & mean_, const double & s
 
 
     //std::cout <<"prob:"<<prob<< std::endl;
-    std::cout <<"cumulative:"<<cumulative<< std::endl;
+    //std::cout <<"cumulative:"<<cumulative<< std::endl;
 
     double probability_of_improvement=cumulative;
     //std::cout << "expected imp:"<<expected_improvement<<std::endl;

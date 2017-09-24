@@ -35,6 +35,7 @@ find_package(catkin REQUIRED COMPONENTS
 find_package(PCL)
 find_package(OpenCV REQUIRED)
 #find_package(CUDA)
+add_compile_options(-std=c++11)
 
 add_message_files(
   FILES

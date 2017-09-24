@@ -21,7 +21,7 @@ int DecisionMaking::getFixationPoint(const double & sensory_filtering_radius)
     {
         // Linearize 1/sqrt(x*x + y*y + z*z)
         double mean=ego_sphere->structure[i]->sensory_data.position.mean.norm();
-        if(isnan(mean))
+        if(std::isnan(mean))
         {
             ROS_FATAL("ESTA MAL!!!!");
             continue;
@@ -36,7 +36,7 @@ int DecisionMaking::getFixationPoint(const double & sensory_filtering_radius)
 
         double sigma=sqrt( jacobian.transpose()*ego_sphere->structure[i]->sensory_data.position.information.inverse()*jacobian );
 
-        if(isnan(sigma))
+        if(std::isnan(sigma))
         {
             continue;
         }

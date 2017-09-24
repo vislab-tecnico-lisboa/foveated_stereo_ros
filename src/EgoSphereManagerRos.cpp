@@ -825,7 +825,7 @@ void EgoSphereManagerRos::publishAll(const foveated_stereo_ros::StereoDataConstP
     for(pcl::PointCloud<pcl::PointXYZI>::iterator pcl_it = point_cloud_uncertainty.begin(); pcl_it != point_cloud_uncertainty.end(); ++pcl_it)
     {
         double uncert=log((double)pcl_it->intensity);
-        if(isinf(uncert)||isnan(uncert))
+        if(std::isinf(uncert)||std::isnan(uncert))
         {
             continue;
         }
