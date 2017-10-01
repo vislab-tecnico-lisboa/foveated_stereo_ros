@@ -137,7 +137,13 @@ target_link_libraries(ego_sphere_manager_ros_node
 add_dependencies(ego_sphere_manager_ros_node foveated_stereo_ros_gencpp)
 
 
-
+add_executable(teste src/teste.cpp)
+## Specify libraries to link a library or executable target against
+target_link_libraries(teste
+   ${PCL_LIBRARIES}
+   ${catkin_LIBRARIES}
+   ${OpenCV_LIBRARIES}
+)
 
 #####################
 # NODELET LIBRARIES #
