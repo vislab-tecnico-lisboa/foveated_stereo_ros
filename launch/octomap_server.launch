@@ -16,8 +16,8 @@
 		<!-- maximum range to integrate (speedup!) -->
 		<param name="sensor_model/max_range" value="5.0" />
 
-		<param name="pointcloud_min_z" value="0.3" />
-		<param name="pointcloud_max_z" value="2.0" />
+		<param name="pointcloud_min_z" value="0.0" />
+		<param name="pointcloud_max_z" value="5.0" />
 		<!-- filter ground -->
 		<param name="filter_ground" value="true" />
 

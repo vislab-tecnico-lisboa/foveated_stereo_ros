@@ -117,8 +117,8 @@ add_executable(peripheral_foveal_stereo_ros_node src/PeripheralFovealStereoRos.c
 target_link_libraries(peripheral_foveal_stereo_ros_node
    ${PCL_LIBRARIES}
    ${catkin_LIBRARIES}
-   foveated_stereo_lib
    ${OpenCV_LIBRARIES}
+   foveated_stereo_lib
 )
 add_dependencies(peripheral_foveal_stereo_ros_node foveated_stereo_ros_gencpp)
 
