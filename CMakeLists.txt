@@ -75,11 +75,11 @@ include_directories(
   #${CUDA_INCLUDE_DIRS}
 )
 
-include_directories(lib/foveated_stereo/cpp/cpp)
+
 
 ## foveated stereo lib
-add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/lib/foveated_stereo/cpp)
-
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/lib/foveated_stereo)
+include_directories(lib/foveated_stereo/src)
 
 ####################
 # NODE EXECUTABLES #
